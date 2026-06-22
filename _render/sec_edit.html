@@ -1,0 +1,229 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>MRA SEC Editor</title>
+<style>
+  :root{ --bg:#16171c; --panel:#1f2128; --line:#2c2f38; --txt:#d7dae2; --accent:#5aa9ff; }
+  *{ box-sizing:border-box; }
+  body{ margin:0; font:13px/1.4 system-ui,Segoe UI,Arial,sans-serif; background:var(--bg); color:var(--txt); }
+  header{ display:flex; gap:10px; align-items:center; padding:8px 12px; background:var(--panel); border-bottom:1px solid var(--line); flex-wrap:wrap; }
+  header h1{ font-size:15px; margin:0; font-weight:600; }
+  header .sp{ flex:1; }
+  a{ color:var(--accent); }
+  button,select,input[type=file]{ background:#2a2d36; color:var(--txt); border:1px solid var(--line); border-radius:6px; padding:6px 10px; font-size:13px; }
+  button:hover{ border-color:var(--accent); cursor:pointer; }
+  .wrap{ display:flex; height:calc(100vh - 50px); }
+  .left{ flex:1; overflow:auto; padding:18px; display:flex; flex-direction:column; align-items:flex-start; gap:8px; }
+  canvas{ background:#000; border:1px solid var(--line); image-rendering:pixelated; cursor:crosshair; }
+  .hint{ font-size:11px; color:#9aa0ad; }
+  .right{ width:300px; flex:none; background:var(--panel); border-left:1px solid var(--line); overflow:auto; padding:10px; }
+  .tabs{ display:flex; gap:4px; margin-bottom:8px; }
+  .tabs button{ flex:1; }
+  .tabs button.on{ border-color:var(--accent); background:#143; color:#fff; }
+  .pal{ display:flex; flex-direction:column; gap:2px; }
+  .pi{ display:flex; gap:8px; align-items:center; padding:4px 6px; border:1px solid transparent; border-radius:5px; cursor:pointer; }
+  .pi:hover{ background:#2a2d36; }
+  .pi.on{ border-color:var(--accent); background:#1c2630; }
+  .sw{ width:18px; height:18px; border:1px solid #000; border-radius:3px; flex:none; }
+  .edgesel{ display:flex; gap:6px; margin:8px 0; }
+  .edgesel label{ font-size:12px; }
+  .small{ font-size:11px; color:#9aa0ad; margin:6px 0; }
+  .stat{ font-size:11px; color:#c2c7d2; margin-left:6px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>MRA SEC Editor</h1>
+  <label><input type="file" id="file" accept=".SEC,.sec" style="border:none;padding:0"></label>
+  <span id="fname" class="stat">no file - editing a blank sector</span>
+  <span class="sp"></span>
+  <span class="hint">zoom</span>
+  <button id="zout">-</button><span id="zlvl" class="stat">16</span><button id="zin">+</button>
+  <button id="newbtn">New blank</button>
+  <button id="save">Save .SEC</button>
+  <a href="sec_map.html" class="hint">&larr; world map builder</a>
+</header>
+<div class="wrap">
+  <div class="left">
+    <canvas id="cv"></canvas>
+    <div class="hint">left-drag paints the selected item; right-drag erases. Walls/doors sit on a cell's North or West edge.</div>
+    <div id="readout" class="hint"></div>
+  </div>
+  <div class="right">
+    <div class="tabs" id="tabs"></div>
+    <div id="edgewrap" class="edgesel" style="display:none">
+      edge:
+      <label><input type="radio" name="edge" value="N" checked> North</label>
+      <label><input type="radio" name="edge" value="W"> West</label>
+    </div>
+    <div id="paldesc" class="small"></div>
+    <div class="pal" id="pal"></div>
+  </div>
+</div>
+<script>
+const GRID=33, PLAY=32, CELL=6, SIZE=GRID*GRID*CELL;       // 6534 bytes
+let data=new Uint8Array(SIZE);                              // current sector
+let scale=16, filename='blank.SEC';
+
+// ---- verified palettes (SEC FILE FORMAT.md 13a / 13b) --------------------
+const TERRAIN=[
+  [0x00,'Void',[8,8,12]],[0x02,'No See Through',[40,40,48]],[0x03,'Veil of Darkness',[30,28,40]],
+  [0x04,'Go Sector Below',[90,80,140]],[0x05,'Go Sector Above',[140,120,90]],
+  [0x06,'Indoor Air',[60,64,78]],[0x07,'Outdoor Air',[70,90,110]],
+  [0x0f,'Shallow Water',[90,150,200]],[0x10,'Wood Panel Floor',[150,110,66]],
+  [0x11,'Light Wood Floor',[178,140,92]],[0x12,'Stone Floor',[132,132,138]],
+  [0x13,'Marble Floor',[198,198,204]],[0x14,'Grass',[54,122,50]],[0x15,'Deep Water',[40,78,170]],
+  [0x16,'Solid Wood Floor',[140,100,58]],[0x17,'Darkened Stone',[90,90,98]],
+  [0x18,'Dark Wood Panel',[96,70,44]],[0x19,'White Floor',[224,224,228]],
+  [0x1a,'Pub Floor',[170,150,100]],[0x1b,'Cave Stone',[110,108,116]],[0x1c,'Dirt',[150,118,78]],
+  [0x1d,'Refuse Hole',[60,48,40]],[0x1e,'Plowed Ground',[128,96,60]],
+  [0x21,'Blackened Marble',[44,44,52]],[0x22,'Blackened Wood',[52,42,34]],[0x23,'Marsh',[70,96,70]],
+  [0x24,'Shallow Swamp',[70,120,120]],[0x25,'Deep Swamp',[44,86,90]],[0x26,'Blue Sky Grass',[96,168,96]],
+  [0x30,'Stairs',[120,120,128]],[0x34,'Stairs Landing',[130,130,138]],
+  [0x3c,'Brick Floor',[150,70,56]],[0x3d,'Standing Water',[80,120,180]],[0x3e,'Moss',[70,110,60]],
+];
+const OBJECTS=[
+  [0x00,'(none)'],[0x01,'Teleportal'],[0x02,'Room Teleportal'],[0x03,'Instant Teleportal'],
+  [0x04,'Invisible Teleportal'],[0x05,'Special Function'],[0x06,'Marsh Fog'],[0x07,'Hole'],
+  [0x0e,'Counter N'],[0x0f,'Counter E'],[0x10,'Counter S'],[0x11,'Counter W'],
+  [0x12,'Table+Bench N'],[0x1a,'Bar N'],[0x1e,'Chair N'],[0x22,'Locker N'],
+  [0x31,'Desk N'],[0x37,'Bed (W wall)'],[0x39,'Throne N'],[0x3d,'Small Tree'],
+  [0x42,'Graffiti N'],[0x45,'Plaque'],[0x46,'Gravestone'],
+];
+const WALLS=[[0,'(none)'],[1,'Wall 1'],[2,'Wall 2'],[3,'Wall 3'],[4,'Wall 4'],[5,'Wall 5'],[6,'Wall 6'],[7,'Wall 7']];
+const DOORS=[[0,'(none)'],[1,'Wood (closed)'],[2,'Iron (closed)'],[3,'Black (closed)'],
+             [0x11,'Wood (open)'],[0x12,'Iron (open)'],[0x13,'Black (open)']];
+const DOOR_COLOR={1:[150,110,66],2:[150,150,160],3:[40,40,46],0x11:[170,130,80],0x12:[170,170,180],0x13:[60,60,70]};
+
+const TERRAIN_COLOR={}; TERRAIN.forEach(t=>TERRAIN_COLOR[t[0]]=t[2]);
+function terrColor(v){ if(TERRAIN_COLOR[v]) return TERRAIN_COLOR[v];
+  if(v>=0x30&&v<=0x34) return [120,120,128];
+  // stable HSV hash for unmapped values (matches sec_render.py)
+  const h=(v*0.137)%1, s=0.5, val=0.7, i=Math.floor(h*6), f=h*6-i;
+  const p=val*(1-s), q=val*(1-f*s), t=val*(1-(1-f)*s);
+  const [r,g,b]=[[val,t,p],[q,val,p],[p,val,t],[p,q,val],[t,p,val],[val,p,q]][i%6];
+  return [Math.round(r*255),Math.round(g*255),Math.round(b*255)]; }
+
+// ---- record helpers ------------------------------------------------------
+const off=(r,c)=>(r*GRID+c)*CELL;
+const walls=o=>data[o+2]|(data[o+3]<<8);
+function setWalls(o,v){ data[o+2]=v&0xff; data[o+3]=(v>>8)&0xff; }
+const northWall=o=>walls(o)&0x1f;
+const westWall =o=>(walls(o)>>5)&0x1f;
+const northDoor=o=>(walls(o)>>10)&0x0f;
+const westDoor =o=>(data[o+4]>>1)&0x0f;
+function setNorthWall(o,t){ setWalls(o,(walls(o)&~0x1f)|(t&0x1f)); }
+function setWestWall(o,t){ setWalls(o,(walls(o)&~(0x1f<<5))|((t&0x1f)<<5)); }
+function setNorthDoor(o,t){ setWalls(o,(walls(o)&~(0x0f<<10))|((t&0x0f)<<10)); }
+function setWestDoor(o,t){ data[o+4]=(data[o+4]&~(0x0f<<1))|((t&0x0f)<<1); }
+
+// ---- state ---------------------------------------------------------------
+let mode='terrain', sel={terrain:0x14, object:0x3d, wall:1, door:1}, edge='N';
+const cv=document.getElementById('cv'), ctx=cv.getContext('2d');
+function resize(){ cv.width=PLAY*scale; cv.height=PLAY*scale; draw(); }
+function draw(){
+  ctx.clearRect(0,0,cv.width,cv.height);
+  for(let r=0;r<PLAY;r++) for(let c=0;c<PLAY;c++){
+    const o=off(r,c), x=c*scale, y=r*scale;
+    const col=terrColor(data[o]); ctx.fillStyle=`rgb(${col[0]},${col[1]},${col[2]})`;
+    ctx.fillRect(x,y,scale,scale);
+    if(data[o+1]){ ctx.fillStyle='rgba(230,210,120,.95)';   // object marker
+      ctx.beginPath(); ctx.arc(x+scale/2,y+scale/2,Math.max(1.5,scale*0.16),0,7); ctx.fill(); }
+  }
+  // walls + doors on top (N and W edges)
+  const t=Math.max(2,Math.round(scale*0.18));
+  for(let r=0;r<PLAY;r++) for(let c=0;c<PLAY;c++){
+    const o=off(r,c), x=c*scale, y=r*scale;
+    if(northWall(o)){ ctx.fillStyle='#15131a'; ctx.fillRect(x,y,scale,t);
+      const d=northDoor(o); if(d&&DOOR_COLOR[d]){ const k=DOOR_COLOR[d]; ctx.fillStyle=`rgb(${k[0]},${k[1]},${k[2]})`; ctx.fillRect(x+scale*0.3,y,scale*0.4,t); } }
+    if(westWall(o)){ ctx.fillStyle='#15131a'; ctx.fillRect(x,y,t,scale);
+      const d=westDoor(o); if(d&&DOOR_COLOR[d]){ const k=DOOR_COLOR[d]; ctx.fillStyle=`rgb(${k[0]},${k[1]},${k[2]})`; ctx.fillRect(x,y+scale*0.3,t,scale*0.4); } }
+  }
+  // grid
+  ctx.strokeStyle='rgba(255,255,255,.05)'; ctx.lineWidth=1;
+  for(let i=0;i<=PLAY;i++){ ctx.beginPath(); ctx.moveTo(i*scale+.5,0); ctx.lineTo(i*scale+.5,cv.height); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(0,i*scale+.5); ctx.lineTo(cv.width,i*scale+.5); ctx.stroke(); }
+}
+
+// ---- painting ------------------------------------------------------------
+function cellAt(ev){ const b=cv.getBoundingClientRect();
+  const c=Math.floor((ev.clientX-b.left)/scale), r=Math.floor((ev.clientY-b.top)/scale);
+  return (r>=0&&r<PLAY&&c>=0&&c<PLAY)?[r,c]:null; }
+function paint(r,c,erase){
+  const o=off(r,c);
+  if(mode==='terrain') data[o]=erase?0:sel.terrain;
+  else if(mode==='object') data[o+1]=erase?0:sel.object;
+  else if(mode==='wall'){ const t=erase?0:sel.wall; edge==='N'?setNorthWall(o,t):setWestWall(o,t);
+    if(erase){ edge==='N'?setNorthDoor(o,0):setWestDoor(o,0); } }
+  else if(mode==='door'){ const t=erase?0:sel.door;
+    // door requires a wall on that edge
+    if(!erase){ if(edge==='N'&&!northWall(o)) setNorthWall(o,sel.wall||1);
+                if(edge==='W'&&!westWall(o)) setWestWall(o,sel.wall||1); }
+    edge==='N'?setNorthDoor(o,t):setWestDoor(o,t); }
+}
+let painting=false, eraseMode=false;
+cv.addEventListener('contextmenu',e=>e.preventDefault());
+cv.addEventListener('mousedown',e=>{ const p=cellAt(e); if(!p) return; painting=true; eraseMode=(e.button===2);
+  paint(p[0],p[1],eraseMode); draw(); });
+cv.addEventListener('mousemove',e=>{ const p=cellAt(e); if(p) showReadout(p[0],p[1]); if(painting&&p){ paint(p[0],p[1],eraseMode); draw(); } });
+window.addEventListener('mouseup',()=>painting=false);
+function showReadout(r,c){ const o=off(r,c);
+  document.getElementById('readout').textContent=
+    `cell r${r} c${c}  terrain=0x${data[o].toString(16)}  object=0x${data[o+1].toString(16)}  Nwall=${northWall(o)} Wwall=${westWall(o)} Ndoor=${northDoor(o)} Wdoor=${westDoor(o)} entity=${data[o+5]}`; }
+
+// ---- UI: tabs + palettes -------------------------------------------------
+const tabsEl=document.getElementById('tabs'), palEl=document.getElementById('pal'),
+      edgeWrap=document.getElementById('edgewrap'), palDesc=document.getElementById('paldesc');
+[['terrain','Terrain'],['wall','Wall'],['door','Door'],['object','Object']].forEach(([m,label])=>{
+  const b=document.createElement('button'); b.textContent=label; if(m===mode) b.classList.add('on');
+  b.onclick=()=>{ mode=m; [...tabsEl.children].forEach(x=>x.classList.remove('on')); b.classList.add('on');
+    edgeWrap.style.display=(m==='wall'||m==='door')?'flex':'none'; buildPalette(); };
+  tabsEl.appendChild(b);
+});
+document.querySelectorAll('input[name=edge]').forEach(r=>r.onchange=e=>edge=e.target.value);
+function buildPalette(){
+  palEl.innerHTML='';
+  const list = mode==='terrain'?TERRAIN.map(t=>[t[0],t[1],t[2]])
+            : mode==='object'?OBJECTS.map(o=>[o[0],o[1],null])
+            : mode==='wall'?WALLS.map(w=>[w[0],w[1],[24,22,28]])
+            : DOORS.map(d=>[d[0],d[1],DOOR_COLOR[d[0]]||[60,60,70]]);
+  palDesc.textContent = mode==='terrain'?'byte 0 - paint floor / ground'
+    : mode==='object'?'byte 1 - decorations & portals'
+    : mode==='wall'?'bytes 2-3 - wall on the chosen edge'
+    : 'door on chosen edge (auto-adds a wall if missing)';
+  list.forEach(([val,label,col])=>{
+    const pi=document.createElement('div'); pi.className='pi'; if(val===sel[mode]) pi.classList.add('on');
+    const sw=document.createElement('div'); sw.className='sw';
+    if(col){ const cc=mode==='terrain'?terrColor(val):col; sw.style.background=`rgb(${cc[0]},${cc[1]},${cc[2]})`; }
+    else sw.style.background='#333';
+    const nm=document.createElement('div'); nm.textContent=label+'  (0x'+val.toString(16)+')'; nm.style.fontSize='12px';
+    pi.appendChild(sw); pi.appendChild(nm);
+    pi.onclick=()=>{ sel[mode]=val; [...palEl.children].forEach(x=>x.classList.remove('on')); pi.classList.add('on'); };
+    palEl.appendChild(pi);
+  });
+}
+buildPalette();
+
+// ---- file load / save / new ----------------------------------------------
+document.getElementById('file').addEventListener('change',e=>{
+  const f=e.target.files[0]; if(!f) return;
+  const rd=new FileReader();
+  rd.onload=()=>{ const buf=new Uint8Array(rd.result);
+    if(buf.length!==SIZE){ alert('Expected '+SIZE+' bytes (33x33x6), got '+buf.length+'. Not a valid .SEC.'); return; }
+    data=buf; filename=f.name; document.getElementById('fname').textContent=filename; draw(); };
+  rd.readAsArrayBuffer(f);
+});
+document.getElementById('newbtn').onclick=()=>{ data=new Uint8Array(SIZE); filename='blank.SEC';
+  document.getElementById('fname').textContent='no file - editing a blank sector'; draw(); };
+document.getElementById('save').onclick=()=>{
+  const blob=new Blob([data],{type:'application/octet-stream'});
+  const a=document.createElement('a'); a.href=URL.createObjectURL(blob);
+  a.download=filename.toLowerCase().endsWith('.sec')?filename:filename+'.SEC'; a.click();
+};
+document.getElementById('zin').onclick=()=>{ scale=Math.min(28,scale+2); document.getElementById('zlvl').textContent=scale; resize(); };
+document.getElementById('zout').onclick=()=>{ scale=Math.max(8,scale-2); document.getElementById('zlvl').textContent=scale; resize(); };
+resize();
+</script>
+</body>
+</html>
