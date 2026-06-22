@@ -87,6 +87,7 @@
   <label class="legend"><input type="checkbox" id="guides" checked> guide names</label>
   <label class="legend"><input type="checkbox" id="labels"> labels on placed</label>
   <span id="sync" class="legend" title="click to configure sharing" style="cursor:pointer">local only</span>
+  <button id="seed" title="auto-fill empty named cells with their best-match tile (draft, reversible)">Seed empty</button>
   <button id="export">Export</button>
 </header>
 <div id="cfgbar" style="display:none; padding:8px 12px; background:#202a3a; border-bottom:1px solid var(--line); font-size:12px;">
@@ -426,6 +427,29 @@ document.getElementById('export').addEventListener('click',()=>{
   }).sort((a,b)=>a.mp_y-b.mp_y||a.mp_x-b.mp_x||a.layer.localeCompare(b.layer));
   const blob=new Blob([JSON.stringify({area_placements:out},null,1)],{type:'application/json'});
   const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='area_placements.json'; a.click();
+});
+
+// draft seeder: fill empty named cells with their best-match suggestion.
+// Distinct file per cell (greedy) so regions aren't filled with one repeated
+// tile. Skips cells already holding a core or placed tile. Fully reversible.
+document.getElementById('seed').addEventListener('click',()=>{
+  const cells=Object.entries(window.SUGGESTIONS||{}).filter(([k,s])=>s.candidates&&s.candidates.length)
+    .sort((a,b)=>{const A=a[0].split(',').map(Number),B=b[0].split(',').map(Number);return A[1]-B[1]||A[0]-B[0];});
+  if(!cells.length){ alert('No suggestions loaded.'); return; }
+  if(!confirm('Auto-fill empty named cells with their best-match tile (draft)?\n\nThis writes to the shared map. Every cell stays editable - click to replace, right-click to clear.')) return;
+  const used=new Set(Object.values(placements).map(p=>p.filename));
+  let n=0;
+  cells.forEach(([key,s])=>{
+    const [ew,ns]=key.split(',').map(Number), lay='b', ck=ew+','+ns+','+lay;
+    if(placements[ck]||coordByCell[ck]) return;
+    const pick=s.candidates.find(c=>!used.has(c.filename))||s.candidates[0];
+    if(!pick) return;
+    used.add(pick.filename);
+    const t=AREA_BY_NAME[pick.filename];
+    setPlacement(ew,ns,lay,{filename:pick.filename,png:t?t.png:('tiles/'+pick.filename+'.png'),source:'area'});
+    n++;
+  });
+  alert('Seeded '+n+' cells (draft). Refine by clicking any cell.');
 });
 </script>
 </body>
