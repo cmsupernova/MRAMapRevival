@@ -1,0 +1,61 @@
+# MRA game assets & binaries (not part of this tooling, large/binary)
+*.256
+*.zip
+*.exe
+*.EXE
+*.MR0
+*.HLP
+*.SEC
+*.gif
+*.wav
+*.mid
+*.bmp
+*.dll
+*.ico
+
+# Extracted / bundled game data (regenerable from the zips/exe)
+DUMP/
+IHELP/
+IHELP2/
+IHELP3/
+__MACOSX/
+scb/
+WINMRA/
+_maps_unzip/
+_mapsall_unzip/
+_winmra_dump/
+SEC mapping/
+Tekken/pics/
+
+# Derived / regenerable tool output
+_render/tiles/
+*.png
+
+# More binaries / IDA / backups / game data
+*.i64
+*.bak
+*.TXX
+*.TOC
+*.000
+*.CFG
+*.INI
+*.pyc
+__pycache__/
+PAL256
+TITLEC
+MR.TOC
+
+# Game text dumps (we keep MAPS.TXT only)
+MANUAL.TXT
+HELP.TXT
+NPQ.TXT
+NPQPRIZE.TXT
+MRADUMP.TXT
+README.TXT
+ogn_protocol_log.txt
+_commit_msg.txt
+*.log
+
+# OS / editor cruft
+Thumbs.db
+.DS_Store

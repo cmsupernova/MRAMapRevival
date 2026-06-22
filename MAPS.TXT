@@ -1,0 +1,67 @@
+/*******************************  MRA MAPS  ********************************/
+
+/*****************************	MAP OF HAVEN  ******************************/
+
+       ######################################################################
+  U V  #	+----------+
+  N I  #	|   Holy   |
+  D L  #	|   Store  |
+  E L  #	|	   |   +----------+
+  A A  #	+----------+   |  Magic   |
+  D G  #		       |  Store   |
+    E  #		       |	  |	     V I L L A G E   O F
+   #####		       +----------+
+   #	      ########				     S A N C T U A R Y
+   #	      #Druids#######   #############
+   #   ########      |	   #   #  |Witche| #
+   #   #Priest+----------+	  |s	 | #
+   #   #s     |Church of |	  +------+ #
+   #   #----+-+the Resure|	  |Healer| #
+   #   #    | |ction	 |	  |s	 | #
+   #   #    | +----------+	  +------+ ######
+   #   #    +--+-----------+   +-------+-----+	#
+####   #       |	   |   |       |     |	#
+To Verb#  -----+   Haven   |   | Quest |Haven|	###################
+onic   # Haven |    Pub    |   | Center| LOR |	|Monks|Merce|Warri#
+########  Inn  |	   |   |       |     |	|     |nries|ors  #  H	E
+   K   #-------+-----------+   +-------+-----+	+-----+-----+-----#  A	A
+   O	   * <== YOU START HERE 				     V	S
+   B   #----------+----    ----+ +-----+-----+-----+-----+  +-----#  E	T
+   O   #  Haven   |	       | |Wizar|Sorce|Mysti|Sages|  |Knigh#  N
+   L   #  Arena   |   Market   | |ds   |rers |cs   |	 |  |ts   #
+   D   # (closed) |   Place    | +-----+-----+-----+-----+  +-----#
+   S   #-----+----+	       +-----+-----+ |Thiev|Endur|  +-----#
+       #     |Bank|	       |Ninja#Assas| |es   |ance |  |Range#
+       #     |	  |	       |     #sins | +-----+Trnrs|  |rs   #
+       ################    ######################  +-----+  +-----#
+		       DOCK			###################
+
+
+		 M  I  S  T  Y	   R  I  V  E  R
+
+
+/***************************  AREAS AROUND HAVEN  **************************/
+
+			 |	   |		  |
+			 |  KRELL  |	HAPPY	  |
+			 |	   |	VALLEY	  |
+			 |	   |   (Uswick)   |
+			 +---------+	     +----|----+----+----+
+			 |  ORCS   |	     |ANT |    |    |	 |
+	       +---------+----+----+---------|HILL+----+----+----+
+	       |	 |UNDV|    |Sanctuary|MTN |    |  Salazad|
+	       |  GOBS	 |----+    +----+----+----+----+---------+
+	       |	 |KOBS|  Haven	|HavE|	     Misty River
+     +---------+---------+----+---------+----+	  +--------------+
+     | OMRUINS | Verbonic|   Misty River	  |
+     +---------+---------+    +-------------------+
+     | SWAMP   | River Styx   |
++----+----+----+    +----+    |
+|	  |	    |	 |    |
+| Clysmort|    +----+	 |    |
+|	  |    |Greenwood|
++---------+    +---------+
+
+Haven, Sanctuary, Salazad, Uswick, Verbonic and Clysmort are towns.
+Greenwood is where the guild halls are located. The remaining areas
+are hostile.
