@@ -273,10 +273,11 @@ document.getElementById('guides').addEventListener('change',e=>{
   document.querySelectorAll('.guide').forEach(g=>g.style.display=e.target.checked?'flex':'none');});
 
 // ---- shared persistence (Supabase) ---------------------------------------
-// Bake URL/key here for a one-click community build, or leave blank and let
-// users paste them into the config bar (saved per-browser in localStorage).
-const SUPABASE_URL = "";
-const SUPABASE_ANON_KEY = "";
+// Baked-in community project (publishable key is safe for client use; RLS
+// limits it to the placements table). Users can still override via the config
+// bar (saved per-browser in localStorage).
+const SUPABASE_URL = "https://msnxqnqqpdwamzfbwskm.supabase.co";
+const SUPABASE_ANON_KEY = "sb_publishable_MjRmbztlv0wlOQXpTvoBlQ__BJobsxC";
 const TABLE = "placements";
 
 const DB = {

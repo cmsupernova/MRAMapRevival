@@ -27,9 +27,11 @@ _winmra_dump/
 SEC mapping/
 Tekken/pics/
 
-# Derived / regenerable tool output
-_render/tiles/
+# Stray PNGs (analysis renders) stay ignored, but the tool's rendered tiles
+# ARE tracked so the map tool works when cloned / hosted.
 *.png
+!_render/tiles/
+!_render/tiles/*.png
 
 # More binaries / IDA / backups / game data
 *.i64
