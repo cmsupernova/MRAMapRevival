@@ -55,10 +55,16 @@
   <button id="rowminus">-row</button><button id="rowplus">+row</button>
   <span class="zoom"><button id="zout">-</button><span id="zlvl" class="legend">64</span><button id="zin">+</button></span>
   <span class="sp"></span>
+  <span id="sync" class="legend" style="cursor:pointer" title="shared sync status - click to set handle">local only</span>
   <button id="importbtn">Import</button><input id="importfile" type="file" accept=".json" style="display:none">
   <button id="export">Export links</button>
   <a href="sec_map.html" class="legend">world map</a> <a href="sec_edit.html" class="legend">SEC editor</a>
 </header>
+<div id="cfgbar" style="display:none; padding:8px 12px; background:#11131a; border-bottom:1px solid var(--line);">
+  <span class="legend">handle</span> <input id="cfgname" style="width:140px" placeholder="your name">
+  <button id="cfgsave">Connect</button>
+  <span class="legend">&nbsp;Shares interiors live via the same community project as the world map.</span>
+</div>
 <div class="wrap">
   <div class="gridpane"><div id="grid" class="grid"></div>
     <div class="legend" id="status" style="margin-top:10px"></div></div>
@@ -69,6 +75,7 @@
   </div>
 </div>
 <div id="pop"></div>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="data.js"></script>
 <script>
 const FLOORS=['c','b','a'], FLOOR_LABEL={c:'Upper (c)',b:'Ground (b)',a:'Under (a)'};
@@ -85,7 +92,9 @@ const PREFIXES=Object.keys(groups).filter(k=>groups[k].length>=2).sort();
 function key(lx,ly){ return lx+','+ly+','+layer; }
 function curCells(){ return state[cname]||(state[cname]={}); }
 function saveLS(){ if(cname) localStorage.setItem('mra_cluster_'+cname, JSON.stringify(state[cname])); }
-function loadLS(){ if(!cname) return; const s=localStorage.getItem('mra_cluster_'+cname); state[cname]=s?JSON.parse(s):{}; }
+function loadLS(){ if(!cname) return;
+  if(typeof DB!=='undefined' && DB.ready){ state[cname]=state[cname]||{}; return; } // DB is authoritative
+  const s=localStorage.getItem('mra_cluster_'+cname); state[cname]=s?JSON.parse(s):{}; }
 
 // ---- grid ----
 const grid=document.getElementById('grid');
@@ -114,8 +123,17 @@ function renderCell(lx,ly,c){
     const x=document.createElement('div'); x.className='x'; x.textContent='x';
     x.onclick=ev=>{ev.stopPropagation();clearCell(lx,ly);}; c.appendChild(x); }
 }
-function place(lx,ly,fn){ curCells()[key(lx,ly)]=fn; renderCell(lx,ly); saveLS(); markUsed(); status(); }
-function clearCell(lx,ly){ delete curCells()[key(lx,ly)]; renderCell(lx,ly); saveLS(); markUsed(); status(); }
+function place(lx,ly,fn){ curCells()[key(lx,ly)]=fn; renderCell(lx,ly); saveLS(); markUsed(); status(); DB.upsert(cname,lx,ly,layer,fn); }
+function clearCell(lx,ly){ delete curCells()[key(lx,ly)]; renderCell(lx,ly); saveLS(); markUsed(); status(); DB.remove(cname,lx,ly,layer); }
+
+// apply a remote change (id "cluster:lx,ly,layer") without re-broadcasting
+function applyRemote(id, row){
+  const [clu, rest] = id.split(':'); if(!rest) return;
+  const [lx,ly,lay] = rest.split(','); const k = lx+','+ly+','+lay;
+  state[clu] = state[clu] || {};
+  if(row) state[clu][k] = row.filename; else delete state[clu][k];
+  if(clu===cname && lay===layer){ renderCell(+lx,+ly); markUsed(); status(); }
+}
 
 // ---- floors ----
 const floorsEl=document.getElementById('floors');
@@ -222,7 +240,48 @@ document.getElementById('colminus').onclick=()=>{cols=Math.max(1,cols-1);buildGr
 document.getElementById('rowplus').onclick=()=>{rows++;buildGrid();};
 document.getElementById('rowminus').onclick=()=>{rows=Math.max(1,rows-1);buildGrid();};
 
-buildPalette(); buildGrid(); status();
+// ---- shared persistence (Supabase) - same community project as world map ----
+const SUPABASE_URL = "https://msnxqnqqpdwamzfbwskm.supabase.co";
+const SUPABASE_ANON_KEY = "sb_publishable_MjRmbztlv0wlOQXpTvoBlQ__BJobsxC";
+const TABLE = "cluster_cells";
+const DB = {
+  client:null, ready:false, name:"anon",
+  cfg(){ return {
+    url: localStorage.getItem('mra_url') || SUPABASE_URL,
+    key: localStorage.getItem('mra_key') || SUPABASE_ANON_KEY,
+    name: localStorage.getItem('mra_name') || 'anon' }; },
+  st(t){ const el=document.getElementById('sync'); el.textContent=t; el.style.color=this.ready?'#67d67d':'#9aa0ad'; },
+  async connect(){
+    const c=this.cfg(); this.name=c.name;
+    if(!c.url||!c.key||!window.supabase){ this.ready=false; this.st('local only'); return; }
+    try{
+      this.client=window.supabase.createClient(c.url,c.key,{realtime:{params:{eventsPerSecond:5}}});
+      const {data,error}=await this.client.from(TABLE).select('*');
+      if(error) throw error;
+      (data||[]).forEach(r=>applyRemote(r.id, r));
+      this.client.channel('rt-'+TABLE).on('postgres_changes',{event:'*',schema:'public',table:TABLE},p=>{
+        if(p.eventType==='DELETE') applyRemote(p.old.id, null); else applyRemote(p.new.id, p.new);
+      }).subscribe();
+      this.ready=true; this.st('shared: '+this.name+' ('+(data?data.length:0)+' cells)');
+      if(cname){ buildGrid(); markUsed(); status(); }
+    }catch(e){ this.ready=false; this.st('connect failed'); console.error(e); }
+  },
+  upsert(clu,lx,ly,lay,filename){ if(!this.ready||!clu) return;
+    this.client.from(TABLE).upsert({id:clu+':'+lx+','+ly+','+lay, cluster:clu, lx, ly, layer:lay,
+      filename, updated_by:this.name, updated_at:new Date().toISOString()})
+      .then(({error})=>{ if(error) console.error(error); }); },
+  remove(clu,lx,ly,lay){ if(!this.ready||!clu) return;
+    this.client.from(TABLE).delete().eq('id',clu+':'+lx+','+ly+','+lay)
+      .then(({error})=>{ if(error) console.error(error); }); },
+};
+const syncEl=document.getElementById('sync'), cfgbar=document.getElementById('cfgbar');
+syncEl.onclick=()=>{ cfgbar.style.display=cfgbar.style.display==='none'?'block':'none';
+  document.getElementById('cfgname').value=localStorage.getItem('mra_name')||''; };
+document.getElementById('cfgsave').onclick=()=>{
+  localStorage.setItem('mra_name',document.getElementById('cfgname').value.trim()||'anon');
+  cfgbar.style.display='none'; DB.connect(); };
+
+buildPalette(); buildGrid(); status(); DB.connect();
 </script>
 </body>
 </html>
