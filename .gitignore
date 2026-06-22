@@ -33,6 +33,9 @@ Tekken/pics/
 !_render/tiles/
 !_render/tiles/*.png
 
+# Live-compiled world map (regenerated from Supabase by build_world_map.py)
+world_map_built.json
+
 # More binaries / IDA / backups / game data
 *.i64
 *.bak
