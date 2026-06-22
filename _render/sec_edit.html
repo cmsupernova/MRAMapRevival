@@ -61,6 +61,7 @@
     <div class="pal" id="pal"></div>
   </div>
 </div>
+<script src="tileset.js"></script>
 <script>
 const GRID=33, PLAY=32, CELL=6, SIZE=GRID*GRID*CELL;       // 6534 bytes
 let data=new Uint8Array(SIZE);                              // current sector
@@ -96,6 +97,12 @@ const DOORS=[[0,'(none)'],[1,'Wood (closed)'],[2,'Iron (closed)'],[3,'Black (clo
              [0x11,'Wood (open)'],[0x12,'Iron (open)'],[0x13,'Black (open)']];
 const DOOR_COLOR={1:[150,110,66],2:[150,150,160],3:[40,40,46],0x11:[170,130,80],0x12:[170,170,180],0x13:[60,60,70]};
 
+// real 8x8 terrain sprites mined from the detailed renders (extract_tileset.py)
+const SPRITES={}; let spritesReady=false;
+if(window.TILESET){ const keys=Object.keys(window.TILESET); let left=keys.length;
+  keys.forEach(k=>{ const im=new Image(); im.onload=()=>{ if(--left<=0){spritesReady=true;draw();} };
+    im.src=window.TILESET[k]; SPRITES[+k]=im; }); }
+
 const TERRAIN_COLOR={}; TERRAIN.forEach(t=>TERRAIN_COLOR[t[0]]=t[2]);
 function terrColor(v){ if(TERRAIN_COLOR[v]) return TERRAIN_COLOR[v];
   if(v>=0x30&&v<=0x34) return [120,120,128];
@@ -124,10 +131,11 @@ const cv=document.getElementById('cv'), ctx=cv.getContext('2d');
 function resize(){ cv.width=PLAY*scale; cv.height=PLAY*scale; draw(); }
 function draw(){
   ctx.clearRect(0,0,cv.width,cv.height);
+  ctx.imageSmoothingEnabled=false;
   for(let r=0;r<PLAY;r++) for(let c=0;c<PLAY;c++){
-    const o=off(r,c), x=c*scale, y=r*scale;
-    const col=terrColor(data[o]); ctx.fillStyle=`rgb(${col[0]},${col[1]},${col[2]})`;
-    ctx.fillRect(x,y,scale,scale);
+    const o=off(r,c), x=c*scale, y=r*scale, spr=SPRITES[data[o]];
+    if(spr && spr.complete && spr.naturalWidth){ ctx.drawImage(spr,x,y,scale,scale); }
+    else { const col=terrColor(data[o]); ctx.fillStyle=`rgb(${col[0]},${col[1]},${col[2]})`; ctx.fillRect(x,y,scale,scale); }
     if(data[o+1]){ ctx.fillStyle='rgba(230,210,120,.95)';   // object marker
       ctx.beginPath(); ctx.arc(x+scale/2,y+scale/2,Math.max(1.5,scale*0.16),0,7); ctx.fill(); }
   }
@@ -195,7 +203,10 @@ function buildPalette(){
   list.forEach(([val,label,col])=>{
     const pi=document.createElement('div'); pi.className='pi'; if(val===sel[mode]) pi.classList.add('on');
     const sw=document.createElement('div'); sw.className='sw';
-    if(col){ const cc=mode==='terrain'?terrColor(val):col; sw.style.background=`rgb(${cc[0]},${cc[1]},${cc[2]})`; }
+    if(mode==='terrain' && window.TILESET && window.TILESET[val]){
+      sw.style.backgroundImage=`url(${window.TILESET[val]})`; sw.style.backgroundSize='cover';
+      sw.style.imageRendering='pixelated';
+    } else if(col){ const cc=mode==='terrain'?terrColor(val):col; sw.style.background=`rgb(${cc[0]},${cc[1]},${cc[2]})`; }
     else sw.style.background='#333';
     const nm=document.createElement('div'); nm.textContent=label+'  (0x'+val.toString(16)+')'; nm.style.fontSize='12px';
     pi.appendChild(sw); pi.appendChild(nm);
