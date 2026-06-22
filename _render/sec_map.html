@@ -19,8 +19,12 @@
   .region { font-size:11px; color:#8b93a3; margin:10px 0 4px; border-bottom:1px solid var(--line); padding-bottom:2px; }
   .tiles { display:grid; grid-template-columns:repeat(4,1fr); gap:4px; }
   .tile { width:100%; aspect-ratio:1; image-rendering:pixelated; border:1px solid var(--line); border-radius:3px; cursor:grab; background:#000; }
-  .tile.used { opacity:.28; }
   .tilewrap { position:relative; }
+  .tilewrap.used .tile { opacity:.30; border-color:#3a7d3a; }
+  .tilewrap.used .nm { color:#67d67d; }
+  .tilewrap.used::after { content:'\2713'; position:absolute; top:1px; right:1px; z-index:3;
+    font-size:9px; line-height:14px; width:14px; height:14px; text-align:center;
+    color:#0b1f0e; background:#67d67d; border-radius:50%; font-weight:700; }
   .tilewrap .nm { font-size:8px; color:#7e8696; text-align:center; overflow:hidden; white-space:nowrap; text-overflow:ellipsis; }
   /* grid */
   .grid { display:grid; gap:1px; background:var(--line); border:1px solid var(--line); width:max-content; }
@@ -41,18 +45,33 @@
   .zoom button { padding:4px 9px; font-weight:600; }
   .legend { font-size:11px; color:#9aa0ad; }
   .void .guide { color:#3a3f49; }
-  .cell.hassug { cursor:pointer; }
+  .cell { cursor:pointer; }
   .cell.hassug::after { content:''; position:absolute; top:2px; left:2px; width:5px; height:5px;
     border-radius:50%; background:#ffd166; z-index:4; }
+  .cell.cleared::before { content:''; position:absolute; inset:2px; z-index:1;
+    outline:1px dashed #5a5f6b; outline-offset:-1px; }
   #pop { position:fixed; z-index:50; background:var(--panel); border:1px solid var(--accent);
-    border-radius:8px; padding:10px; box-shadow:0 8px 28px rgba(0,0,0,.6); max-width:340px; display:none; }
-  #pop h3 { margin:0 0 6px; font-size:13px; }
-  #pop .ptiles { display:grid; grid-template-columns:repeat(4,1fr); gap:5px; max-height:320px; overflow:auto; }
+    border-radius:8px; padding:10px; box-shadow:0 8px 28px rgba(0,0,0,.6); width:340px; display:none; }
+  #pop h3 { margin:0 0 8px; font-size:13px; }
+  #pop .ptiles { display:grid; grid-template-columns:repeat(4,1fr); gap:5px; max-height:240px; overflow:auto; }
   #pop .pt { cursor:pointer; text-align:center; }
   #pop .pt img { width:100%; aspect-ratio:1; image-rendering:pixelated; border:1px solid var(--line); border-radius:3px; }
   #pop .pt:hover img { border-color:var(--accent); }
   #pop .pt span { display:block; font-size:8px; color:#9aa0ad; overflow:hidden; white-space:nowrap; text-overflow:ellipsis; }
   #pop .x2 { float:right; cursor:pointer; color:#9aa0ad; }
+  #pop .cur { display:flex; gap:8px; align-items:center; margin-bottom:8px; }
+  #pop .cur img { width:54px; height:54px; image-rendering:pixelated; border:1px solid var(--line); border-radius:4px; background:#000; flex:none; }
+  #pop .cur .meta { font-size:11px; color:#c2c7d2; }
+  #pop .cur .meta b { color:#fff; }
+  #pop .cur .empty { font-size:11px; color:#7e8696; }
+  #pop button.clr { background:#3a2326; border-color:#a3454a; color:#ffb3b3; margin-bottom:8px; width:100%; }
+  #pop input.psearch { width:100%; margin:2px 0 6px; }
+  #pop .region { margin:4px 0; }
+  #hov { position:fixed; z-index:60; pointer-events:none; display:none; background:var(--panel);
+    border:1px solid var(--accent); border-radius:8px; padding:6px; box-shadow:0 8px 28px rgba(0,0,0,.6); }
+  #hov img { width:192px; height:192px; image-rendering:pixelated; display:block; border-radius:4px; background:#000; }
+  #hov div { font-size:11px; color:var(--txt); text-align:center; margin-top:4px; max-width:192px;
+    overflow:hidden; white-space:nowrap; text-overflow:ellipsis; }
   .floors { display:flex; gap:3px; }
   .floors button { padding:5px 9px; }
   .floors button.on { border-color:var(--accent); background:#143; color:#fff; }
@@ -61,7 +80,7 @@
 <body>
 <header>
   <h1>MRA SEC Map Builder</h1>
-  <span class="legend">green = coordinate-named (auto). blue = your placement. Drag area tiles onto cells, right-click to remove.</span>
+  <span class="legend">green = core (auto). blue = your placement. Drag a tile on, or click a cell to edit / replace / blank it. Right-click clears.</span>
   <span class="sp"></span>
   <span class="floors" id="floors"></span>
   <span class="zoom"><button id="zout">-</button><span id="zlvl" class="legend">60</span><button id="zin">+</button></span>
@@ -87,6 +106,7 @@
   </div>
 </div>
 <div id="pop"></div>
+<div id="hov"></div>
 
 <script src="data.js"></script>
 <script src="suggestions.js"></script>
@@ -156,7 +176,8 @@ function makeCell(ew,ns){
     if(fn){ setPlacement(ew,ns,placeLayer(),{filename:fn,png,source:'area'}); }});
   const sug=(window.SUGGESTIONS||{})[key];
   if(sug && sug.candidates && sug.candidates.length) c.classList.add('hassug');
-  c.addEventListener('click',e=>{ if(sug && sug.candidates.length) openPop(ew,ns,sug,e); });
+  c.addEventListener('click',e=>{ if(e.target.classList.contains('x')) return; openEditor(ew,ns,e); });
+  c.addEventListener('contextmenu',e=>{ e.preventDefault(); quickClear(ew,ns); });
   renderCell(ew,ns);
   return c;
 }
@@ -181,16 +202,18 @@ function applyRemote(ck,rec){
 function renderCell(ew,ns){
   const c=CELLS[ew+","+ns]; if(!c) return;
   [...c.querySelectorAll('img,.x,.badge')].forEach(n=>n.remove());
-  c.classList.remove('coord','area');
+  c.classList.remove('coord','area','cleared');
   const lay=displayLayer(ew,ns), ck=ew+","+ns+","+lay;
   const p=placements[ck]||coordByCell[ck];
-  if(p){
-    const im=document.createElement('img'); im.src=p.png; im.title=(p.place||'')+' '+p.filename+' ['+lay+']'; c.appendChild(im);
+  if(p && p.filename===CLEARED){ c.classList.add('cleared'); }
+  else if(p){
+    const im=document.createElement('img'); im.src=p.png; im.title=(p.place||'')+' '+p.filename+' ['+lay+']';
+    attachHover(im,p.png,p.filename); c.appendChild(im);
     c.classList.add(p.source);
     if(p.source==='area'){ const x=document.createElement('div'); x.className='x'; x.textContent='x';
-      x.onclick=()=>removePlacement(ck); c.appendChild(x); }
+      x.onclick=(ev)=>{ev.stopPropagation();removePlacement(ck);}; c.appendChild(x); }
   }
-  if(p && SHOWLABELS){
+  if(p && p.filename!==CLEARED && SHOWLABELS){
     const lab=document.createElement('div'); lab.className='label';
     lab.textContent=(window.LAYOUT||{})[ew+","+ns] || p.filename.replace('.SEC','');
     c.appendChild(lab);
@@ -202,32 +225,98 @@ function renderCell(ew,ns){
     c.appendChild(bd);
   }
 }
-// suggestion popover: click an empty named cell -> candidate area tiles
+// ---- cell editor popover: view / replace / blank any cell ----------------
 const pop=document.getElementById('pop');
-function openPop(ew,ns,sug,evt){
-  pop.innerHTML='';
-  const h=document.createElement('h3');
-  h.innerHTML='<span class="x2">close</span>'+sug.place_name+
-    ' <span class="legend">('+ew+','+ns+', floor '+placeLayer()+')</span>';
-  pop.appendChild(h);
-  h.querySelector('.x2').onclick=()=>pop.style.display='none';
+const CLEARED='__cleared__';   // placement sentinel: blank an unwanted core tile
+function tileGrid(items,ew,ns,lay){
   const g=document.createElement('div'); g.className='ptiles';
-  sug.candidates.forEach(cd=>{
+  items.forEach(cd=>{
     const t=document.createElement('div'); t.className='pt';
     const im=document.createElement('img'); im.src=cd.png; im.title=cd.filename;
+    attachHover(im,cd.png,cd.filename);
     const nm=document.createElement('span'); nm.textContent=cd.filename.replace('.SEC','');
     t.appendChild(im); t.appendChild(nm);
-    t.onclick=()=>{ setPlacement(ew,ns,placeLayer(),
-        {filename:cd.filename,png:cd.png,source:'area'}); pop.style.display='none'; };
+    t.onclick=()=>{ setPlacement(ew,ns,lay,{filename:cd.filename,png:cd.png,source:'area'}); pop.style.display='none'; };
     g.appendChild(t);
   });
-  pop.appendChild(g);
+  return g;
+}
+function openEditor(ew,ns,evt){
+  const key=ew+","+ns, lay=placeLayer(), ck=ew+","+ns+","+lay;
+  const placed=placements[ck], core=coordByCell[ck];
+  const cur=placed||core;
+  const lname=(window.LAYOUT||{})[key]||'(unnamed)';
+  const sug=(window.SUGGESTIONS||{})[key];
+  pop.innerHTML='';
+  const h=document.createElement('h3');
+  h.innerHTML='<span class="x2">close</span>'+lname+
+    ' <span class="legend">('+ew+','+ns+', floor '+lay+')</span>';
+  pop.appendChild(h);
+  h.querySelector('.x2').onclick=()=>pop.style.display='none';
+  // current contents
+  const curDiv=document.createElement('div'); curDiv.className='cur';
+  if(cur && cur.filename!==CLEARED){
+    const im=document.createElement('img'); im.src=cur.png; attachHover(im,cur.png,cur.filename); curDiv.appendChild(im);
+    const m=document.createElement('div'); m.className='meta';
+    m.innerHTML='<b>'+(placed?'your placement':'core (auto)')+'</b><br>'+cur.filename.replace('.SEC','');
+    curDiv.appendChild(m);
+  } else {
+    const m=document.createElement('div'); m.className='empty';
+    m.textContent=(cur && cur.filename===CLEARED)?'(blanked - core tile hidden)':'(empty)';
+    curDiv.appendChild(m);
+  }
+  pop.appendChild(curDiv);
+  // clear / blank / restore
+  const clr=document.createElement('button'); clr.className='clr';
+  if(placed && placed.filename!==CLEARED){
+    clr.textContent='Remove placement'; clr.onclick=()=>{removePlacement(ck); openEditor(ew,ns,evt);};
+  } else if(placed && placed.filename===CLEARED){
+    clr.textContent='Restore core tile'; clr.onclick=()=>{removePlacement(ck); openEditor(ew,ns,evt);};
+  } else if(core){
+    clr.textContent='Blank this core tile'; clr.onclick=()=>{setPlacement(ew,ns,lay,{filename:CLEARED,png:'',source:'area'}); openEditor(ew,ns,evt);};
+  } else { clr.style.display='none'; }
+  pop.appendChild(clr);
+  // suggestions for this named cell
+  if(sug && sug.candidates && sug.candidates.length){
+    const sh=document.createElement('div'); sh.className='region'; sh.textContent='Suggested for "'+sug.place_name+'"';
+    pop.appendChild(sh);
+    pop.appendChild(tileGrid(sug.candidates.map(c=>({filename:c.filename,png:c.png})),ew,ns,lay));
+  }
+  // free search over every area tile
+  const inp=document.createElement('input'); inp.className='psearch'; inp.placeholder='search any area tile to place...';
+  pop.appendChild(inp);
+  const results=document.createElement('div'); pop.appendChild(results);
+  inp.addEventListener('input',()=>{
+    const q=inp.value.toLowerCase().trim(); results.innerHTML='';
+    if(!q) return;
+    results.appendChild(tileGrid((MANIFEST.area||[]).filter(t=>t.filename.toLowerCase().includes(q)).slice(0,40),ew,ns,lay));
+  });
   pop.style.display='block';
-  const x=Math.min(evt.clientX+8, innerWidth-360), y=Math.min(evt.clientY+8, innerHeight-360);
+  const x=Math.min(evt.clientX+8, innerWidth-356), y=Math.min(evt.clientY+8, innerHeight-440);
   pop.style.left=x+'px'; pop.style.top=Math.max(8,y)+'px';
+  inp.focus();
+}
+function quickClear(ew,ns){
+  const lay=placeLayer(), ck=ew+","+ns+","+lay;
+  if(placements[ck]) removePlacement(ck);
+  else if(coordByCell[ck]) setPlacement(ew,ns,lay,{filename:CLEARED,png:'',source:'area'});
 }
 document.addEventListener('click',e=>{ if(!pop.contains(e.target) &&
   !e.target.classList.contains('cell') && !e.target.closest('.cell')) pop.style.display='none'; });
+
+// hover zoom preview for palette tiles + placed cell tiles
+const hov=document.getElementById('hov');
+function attachHover(imgEl,png,filename){
+  if(!png) return;
+  imgEl.addEventListener('mouseenter',()=>{ hov.innerHTML='';
+    const i=document.createElement('img'); i.src=png;
+    const d=document.createElement('div'); d.textContent=filename.replace('.SEC','');
+    hov.appendChild(i); hov.appendChild(d); hov.style.display='block'; });
+  imgEl.addEventListener('mousemove',e=>{
+    hov.style.left=Math.min(e.clientX+16,innerWidth-220)+'px';
+    hov.style.top=Math.min(e.clientY+16,innerHeight-240)+'px'; });
+  imgEl.addEventListener('mouseleave',()=>{ hov.style.display='none'; });
+}
 
 // zoom + labels
 let SHOWLABELS=false, ZOOM=60;
@@ -256,6 +345,7 @@ function buildPalette(filter=''){
       const im=document.createElement('img'); im.className='tile'; im.src=t.png; im.draggable=true;
       im.dataset.fn=t.filename; im.title=t.filename;
       im.addEventListener('dragstart',e=>{e.dataTransfer.setData('fn',t.filename);e.dataTransfer.setData('png',t.png);});
+      attachHover(im,t.png,t.filename);
       const nm=document.createElement('div'); nm.className='nm'; nm.textContent=t.filename.replace('.SEC','');
       tw.appendChild(im); tw.appendChild(nm); wrap.appendChild(tw);
     });
@@ -264,8 +354,9 @@ function buildPalette(filter=''){
   markUsed();
 }
 function markUsed(){
-  const used=new Set(Object.values(placements).map(p=>p.filename));
-  pbody.querySelectorAll('img.tile').forEach(im=>im.classList.toggle('used',used.has(im.dataset.fn)));
+  const used=new Set(Object.values(placements).map(p=>p.filename).filter(f=>f!==CLEARED));
+  pbody.querySelectorAll('.tilewrap').forEach(tw=>{ const im=tw.querySelector('img.tile');
+    tw.classList.toggle('used', !!im && used.has(im.dataset.fn)); });
 }
 buildPalette();
 document.getElementById('filter').addEventListener('input',e=>buildPalette(e.target.value.toLowerCase()));
@@ -328,7 +419,7 @@ document.getElementById('cfgclear').onclick=()=>{
 DB.connect();
 
 document.getElementById('export').addEventListener('click',()=>{
-  const out=Object.entries(placements).map(([k,p])=>{
+  const out=Object.entries(placements).filter(([k,p])=>p.filename!==CLEARED).map(([k,p])=>{
     const [ew,ns,lay]=k.split(',');
     return {filename:p.filename, mp_x:+ew, mp_y:+ns, layer:lay, mp_z:FLOOR_Z[lay]||50,
             place_name:(window.LAYOUT||{})[ew+","+ns]||null};

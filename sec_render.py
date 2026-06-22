@@ -59,7 +59,10 @@ def color_for(idx):
     return (int(r * 255), int(g * 255), int(b * 255))
 
 
-def render_sector(data, scale=4, drop_pad=True):
+WALL_COLOR = (26, 24, 30)  # near-black so walls/obstacles read as structure
+
+
+def render_sector(data, scale=5, drop_pad=True):
     n = PLAY if drop_pad else GRID
     img = Image.new("RGB", (n * scale, n * scale))
     px = img.load()
@@ -69,8 +72,9 @@ def render_sector(data, scale=4, drop_pad=True):
             terr = data[off]
             wall = data[off + 1]
             col = color_for(terr)
-            if wall:  # darken cells with a wall/overlay marker
-                col = tuple(int(v * 0.45) for v in col)
+            if wall:  # blend strongly toward a wall color so buildings/caves
+                # show as solid outlines instead of just dimmed terrain
+                col = tuple(int(t * 0.25 + w * 0.75) for t, w in zip(col, WALL_COLOR))
             for yy in range(scale):
                 for xx in range(scale):
                     px[c * scale + xx, r * scale + yy] = col
@@ -140,7 +144,7 @@ def tiles():
                 d = read_sec(p)
                 if not d:
                     continue
-                img = render_sector(d, scale=4)
+                img = render_sector(d, scale=6)  # 32*6=192px -> crisp hover preview
                 safe = f.replace("/", "_")
                 img.save(os.path.join(OUT, "tiles", safe + ".png"))
                 rec = {"filename": f, "png": f"tiles/{safe}.png"}
