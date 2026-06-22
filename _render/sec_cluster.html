@@ -1,0 +1,228 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>MRA Interior / Cluster Editor</title>
+<style>
+  :root{ --bg:#16171c; --panel:#1f2128; --line:#2c2f38; --txt:#d7dae2; --accent:#5aa9ff; --cell:64px; }
+  *{ box-sizing:border-box; }
+  body{ margin:0; font:13px/1.4 system-ui,Segoe UI,Arial,sans-serif; background:var(--bg); color:var(--txt); }
+  header{ display:flex; gap:10px; align-items:center; padding:8px 12px; background:var(--panel); border-bottom:1px solid var(--line); flex-wrap:wrap; position:sticky; top:0; z-index:20; }
+  header h1{ font-size:15px; margin:0; font-weight:600; }
+  header .sp{ flex:1; }
+  a{ color:var(--accent); }
+  button,select,input{ background:#2a2d36; color:var(--txt); border:1px solid var(--line); border-radius:6px; padding:6px 9px; font-size:13px; }
+  button:hover{ border-color:var(--accent); cursor:pointer; }
+  .legend{ font-size:11px; color:#9aa0ad; }
+  .wrap{ display:flex; height:calc(100vh - 50px); }
+  .gridpane{ flex:1; overflow:auto; padding:20px; }
+  .grid{ display:grid; gap:2px; width:max-content; }
+  .cell{ width:var(--cell); height:var(--cell); background:#101116; border:1px solid #23252d; position:relative; cursor:pointer; }
+  .cell img{ position:absolute; inset:0; width:100%; height:100%; image-rendering:auto; }
+  .cell.dragover{ background:#243; }
+  .cell .x{ position:absolute; top:0; right:1px; color:#ff6b6b; display:none; z-index:3; font-size:12px; }
+  .cell:hover .x{ display:block; }
+  .cell .nm{ position:absolute; bottom:0; left:0; right:0; font-size:8px; background:rgba(0,0,0,.6); color:#fff; text-align:center; overflow:hidden; white-space:nowrap; text-overflow:ellipsis; padding:1px; }
+  .floors,.zoom{ display:flex; gap:3px; align-items:center; }
+  .floors button.on{ border-color:var(--accent); background:#143; color:#fff; }
+  .palette{ width:280px; flex:none; background:var(--panel); border-left:1px solid var(--line); overflow:auto; padding:10px; }
+  .chips{ display:flex; flex-wrap:wrap; gap:4px; margin:6px 0; }
+  .chip{ font-size:11px; padding:3px 7px; border:1px solid var(--line); border-radius:12px; cursor:pointer; color:#c2c7d2; }
+  .chip:hover,.chip.on{ border-color:var(--accent); color:#fff; background:#1c2630; }
+  .tiles{ display:grid; grid-template-columns:repeat(3,1fr); gap:5px; margin-top:8px; }
+  .tw{ position:relative; }
+  .tw img{ width:100%; aspect-ratio:1; image-rendering:auto; border:1px solid var(--line); border-radius:3px; cursor:grab; background:#000; }
+  .tw.used img{ opacity:.32; border-color:#3a7d3a; }
+  .tw.used::after{ content:'\2713'; position:absolute; top:1px; right:1px; font-size:9px; width:13px; height:13px; line-height:13px; text-align:center; color:#0b1f0e; background:#67d67d; border-radius:50%; }
+  .tw .nm{ font-size:8px; color:#8b93a3; text-align:center; overflow:hidden; white-space:nowrap; text-overflow:ellipsis; }
+  #pop{ position:fixed; z-index:50; background:var(--panel); border:1px solid var(--accent); border-radius:8px; padding:10px; width:300px; display:none; box-shadow:0 8px 28px rgba(0,0,0,.6); }
+  #pop h3{ margin:0 0 6px; font-size:13px; } #pop .x2{ float:right; cursor:pointer; color:#9aa0ad; }
+  #pop input{ width:100%; margin:4px 0; } #pop .ptiles{ display:grid; grid-template-columns:repeat(4,1fr); gap:5px; max-height:240px; overflow:auto; }
+  #pop .pt img{ width:100%; aspect-ratio:1; image-rendering:auto; border:1px solid var(--line); border-radius:3px; cursor:pointer; }
+  #pop .pt:hover img{ border-color:var(--accent); }
+  #pop .pt span{ display:block; font-size:8px; color:#9aa0ad; overflow:hidden; white-space:nowrap; text-overflow:ellipsis; }
+</style>
+</head>
+<body>
+<header>
+  <h1>MRA Interior / Cluster Editor</h1>
+  <span class="legend">cluster</span>
+  <input id="cname" list="clusters" placeholder="e.g. orc" style="width:130px">
+  <datalist id="clusters"></datalist>
+  <span class="floors" id="floors"></span>
+  <span class="legend">grid</span>
+  <button id="colminus">-col</button><button id="colplus">+col</button>
+  <button id="rowminus">-row</button><button id="rowplus">+row</button>
+  <span class="zoom"><button id="zout">-</button><span id="zlvl" class="legend">64</span><button id="zin">+</button></span>
+  <span class="sp"></span>
+  <button id="importbtn">Import</button><input id="importfile" type="file" accept=".json" style="display:none">
+  <button id="export">Export links</button>
+  <a href="sec_map.html" class="legend">world map</a> <a href="sec_edit.html" class="legend">SEC editor</a>
+</header>
+<div class="wrap">
+  <div class="gridpane"><div id="grid" class="grid"></div>
+    <div class="legend" id="status" style="margin-top:10px"></div></div>
+  <div class="palette">
+    <input id="filter" placeholder="search any SEC..." style="width:100%">
+    <div class="chips" id="chips"></div>
+    <div class="tiles" id="pbody"></div>
+  </div>
+</div>
+<div id="pop"></div>
+<script src="data.js"></script>
+<script>
+const FLOORS=['c','b','a'], FLOOR_LABEL={c:'Upper (c)',b:'Ground (b)',a:'Under (a)'};
+let layer='b', cols=6, rows=6, cell=64;
+let cname='', state={};   // state[cluster] = { 'lx,ly,layer': filename }
+const TILE=({}); (window.MANIFEST?[...MANIFEST.area,...MANIFEST.coordinate]:[]).forEach(t=>TILE[t.filename]=t);
+const ALL=Object.values(TILE).sort((a,b)=>a.filename.localeCompare(b.filename));
+
+// cluster prefixes: leading letters before first digit (>=2 files)
+const groups={};
+ALL.forEach(t=>{ const m=t.filename.toLowerCase().match(/^([a-z]+)/); if(m){ (groups[m[1]]=groups[m[1]]||[]).push(t); } });
+const PREFIXES=Object.keys(groups).filter(k=>groups[k].length>=2).sort();
+
+function key(lx,ly){ return lx+','+ly+','+layer; }
+function curCells(){ return state[cname]||(state[cname]={}); }
+function saveLS(){ if(cname) localStorage.setItem('mra_cluster_'+cname, JSON.stringify(state[cname])); }
+function loadLS(){ if(!cname) return; const s=localStorage.getItem('mra_cluster_'+cname); state[cname]=s?JSON.parse(s):{}; }
+
+// ---- grid ----
+const grid=document.getElementById('grid');
+function buildGrid(){
+  grid.style.gridTemplateColumns=`repeat(${cols}, var(--cell))`;
+  grid.innerHTML='';
+  for(let ly=0; ly<rows; ly++) for(let lx=0; lx<cols; lx++){
+    const c=document.createElement('div'); c.className='cell'; c.dataset.lx=lx; c.dataset.ly=ly;
+    c.addEventListener('dragover',e=>{e.preventDefault();c.classList.add('dragover');});
+    c.addEventListener('dragleave',()=>c.classList.remove('dragover'));
+    c.addEventListener('drop',e=>{e.preventDefault();c.classList.remove('dragover');
+      const fn=e.dataTransfer.getData('fn'); if(fn){ place(lx,ly,fn); } });
+    c.addEventListener('click',e=>{ if(e.target.classList.contains('x')) return; openPop(lx,ly,e); });
+    c.addEventListener('contextmenu',e=>{ e.preventDefault(); clearCell(lx,ly); });
+    grid.appendChild(c); renderCell(lx,ly,c);
+  }
+}
+function cellEl(lx,ly){ return grid.children[ly*cols+lx]; }
+function renderCell(lx,ly,c){
+  c=c||cellEl(lx,ly); if(!c) return;
+  [...c.querySelectorAll('img,.x,.nm')].forEach(n=>n.remove());
+  const fn=curCells()[key(lx,ly)];
+  if(fn){ const t=TILE[fn];
+    const im=document.createElement('img'); im.src=t?t.png:('tiles/'+fn+'.png'); c.appendChild(im);
+    const nm=document.createElement('div'); nm.className='nm'; nm.textContent=fn.replace('.SEC',''); c.appendChild(nm);
+    const x=document.createElement('div'); x.className='x'; x.textContent='x';
+    x.onclick=ev=>{ev.stopPropagation();clearCell(lx,ly);}; c.appendChild(x); }
+}
+function place(lx,ly,fn){ curCells()[key(lx,ly)]=fn; renderCell(lx,ly); saveLS(); markUsed(); status(); }
+function clearCell(lx,ly){ delete curCells()[key(lx,ly)]; renderCell(lx,ly); saveLS(); markUsed(); status(); }
+
+// ---- floors ----
+const floorsEl=document.getElementById('floors');
+FLOORS.forEach(f=>{ const b=document.createElement('button'); b.textContent=FLOOR_LABEL[f];
+  if(f===layer) b.classList.add('on');
+  b.onclick=()=>{ layer=f; [...floorsEl.children].forEach(x=>x.classList.remove('on')); b.classList.add('on'); buildGrid(); markUsed(); status(); };
+  floorsEl.appendChild(b); });
+
+// ---- palette ----
+const pbody=document.getElementById('pbody'), chipsEl=document.getElementById('chips');
+PREFIXES.forEach(p=>{ const ch=document.createElement('span'); ch.className='chip'; ch.textContent=p+' ('+groups[p].length+')';
+  ch.onclick=()=>{ document.getElementById('filter').value=p; buildPalette(p); markUsed(); }; chipsEl.appendChild(ch); });
+function buildPalette(q=''){
+  q=q.toLowerCase(); pbody.innerHTML='';
+  ALL.filter(t=>!q||t.filename.toLowerCase().includes(q)).slice(0,180).forEach(t=>{
+    const tw=document.createElement('div'); tw.className='tw'; tw.dataset.fn=t.filename;
+    const im=document.createElement('img'); im.src=t.png; im.draggable=true; im.title=t.filename;
+    im.addEventListener('dragstart',e=>e.dataTransfer.setData('fn',t.filename));
+    const nm=document.createElement('div'); nm.className='nm'; nm.textContent=t.filename.replace('.SEC','');
+    tw.appendChild(im); tw.appendChild(nm); pbody.appendChild(tw);
+  });
+  markUsed();
+}
+function markUsed(){ const used=new Set(Object.values(curCells()));
+  pbody.querySelectorAll('.tw').forEach(tw=>tw.classList.toggle('used',used.has(tw.dataset.fn))); }
+
+// ---- popover (search + place + clear) ----
+const pop=document.getElementById('pop');
+function openPop(lx,ly,evt){
+  const fn=curCells()[key(lx,ly)];
+  pop.innerHTML='';
+  const h=document.createElement('h3'); h.innerHTML='<span class="x2">close</span>cell '+lx+','+ly+' ['+layer+']';
+  pop.appendChild(h); h.querySelector('.x2').onclick=()=>pop.style.display='none';
+  if(fn){ const b=document.createElement('button'); b.textContent='Clear ('+fn.replace('.SEC','')+')'; b.style.width='100%';
+    b.onclick=()=>{clearCell(lx,ly);pop.style.display='none';}; pop.appendChild(b); }
+  const inp=document.createElement('input'); inp.placeholder='search SEC to place...'; pop.appendChild(inp);
+  const res=document.createElement('div'); pop.appendChild(res);
+  function run(){ const q=inp.value.toLowerCase().trim(); res.innerHTML=''; if(!q) return;
+    const g=document.createElement('div'); g.className='ptiles';
+    ALL.filter(t=>t.filename.toLowerCase().includes(q)).slice(0,40).forEach(t=>{
+      const pt=document.createElement('div'); pt.className='pt';
+      const im=document.createElement('img'); im.src=t.png; im.title=t.filename;
+      const s=document.createElement('span'); s.textContent=t.filename.replace('.SEC','');
+      pt.appendChild(im); pt.appendChild(s);
+      pt.onclick=()=>{ place(lx,ly,t.filename); pop.style.display='none'; };
+      g.appendChild(pt); });
+    res.appendChild(g); }
+  inp.addEventListener('input',run);
+  pop.style.display='block';
+  pop.style.left=Math.min(evt.clientX+8, innerWidth-316)+'px';
+  pop.style.top=Math.max(8, Math.min(evt.clientY+8, innerHeight-360))+'px';
+  inp.focus();
+}
+document.addEventListener('click',e=>{ if(!pop.contains(e.target)&&!e.target.closest('.cell')) pop.style.display='none'; });
+
+// ---- derived links + export ----
+const DIRS=[['n',0,-1],['s',0,1],['e',1,0],['w',-1,0]];
+function buildLinks(){
+  const links=[]; const cells=curCells();
+  Object.keys(cells).forEach(k=>{ const [lx,ly,lay]=k.split(','); const F=cells[k];
+    DIRS.forEach(([d,dx,dy])=>{ const nk=(+lx+dx)+','+(+ly+dy)+','+lay; if(cells[nk])
+      links.push({from:F, to:cells[nk], dir:d, layer:lay}); }); });
+  return links;
+}
+function status(){
+  const cells=curCells(); const n=Object.keys(cells).length;
+  document.getElementById('status').textContent=
+    cname?`cluster "${cname}": ${n} sectors placed, ${buildLinks().length} edge links (this + other floors). Drag tiles in; adjacency = walkable connection.`
+         :'Type a cluster name (or pick one) to begin. Arrange the interior sectors; touching edges become walkable links.';
+}
+document.getElementById('export').onclick=()=>{
+  if(!cname){ alert('Name the cluster first.'); return; }
+  const cells=curCells();
+  const placements=Object.entries(cells).map(([k,fn])=>{ const [lx,ly,lay]=k.split(','); return {filename:fn, lx:+lx, ly:+ly, layer:lay}; });
+  const out={ cluster:cname, cols, rows, placements, links:buildLinks(),
+    _note:'Interior stitching: links list walkable edges between adjacent sectors. dir is the edge of `from` that leads to `to`. Original MeNo stitching is unrecoverable; this is a community-defined layout.' };
+  const blob=new Blob([JSON.stringify(out,null,1)],{type:'application/json'});
+  const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='cluster_'+cname+'.json'; a.click();
+};
+document.getElementById('importbtn').onclick=()=>document.getElementById('importfile').click();
+document.getElementById('importfile').addEventListener('change',e=>{
+  const f=e.target.files[0]; if(!f) return; const rd=new FileReader();
+  rd.onload=()=>{ try{ const o=JSON.parse(rd.result);
+    cname=o.cluster||cname; document.getElementById('cname').value=cname;
+    cols=o.cols||cols; rows=o.rows||rows;
+    state[cname]={}; (o.placements||[]).forEach(p=>{ state[cname][p.lx+','+p.ly+','+(p.layer||'b')]=p.filename; });
+    saveLS(); buildGrid(); markUsed(); status();
+  }catch(err){ alert('Bad JSON: '+err); } };
+  rd.readAsText(f);
+});
+
+// ---- cluster name + grid controls ----
+const dl=document.getElementById('clusters'); PREFIXES.forEach(p=>{ const o=document.createElement('option'); o.value=p; dl.appendChild(o); });
+const cnameEl=document.getElementById('cname');
+cnameEl.addEventListener('change',()=>{ cname=cnameEl.value.trim().toLowerCase(); loadLS();
+  if(cname && Object.keys(curCells()).length===0){ document.getElementById('filter').value=cname; }
+  buildPalette(document.getElementById('filter').value); buildGrid(); markUsed(); status(); });
+document.getElementById('filter').addEventListener('input',e=>buildPalette(e.target.value));
+function setZoom(p){ cell=Math.max(28,Math.min(128,p)); document.documentElement.style.setProperty('--cell',cell+'px'); document.getElementById('zlvl').textContent=cell; }
+document.getElementById('zin').onclick=()=>setZoom(cell+8);
+document.getElementById('zout').onclick=()=>setZoom(cell-8);
+document.getElementById('colplus').onclick=()=>{cols++;buildGrid();};
+document.getElementById('colminus').onclick=()=>{cols=Math.max(1,cols-1);buildGrid();};
+document.getElementById('rowplus').onclick=()=>{rows++;buildGrid();};
+document.getElementById('rowminus').onclick=()=>{rows=Math.max(1,rows-1);buildGrid();};
+
+buildPalette(); buildGrid(); status();
+</script>
+</body>
+</html>
