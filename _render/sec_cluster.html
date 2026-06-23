@@ -289,14 +289,18 @@ document.getElementById('importfile').addEventListener('change',e=>{
 });
 
 // ---- cluster name + grid controls ----
-const dl=document.getElementById('clusters'); PREFIXES.forEach(p=>{ const o=document.createElement('option'); o.value=p; dl.appendChild(o); });
+function buildClusterList(){
+  const dl=document.getElementById('clusters'); dl.innerHTML='';
+  currentGroups().prefixes.forEach(p=>{ const o=document.createElement('option'); o.value=p; dl.appendChild(o); });
+}
+buildClusterList();
 const cnameEl=document.getElementById('cname');
 cnameEl.addEventListener('change',()=>{ cname=cnameEl.value.trim().toLowerCase(); loadLS();
   if(cname && Object.keys(curCells()).length===0){ document.getElementById('filter').value=cname; }
   buildPalette(document.getElementById('filter').value); buildGrid(); markUsed(); status(); });
 document.getElementById('filter').addEventListener('input',e=>buildPalette(e.target.value));
 document.getElementById('coordtoggle').addEventListener('change',e=>{ INCLUDE_COORD=e.target.checked;
-  buildChips(); buildPalette(document.getElementById('filter').value); });
+  buildClusterList(); buildChips(); buildPalette(document.getElementById('filter').value); });
 function setZoom(p){ cell=Math.max(28,Math.min(128,p)); document.documentElement.style.setProperty('--cell',cell+'px'); document.getElementById('zlvl').textContent=cell; }
 document.getElementById('zin').onclick=()=>setZoom(cell+8);
 document.getElementById('zout').onclick=()=>setZoom(cell-8);
