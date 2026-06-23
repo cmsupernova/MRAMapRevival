@@ -62,6 +62,9 @@ ogn_protocol_log.txt
 _commit_msg.txt
 *.log
 
+# Other dev's reference map editor (study only, not ours to ship)
+Reference/
+
 # OS / editor cruft
 Thumbs.db
 .DS_Store

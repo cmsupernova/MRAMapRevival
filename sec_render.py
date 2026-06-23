@@ -35,41 +35,45 @@ OUT = os.path.join(HERE, "_render")
 GRID, CELL = 33, 6
 PLAY = 32  # playable area (drop padding row/col 32)
 
-# Palette keyed to the VERIFIED terrain byte reference (SEC FILE FORMAT.md 13a).
+# Palette keyed to the authoritative terrain ids (RE'd from SCB.EXE; see
+# scbdata.py / SEC_FORMAT.md). Colors lifted from the reference Mapmaker's
+# render.py so the schematic matches its names: note 44 = Light Dirt (NOT
+# Gravel; gravel is 45/46), and the 120-140 range exists (PvP/fog floors).
 PALETTE = {
-    0x00: (8, 8, 12),       # void / black, impassable
-    0x02: (40, 40, 48),     # no see through
-    0x03: (30, 28, 40),     # veil of darkness (boundary)
-    0x04: (90, 80, 140),    # go to sector below (transition)
-    0x05: (140, 120, 90),   # go to sector above (transition)
-    0x06: (60, 64, 78),     # indoor air
-    0x07: (70, 90, 110),    # outdoor air
-    0x0F: (90, 150, 200),   # shallow water
-    0x10: (150, 110, 66),   # wood panel floor
-    0x11: (178, 140, 92),   # light wood panel floor
-    0x12: (132, 132, 138),  # stone floor
-    0x13: (198, 198, 204),  # marble floor
-    0x14: (54, 122, 50),    # grass (most common)
-    0x15: (40, 78, 170),    # deep water (not walkable)
-    0x16: (140, 100, 58),   # solid wood floor
-    0x17: (90, 90, 98),     # darkened stone floor
-    0x18: (96, 70, 44),     # dark wood panel floor
-    0x19: (224, 224, 228),  # styled white floor
-    0x1A: (170, 150, 100),  # styled pub floor
-    0x1B: (110, 108, 116),  # cave stone floor
-    0x1C: (150, 118, 78),   # dirt
-    0x1D: (60, 48, 40),     # refuse hole
-    0x1E: (128, 96, 60),    # plowed ground
-    0x1F: (138, 104, 66),   # plowed ground var
-    0x21: (44, 44, 52),     # blackened marble
-    0x22: (52, 42, 34),     # blackened wood
-    0x23: (70, 96, 70),     # marsh
-    0x24: (70, 120, 120),   # shallow swamp water
-    0x25: (44, 86, 90),     # deep swamp water
-    0x26: (96, 168, 96),    # blue sky grass
-    0x3C: (150, 70, 56),    # brick floor
-    0x3D: (80, 120, 180),   # standing water
-    0x3E: (70, 110, 60),    # moss
+    0x00: (20, 20, 30),     # 0  CLEAR All / void
+    0x02: (40, 40, 48),     # 2  no see through
+    0x03: (150, 40, 160),   # 3  veil of darkness (po)
+    0x04: (60, 60, 90),     # 4  go to sector below
+    0x05: (110, 110, 150),  # 5  go to sector above
+    0x06: (200, 205, 215),  # 6  indoor air (fall through)
+    0x07: (225, 230, 240),  # 7  outdoor air (fall through)
+    0x0F: (120, 180, 235),  # 15 shallow waterr
+    0x10: (150, 110, 70),   # 16 wood panel floor
+    0x11: (180, 140, 95),   # 17 light wood panel floor
+    0x12: (140, 140, 145),  # 18 stone floor
+    0x13: (210, 210, 220),  # 19 marble floor
+    0x14: (70, 150, 60),    # 20 grass
+    0x15: (30, 70, 150),    # 21 deep water
+    0x16: (90, 65, 45),     # 22 solid wood floor
+    0x17: (85, 85, 92),     # 23 darkened stone floor
+    0x18: (110, 80, 55),    # 24 dark wood panel floor
+    0x19: (235, 235, 240),  # 25 styled white floor
+    0x1A: (200, 180, 130),  # 26 styled pub floor
+    0x1B: (105, 100, 95),   # 27 cave stone floor
+    0x1C: (150, 120, 80),   # 28 dirt
+    0x1D: (120, 120, 40),   # 29 refuse hole
+    0x1E: (140, 110, 75),   # 30 plowed ground
+    0x1F: (140, 110, 75),   # 31 plowed ground
+    0x21: (60, 60, 70),     # 33 blackened marble floor
+    0x22: (70, 50, 35),     # 34 blackened wood floor
+    0x23: (80, 110, 70),    # 35 marsh
+    0x24: (90, 130, 90),    # 36 shallow swamp water
+    0x25: (60, 95, 70),     # 37 deep swamp water
+    0x26: (120, 190, 110),  # 38 blue sky grass
+    0x2C: (180, 180, 180),  # 44 light dirt
+    0x3C: (170, 90, 70),    # 60 brick floor
+    0x3D: (70, 120, 190),   # 61 standing water
+    0x3E: (90, 140, 80),    # 62 moss
 }
 WALL_EDGE = (18, 16, 22)    # near-black wall edges
 OBJECT_DOT = (230, 210, 120)  # small marker for object cells

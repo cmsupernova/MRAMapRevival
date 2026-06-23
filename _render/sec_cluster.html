@@ -77,6 +77,7 @@
 <div id="pop"></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="data.js"></script>
+<script src="seams.js"></script>
 <script>
 const FLOORS=['c','b','a'], FLOOR_LABEL={c:'Upper (c)',b:'Ground (b)',a:'Under (a)'};
 let layer='b', cols=6, rows=6, cell=64;
@@ -169,6 +170,21 @@ function openPop(lx,ly,evt){
   pop.appendChild(h); h.querySelector('.x2').onclick=()=>pop.style.display='none';
   if(fn){ const b=document.createElement('button'); b.textContent='Clear ('+fn.replace('.SEC','')+')'; b.style.width='100%';
     b.onclick=()=>{clearCell(lx,ly);pop.style.display='none';}; pop.appendChild(b); }
+  // seam suggestions: tiles whose edges match the placed neighbours
+  const sugg=suggestFor(lx,ly);
+  if(sugg.length){
+    const lab=document.createElement('div'); lab.className='nm';
+    lab.style.cssText='color:#67d67d;font-size:11px;margin:4px 0 2px'; lab.textContent='fits neighbours (seam match):';
+    pop.appendChild(lab);
+    const g=document.createElement('div'); g.className='ptiles';
+    sugg.forEach(f=>{ const t=TILE[f]; const pt=document.createElement('div'); pt.className='pt';
+      const im=document.createElement('img'); im.src=t?t.png:('tiles/'+f+'.png'); im.title=f;
+      const s=document.createElement('span'); s.textContent=f.replace('.SEC','');
+      pt.appendChild(im); pt.appendChild(s);
+      pt.onclick=()=>{ place(lx,ly,f); pop.style.display='none'; };
+      g.appendChild(pt); });
+    pop.appendChild(g);
+  }
   const inp=document.createElement('input'); inp.placeholder='search SEC to place...'; pop.appendChild(inp);
   const res=document.createElement('div'); pop.appendChild(res);
   function run(){ const q=inp.value.toLowerCase().trim(); res.innerHTML=''; if(!q) return;
@@ -188,6 +204,35 @@ function openPop(lx,ly,evt){
   inp.focus();
 }
 document.addEventListener('click',e=>{ if(!pop.contains(e.target)&&!e.target.closest('.cell')) pop.style.display='none'; });
+
+// ---- seam-based neighbour suggestions (auto-stitch helper) ----
+// Reverse-index distinct edges. A tile fits EAST of P if its left edge == P.r;
+// SOUTH of P if its top == P.b; etc. Edges shared by many tiles are too generic
+// to be useful, so buckets larger than CAP are ignored.
+const SEAM=window.SEAMS||{}, CAP=8;
+const byL={},byR={},byT={},byB={};
+Object.entries(SEAM).forEach(([f,r])=>{
+  if(r.ld)(byL[r.l]=byL[r.l]||[]).push(f);
+  if(r.rd)(byR[r.r]=byR[r.r]||[]).push(f);
+  if(r.td)(byT[r.t]=byT[r.t]||[]).push(f);
+  if(r.bd)(byB[r.b]=byB[r.b]||[]).push(f);
+});
+function bucket(idx,hash,distinct){ if(!hash||!distinct) return null; const b=idx[hash]; return (b&&b.length<=CAP)?new Set(b):null; }
+function suggestFor(lx,ly){
+  if(!Object.keys(SEAM).length) return [];
+  const cells=curCells();
+  const W=SEAM[cells[(lx-1)+','+ly+','+layer]], E=SEAM[cells[(lx+1)+','+ly+','+layer]],
+        N=SEAM[cells[lx+','+(ly-1)+','+layer]], S=SEAM[cells[lx+','+(ly+1)+','+layer]];
+  const cons=[];
+  if(W){ const b=bucket(byL,W.r,W.rd); if(b) cons.push(b); }
+  if(E){ const b=bucket(byR,E.l,E.ld); if(b) cons.push(b); }
+  if(N){ const b=bucket(byT,N.b,N.bd); if(b) cons.push(b); }
+  if(S){ const b=bucket(byB,S.t,S.td); if(b) cons.push(b); }
+  if(!cons.length) return [];
+  let cand=[...cons[0]]; for(let i=1;i<cons.length;i++) cand=cand.filter(f=>cons[i].has(f));
+  const used=new Set(Object.values(cells));
+  return cand.filter(f=>!used.has(f)).slice(0,12);
+}
 
 // ---- derived links + export ----
 const DIRS=[['n',0,-1],['s',0,1],['e',1,0],['w',-1,0]];

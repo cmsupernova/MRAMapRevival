@@ -48,15 +48,17 @@
 <div class="wrap">
   <div class="left">
     <canvas id="cv"></canvas>
-    <div class="hint">left-drag paints the selected item; right-drag erases. Walls/doors sit on a cell's North or West edge.</div>
+    <div class="hint">left-drag paints the selected item; right-drag erases. Walls/doors sit on a cell edge (N/E/S/W) - E and S write to the neighbouring cell, matching the game.</div>
     <div id="readout" class="hint"></div>
   </div>
   <div class="right">
     <div class="tabs" id="tabs"></div>
     <div id="edgewrap" class="edgesel" style="display:none">
       edge:
-      <label><input type="radio" name="edge" value="N" checked> North</label>
-      <label><input type="radio" name="edge" value="W"> West</label>
+      <label><input type="radio" name="edge" value="N" checked> N</label>
+      <label><input type="radio" name="edge" value="E"> E</label>
+      <label><input type="radio" name="edge" value="S"> S</label>
+      <label><input type="radio" name="edge" value="W"> W</label>
     </div>
     <div id="paldesc" class="small"></div>
     <div class="pal" id="pal"></div>
@@ -68,41 +70,62 @@ const GRID=33, PLAY=32, CELL=6, SIZE=GRID*GRID*CELL;       // 6534 bytes
 let data=new Uint8Array(SIZE);                              // current sector
 let scale=16, filename='blank.SEC';
 
-// ---- verified palettes (SEC FILE FORMAT.md 13a / 13b) --------------------
+// ---- authoritative type tables (RE'd from SCB.EXE; scbdata.py) ------------
+// [id, name, fallback RGB or null]. Colors used only when no real art tile.
 const TERRAIN=[
-  [0x00,'Void',[8,8,12]],[0x02,'No See Through',[40,40,48]],[0x03,'Veil of Darkness',[30,28,40]],
-  [0x04,'Go Sector Below',[90,80,140]],[0x05,'Go Sector Above',[140,120,90]],
-  [0x06,'Indoor Air',[60,64,78]],[0x07,'Outdoor Air',[70,90,110]],
-  [0x0f,'Shallow Water',[90,150,200]],[0x10,'Wood Panel Floor',[150,110,66]],
-  [0x11,'Light Wood Floor',[178,140,92]],[0x12,'Stone Floor',[132,132,138]],
-  [0x13,'Marble Floor',[198,198,204]],[0x14,'Grass',[54,122,50]],[0x15,'Deep Water',[40,78,170]],
-  [0x16,'Solid Wood Floor',[140,100,58]],[0x17,'Darkened Stone',[90,90,98]],
-  [0x18,'Dark Wood Panel',[96,70,44]],[0x19,'White Floor',[224,224,228]],
-  [0x1a,'Pub Floor',[170,150,100]],[0x1b,'Cave Stone',[110,108,116]],[0x1c,'Dirt',[150,118,78]],
-  [0x1d,'Refuse Hole',[60,48,40]],[0x1e,'Plowed Ground',[128,96,60]],
-  [0x21,'Blackened Marble',[44,44,52]],[0x22,'Blackened Wood',[52,42,34]],[0x23,'Marsh',[70,96,70]],
-  [0x24,'Shallow Swamp',[70,120,120]],[0x25,'Deep Swamp',[44,86,90]],[0x26,'Blue Sky Grass',[96,168,96]],
-  [0x30,'Stairs',[120,120,128]],[0x34,'Stairs Landing',[130,130,138]],
-  [0x3c,'Brick Floor',[150,70,56]],[0x3d,'Standing Water',[80,120,180]],[0x3e,'Moss',[70,110,60]],
+  [0,'CLEAR All',[20,20,30]],[2,'No see through',[40,40,48]],[3,'Veil of Darkness (po)',[150,40,160]],
+  [4,'Go to sector below',[60,60,90]],[5,'Go to sector above',[110,110,150]],
+  [6,'Indoor Air (fall through)',[200,205,215]],[7,'Outdoor Air (fall through)',[225,230,240]],
+  [15,'Shallow Waterr',[120,180,235]],[16,'Wood Panel Floor',[150,110,70]],[17,'Light Wood Panel Floor',[180,140,95]],
+  [18,'Stone Floor',[140,140,145]],[19,'Marble Floor',[210,210,220]],[20,'Grass',[70,150,60]],[21,'Deep Water',[30,70,150]],
+  [22,'Solid Wood Floor',[90,65,45]],[23,'Darkened Stone Floor',[85,85,92]],[24,'Dark Wood Panel Floor',[110,80,55]],
+  [25,'Styled White Floor',[235,235,240]],[26,'Styled Pub Floor',[200,180,130]],[27,'Cave Stone Floor',[105,100,95]],
+  [28,'Dirt',[150,120,80]],[29,'Refuse Hole',[120,120,40]],[30,'Plowed Ground',[140,110,75]],[31,'Plowed Ground',[140,110,75]],
+  [32,'Do NOT use',null],[33,'Blackened Marble Floor',[60,60,70]],[34,'Blackened Wood Floor',[70,50,35]],
+  [35,'Marsh',[80,110,70]],[36,'Shallow Swamp Water',[90,130,90]],[37,'Deep Swamp Water',[60,95,70]],[38,'Blue Sky Grass',[120,190,110]],
+  [39,'Wood Panel Floor',null],[40,'Wood Panel Floor',null],[41,'Wood Panel Floor',null],[42,'Brick Floor',null],
+  [43,'Sand',null],[44,'Light Dirt',[180,180,180]],[45,'Gravel',null],[46,'Gravel',null],[47,'East landing, south part',null],
+  [48,'Stairs',null],[49,'Stairs',null],[50,'Stairs',null],[51,'Stairs',null],[52,'Stairs Landing',null],
+  [53,'Marketplace Pool',null],[54,'Marketplace Pool',null],[55,'Marketplace Pool',null],[56,'Stone Floor',null],[57,'Stone Floor',null],
+  [60,'Brick Floor',[170,90,70]],[61,'Standing Water',[70,120,190]],[62,'Moss',[90,140,80]],
+  [120,'Marsh with Fog',null],[121,'Swamp with Fog',null],[122,'Dirt with LimVis',null],[123,'Gravel with LimVis',null],
+  [124,'Moss with LimVis',null],[126,'Dark Stone (No Exit Game)',null],[127,'Light Wood (No Exit Game)',null],
+  [128,'Stone (No NPC Move)',null],[129,'Wood (No NPC Move)',null],[130,'No Restore Loss',null],[131,'Stone PvP',null],
+  [132,'Grass PvP',null],[133,'Wood PvP',null],[134,'Dirt PvP',null],[135,'Wood Party Brawl',null],
+  [136,'Pub Flor Party Brawl',null],[137,'Light Wood Party Brawl',null],[138,'Reserved',null],[139,'Reserved',null],[140,'Reserved',null],
 ];
 const OBJECTS=[
-  [0x00,'(none)'],[0x01,'Teleportal'],[0x02,'Room Teleportal'],[0x03,'Instant Teleportal'],
-  [0x04,'Invisible Teleportal'],[0x05,'Special Function'],[0x06,'Marsh Fog'],[0x07,'Hole'],
-  [0x0e,'Counter N'],[0x0f,'Counter E'],[0x10,'Counter S'],[0x11,'Counter W'],
-  [0x12,'Table+Bench N'],[0x1a,'Bar N'],[0x1e,'Chair N'],[0x22,'Locker N'],
-  [0x31,'Desk N'],[0x37,'Bed (W wall)'],[0x39,'Throne N'],[0x3d,'Small Tree'],
-  [0x42,'Graffiti N'],[0x45,'Plaque'],[0x46,'Gravestone'],
+  [0,'CLEAR Objects'],[1,'Teleportal'],[2,'Room Teleportal'],[3,'Instant Teleportal'],[4,'Invisible Teleportal'],
+  [5,'Special Function'],[6,'Marsh Fog'],[7,'Hole'],[8,'Rune Square'],[9,'LimVis'],
+  [14,'Counter N'],[15,'Counter E'],[16,'Counter S'],[17,'Counter W'],
+  [22,'Table w Bench N'],[23,'Table w Bench E'],[24,'Table w Bench S'],[25,'Table w Bench W'],[26,'Bar N'],[27,'Bar S'],
+  [30,'Chair N'],[31,'Chair E'],[32,'Chair S'],[33,'Chair W'],[34,'Locker N'],[35,'Locker E'],[36,'Locker S'],[37,'Locker W'],
+  [38,'Table w Book N'],[39,'Table w Book E'],[40,'Table w Book W'],[41,'Desk N'],[42,'Desk E'],[43,'Desk W'],
+  [44,'Bed against West Wall'],[45,'Bed against East Wall'],[46,'Throne N'],[47,'Throne S'],
+  [48,'Path'],[56,'Path'],[57,'Path'],[58,'Path'],[59,'Flowers'],[60,'Bushes'],[61,'Small Tree'],
+  [70,'Crate'],[71,'Crate'],[72,'Straw bed'],[73,'Straw bed'],[74,'Grafitte N Wall'],[75,'Grafitte E Wall'],
+  [76,'Grafitte W Wall'],[77,'Plaque'],[78,'Gravestone'],
 ];
-const WALLS=[[0,'(none)'],[1,'Wall 1'],[2,'Wall 2'],[3,'Wall 3'],[4,'Wall 4'],[5,'Wall 5'],[6,'Wall 6'],[7,'Wall 7']];
-const DOORS=[[0,'(none)'],[1,'Wood (closed)'],[2,'Iron (closed)'],[3,'Black (closed)'],
-             [0x11,'Wood (open)'],[0x12,'Iron (open)'],[0x13,'Black (open)']];
-const DOOR_COLOR={1:[150,110,66],2:[150,150,160],3:[40,40,46],0x11:[170,130,80],0x12:[170,170,180],0x13:[60,60,70]};
+const WALLS=[[0,'CLEAR Walls'],[1,'Stone Wall'],[2,'Dark Wood Panel Wall'],[3,'Brick Wall'],[4,'Cave Wall'],
+  [5,'Marble Wall'],[6,'Light Wood Panel Wall'],[7,'Blackened Wall'],[8,'Granite Wall'],[9,'Outdoor Cliffside'],
+  [10,'Tunnel Wall'],[29,'Ruined Stone Wall'],[31,'Flower Bed Wall']];
+const DOORS=[[0,'Clear'],[1,'Wooden Door'],[2,'Metal Door'],[3,'Illusionary Wall'],[4,'Blackened Metal Door'],[5,'Dark Wood Door']];
+const DOOR_COLOR={1:[150,110,66],2:[150,150,160],3:[150,40,160],4:[40,40,46],5:[110,80,55]};
 
-// real 8x8 terrain sprites mined from the detailed renders (extract_tileset.py)
-const SPRITES={}; let spritesReady=false;
-if(window.TILESET){ const keys=Object.keys(window.TILESET); let left=keys.length;
-  keys.forEach(k=>{ const im=new Image(); im.onload=()=>{ if(--left<=0){spritesReady=true;draw();} };
-    im.src=window.TILESET[k]; SPRITES[+k]=im; }); }
+// real game art decoded from SCBART.256 / PAL256 (extract_scbart.py)
+const SPRITES={}, OBJSPR={}, WALLSPR={}, DOORSPR={}; let spritesReady=false;
+(function preload(){
+  const jobs=[];
+  const add=(map,key,url)=>jobs.push([map,key,url]);
+  if(window.TILESET) Object.keys(window.TILESET).forEach(k=>add(SPRITES,+k,window.TILESET[k]));
+  if(window.TILESET_OBJ) Object.keys(window.TILESET_OBJ).forEach(k=>add(OBJSPR,+k,window.TILESET_OBJ[k]));
+  if(window.TILESET_WALL) Object.keys(window.TILESET_WALL).forEach(k=>add(WALLSPR,k,window.TILESET_WALL[k]));
+  if(window.TILESET_DOOR) Object.keys(window.TILESET_DOOR).forEach(k=>add(DOORSPR,k,window.TILESET_DOOR[k]));
+  let left=jobs.length; if(!left){ spritesReady=true; return; }
+  jobs.forEach(([map,key,url])=>{ const im=new Image(); im.onload=()=>{ if(--left<=0){spritesReady=true;draw();} };
+    im.onerror=()=>{ if(--left<=0){spritesReady=true;draw();} }; im.src=url; map[key]=im; });
+})();
+const ready=im=>im&&im.complete&&im.naturalWidth;
 
 const TERRAIN_COLOR={}; TERRAIN.forEach(t=>TERRAIN_COLOR[t[0]]=t[2]);
 function terrColor(v){ if(TERRAIN_COLOR[v]) return TERRAIN_COLOR[v];
@@ -137,18 +160,31 @@ function draw(){
     const o=off(r,c), x=c*scale, y=r*scale, spr=SPRITES[data[o]];
     if(spr && spr.complete && spr.naturalWidth){ ctx.drawImage(spr,x,y,scale,scale); }
     else { const col=terrColor(data[o]); ctx.fillStyle=`rgb(${col[0]},${col[1]},${col[2]})`; ctx.fillRect(x,y,scale,scale); }
-    if(data[o+1]){ ctx.fillStyle='rgba(230,210,120,.95)';   // object marker
-      ctx.beginPath(); ctx.arc(x+scale/2,y+scale/2,Math.max(1.5,scale*0.16),0,7); ctx.fill(); }
+    if(data[o+1]){ const osp=OBJSPR[data[o+1]];
+      if(ready(osp)){ ctx.drawImage(osp,x,y,scale,scale); }
+      else { ctx.fillStyle = (data[o+1]>=1&&data[o+1]<=4)?'rgba(60,230,230,.95)':'rgba(230,210,120,.95)';
+        ctx.beginPath(); ctx.arc(x+scale/2,y+scale/2,Math.max(1.5,scale*0.16),0,7); ctx.fill(); } }
   }
-  // walls + doors on top (N and W edges)
+  // walls + doors on top. real edge art when available, else colored lines.
   const t=Math.max(2,Math.round(scale*0.18));
+  function drawEdge(x,y,wallT,doorT,edge){
+    if(!(wallT||doorT)) return; let drew=false;
+    if(wallT){ const ws=WALLSPR[wallT+'|'+edge]; if(ready(ws)){ ctx.drawImage(ws,x,y,scale,scale); drew=true; } }
+    if(doorT){ const ds=DOORSPR[doorT+'|'+edge]; if(ready(ds)){ ctx.drawImage(ds,x,y,scale,scale); drew=true; } }
+    if(drew) return;
+    const k=doorT?(DOOR_COLOR[doorT]||[205,160,70]):[225,225,235];
+    ctx.fillStyle=`rgb(${k[0]},${k[1]},${k[2]})`;
+    if(edge==='N') ctx.fillRect(x,y,scale,t); else if(edge==='S') ctx.fillRect(x,y+scale-t,scale,t);
+    else if(edge==='W') ctx.fillRect(x,y,t,scale); else ctx.fillRect(x+scale-t,y,t,scale);
+  }
   for(let r=0;r<PLAY;r++) for(let c=0;c<PLAY;c++){
     const o=off(r,c), x=c*scale, y=r*scale;
-    if(northWall(o)){ ctx.fillStyle='#15131a'; ctx.fillRect(x,y,scale,t);
-      const d=northDoor(o); if(d&&DOOR_COLOR[d]){ const k=DOOR_COLOR[d]; ctx.fillStyle=`rgb(${k[0]},${k[1]},${k[2]})`; ctx.fillRect(x+scale*0.3,y,scale*0.4,t); } }
-    if(westWall(o)){ ctx.fillStyle='#15131a'; ctx.fillRect(x,y,t,scale);
-      const d=westDoor(o); if(d&&DOOR_COLOR[d]){ const k=DOOR_COLOR[d]; ctx.fillStyle=`rgb(${k[0]},${k[1]},${k[2]})`; ctx.fillRect(x,y+scale*0.3,t,scale*0.4); } }
+    drawEdge(x,y,northWall(o),northDoor(o),'N');
+    drawEdge(x,y,westWall(o),westDoor(o),'W');
   }
+  // boundary walls live on pad row/col 32 (shared S/E edges of the sector)
+  for(let r=0;r<PLAY;r++){ const o=off(r,32); drawEdge((PLAY-1)*scale,r*scale,westWall(o),westDoor(o),'E'); }
+  for(let c=0;c<PLAY;c++){ const o=off(32,c); drawEdge(c*scale,(PLAY-1)*scale,northWall(o),northDoor(o),'S'); }
   // grid
   ctx.strokeStyle='rgba(255,255,255,.05)'; ctx.lineWidth=1;
   for(let i=0;i<=PLAY;i++){ ctx.beginPath(); ctx.moveTo(i*scale+.5,0); ctx.lineTo(i*scale+.5,cv.height); ctx.stroke();
@@ -159,17 +195,25 @@ function draw(){
 function cellAt(ev){ const b=cv.getBoundingClientRect();
   const c=Math.floor((ev.clientX-b.left)/scale), r=Math.floor((ev.clientY-b.top)/scale);
   return (r>=0&&r<PLAY&&c>=0&&c<PLAY)?[r,c]:null; }
+// route an edge (N/E/S/W) to the canonical N/W field on this or the neighbour cell
+function wallSlot(r,c,e){
+  if(e==='N') return ['N',off(r,c)];
+  if(e==='W') return ['W',off(r,c)];
+  if(e==='S') return ['N',off(r+1,c)];   // south = north wall of the cell below (incl. pad row 32)
+  return ['W',off(r,c+1)];               // east  = west wall of the cell to the right (incl. pad col 32)
+}
 function paint(r,c,erase){
   const o=off(r,c);
-  if(mode==='terrain') data[o]=erase?0:sel.terrain;
-  else if(mode==='object') data[o+1]=erase?0:sel.object;
-  else if(mode==='wall'){ const t=erase?0:sel.wall; edge==='N'?setNorthWall(o,t):setWestWall(o,t);
-    if(erase){ edge==='N'?setNorthDoor(o,0):setWestDoor(o,0); } }
+  if(mode==='terrain'){ data[o]=erase?0:sel.terrain; return; }
+  if(mode==='object'){ data[o+1]=erase?0:sel.object; return; }
+  const [side,no]=wallSlot(r,c,edge);
+  if(mode==='wall'){ const t=erase?0:sel.wall;
+    side==='N'?setNorthWall(no,t):setWestWall(no,t);
+    if(erase){ side==='N'?setNorthDoor(no,0):setWestDoor(no,0); } }
   else if(mode==='door'){ const t=erase?0:sel.door;
-    // door requires a wall on that edge
-    if(!erase){ if(edge==='N'&&!northWall(o)) setNorthWall(o,sel.wall||1);
-                if(edge==='W'&&!westWall(o)) setWestWall(o,sel.wall||1); }
-    edge==='N'?setNorthDoor(o,t):setWestDoor(o,t); }
+    if(!erase){ if(side==='N'&&!northWall(no)) setNorthWall(no,sel.wall||1);
+                if(side==='W'&&!westWall(no)) setWestWall(no,sel.wall||1); }
+    side==='N'?setNorthDoor(no,t):setWestDoor(no,t); }
 }
 let painting=false, eraseMode=false;
 cv.addEventListener('contextmenu',e=>e.preventDefault());
@@ -204,10 +248,14 @@ function buildPalette(){
   list.forEach(([val,label,col])=>{
     const pi=document.createElement('div'); pi.className='pi'; if(val===sel[mode]) pi.classList.add('on');
     const sw=document.createElement('div'); sw.className='sw';
-    if(mode==='terrain' && window.TILESET && window.TILESET[val]){
-      sw.style.backgroundImage=`url(${window.TILESET[val]})`; sw.style.backgroundSize='cover';
-      sw.style.imageRendering='pixelated';
-    } else if(col){ const cc=mode==='terrain'?terrColor(val):col; sw.style.background=`rgb(${cc[0]},${cc[1]},${cc[2]})`; }
+    const art = mode==='terrain'?(window.TILESET||{})[val]
+            : mode==='object'?(window.TILESET_OBJ||{})[val]
+            : mode==='wall'?(window.TILESET_WALL||{})[val+'|N']
+            : (window.TILESET_DOOR||{})[val+'|N'];
+    if(art){ sw.style.backgroundImage=`url(${art})`; sw.style.backgroundSize='cover';
+      sw.style.imageRendering='pixelated'; sw.style.background='#000 url('+art+') center/cover'; }
+    else if(col){ const cc=mode==='terrain'?terrColor(val):col; sw.style.background=`rgb(${cc[0]},${cc[1]},${cc[2]})`; }
+    else if(mode==='terrain'){ const cc=terrColor(val); sw.style.background=`rgb(${cc[0]},${cc[1]},${cc[2]})`; }
     else sw.style.background='#333';
     const nm=document.createElement('div'); nm.textContent=label+'  (0x'+val.toString(16)+')'; nm.style.fontSize='12px';
     pi.appendChild(sw); pi.appendChild(nm);
