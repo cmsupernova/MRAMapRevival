@@ -23,6 +23,7 @@
   .cell .x{ position:absolute; top:0; right:1px; color:#ff6b6b; display:none; z-index:3; font-size:12px; }
   .cell:hover .x{ display:block; }
   .cell .nm{ position:absolute; bottom:0; left:0; right:0; font-size:8px; background:rgba(0,0,0,.6); color:#fff; text-align:center; overflow:hidden; white-space:nowrap; text-overflow:ellipsis; padding:1px; }
+  .cell .stair{ position:absolute; top:1px; left:1px; font-size:9px; line-height:1; z-index:3; color:#3fe0e0; text-shadow:0 0 2px #000; }
   .floors,.zoom{ display:flex; gap:3px; align-items:center; }
   .floors button.on{ border-color:var(--accent); background:#143; color:#fff; }
   .palette{ width:280px; flex:none; background:var(--panel); border-left:1px solid var(--line); overflow:auto; padding:10px; }
@@ -78,6 +79,7 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="data.js"></script>
 <script src="seams.js"></script>
+<script src="stairs.js"></script>
 <script>
 const FLOORS=['c','b','a'], FLOOR_LABEL={c:'Upper (c)',b:'Ground (b)',a:'Under (a)'};
 let layer='b', cols=6, rows=6, cell=64;
@@ -116,13 +118,17 @@ function buildGrid(){
 function cellEl(lx,ly){ return grid.children[ly*cols+lx]; }
 function renderCell(lx,ly,c){
   c=c||cellEl(lx,ly); if(!c) return;
-  [...c.querySelectorAll('img,.x,.nm')].forEach(n=>n.remove());
+  [...c.querySelectorAll('img,.x,.nm,.stair')].forEach(n=>n.remove());
   const fn=curCells()[key(lx,ly)];
   if(fn){ const t=TILE[fn];
     const im=document.createElement('img'); im.src=t?t.png:('tiles/'+fn+'.png'); c.appendChild(im);
     const nm=document.createElement('div'); nm.className='nm'; nm.textContent=fn.replace('.SEC',''); c.appendChild(nm);
     const x=document.createElement('div'); x.className='x'; x.textContent='x';
-    x.onclick=ev=>{ev.stopPropagation();clearCell(lx,ly);}; c.appendChild(x); }
+    x.onclick=ev=>{ev.stopPropagation();clearCell(lx,ly);}; c.appendChild(x);
+    const st=(window.STAIRS||{})[fn];
+    if(st){ const s=document.createElement('div'); s.className='stair';
+      s.textContent=(st.u?'\u25B2':'')+(st.d?'\u25BC':'');
+      s.title='floor transition: '+(st.u?'up ':'')+(st.d?'down':''); c.appendChild(s); } }
 }
 function place(lx,ly,fn){ curCells()[key(lx,ly)]=fn; renderCell(lx,ly); saveLS(); markUsed(); status(); DB.upsert(cname,lx,ly,layer,fn); }
 function clearCell(lx,ly){ delete curCells()[key(lx,ly)]; renderCell(lx,ly); saveLS(); markUsed(); status(); DB.remove(cname,lx,ly,layer); }

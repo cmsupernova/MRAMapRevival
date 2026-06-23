@@ -39,6 +39,7 @@
   .cell:hover .x { display:block; }
   .cell .badge { position:absolute; bottom:0; left:1px; font-size:8px; letter-spacing:1px; z-index:3; color:#566; }
   .cell .badge b { color:#ffd166; }
+  .cell .stair { position:absolute; top:1px; left:1px; font-size:9px; line-height:1; z-index:3; color:#3fe0e0; text-shadow:0 0 2px #000; }
   .cell .label { position:absolute; top:0; left:0; right:0; font-size:8px; line-height:1.2; z-index:2;
     background:rgba(0,0,0,.6); color:#fff; text-align:center; overflow:hidden; white-space:nowrap; text-overflow:ellipsis; padding:1px; }
   .zoom { display:flex; gap:3px; align-items:center; }
@@ -113,6 +114,7 @@
 
 <script src="data.js"></script>
 <script src="suggestions.js"></script>
+<script src="stairs.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
 const EW_MIN=10, EW_MAX=100, NS_MIN=15, NS_MAX=90, STEP=5;
@@ -204,7 +206,7 @@ function applyRemote(ck,rec){
 }
 function renderCell(ew,ns){
   const c=CELLS[ew+","+ns]; if(!c) return;
-  [...c.querySelectorAll('img,.x,.badge')].forEach(n=>n.remove());
+  [...c.querySelectorAll('img,.x,.badge,.stair')].forEach(n=>n.remove());
   c.classList.remove('coord','area','cleared');
   const lay=displayLayer(ew,ns), ck=ew+","+ns+","+lay;
   const p=placements[ck]||coordByCell[ck];
@@ -227,6 +229,11 @@ function renderCell(ew,ns){
     bd.innerHTML=FLOOR_ORDER.filter(l=>present.includes(l)).map(l=>l===lay?'<b>'+l+'</b>':l).join('');
     c.appendChild(bd);
   }
+  // floor-transition badge: this sector has stairs/portal tiles to another floor
+  const st=p&&p.filename!==CLEARED&&(window.STAIRS||{})[p.filename];
+  if(st){ const s=document.createElement('div'); s.className='stair';
+    s.textContent=(st.u?'\u25B2':'')+(st.d?'\u25BC':'');
+    s.title='floor transition: '+(st.u?'up ':'')+(st.d?'down':''); c.appendChild(s); }
 }
 // ---- cell editor popover: view / replace / blank any cell ----------------
 const pop=document.getElementById('pop');
