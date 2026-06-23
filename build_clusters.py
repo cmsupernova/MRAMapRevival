@@ -29,6 +29,8 @@ import os
 import sys
 import urllib.request
 
+import build_world_coords as B
+
 HERE = os.path.dirname(os.path.abspath(__file__))
 OUT = os.path.join(HERE, "clusters_built.json")
 
@@ -94,6 +96,16 @@ def load_cells(args):
         return []
 
 
+def valid_filenames():
+    out = set()
+    for root in (B.MAPS_DIR, B.MAPSALL_DIR):
+        for p in glob.glob(os.path.join(root, "**", "*.SEC"), recursive=True):
+            f = os.path.basename(p)
+            if not f.startswith("._"):
+                out.add(f)
+    return out
+
+
 def base(fn):
     return fn[:-4] if fn.upper().endswith(".SEC") else fn
 
@@ -101,16 +113,32 @@ def base(fn):
 def main():
     args = [a for a in sys.argv[1:] if not a.startswith("-")]
     cells = load_cells(args)
+    valid = valid_filenames()
 
     # index: clusters[name][(lx,ly,layer)] = filename
     clusters = {}
+    invalid = duplicate = skipped = 0
+    seen_files = {}
     for c in cells:
         try:
             clu = c["cluster"]
-            k = (int(c["lx"]), int(c["ly"]), (c.get("layer") or "b").lower())
-            clusters.setdefault(clu, {})[k] = c["filename"]
+            lay = (c.get("layer") or "b").lower()
+            fn = c["filename"]
+            k = (int(c["lx"]), int(c["ly"]), lay)
         except (KeyError, TypeError, ValueError):
+            skipped += 1
             continue
+        if lay not in ("a", "b", "c"):
+            skipped += 1
+            continue
+        if fn not in valid:
+            invalid += 1
+            continue
+        if fn in seen_files:
+            duplicate += 1
+            continue
+        seen_files[fn] = (clu, k)
+        clusters.setdefault(clu, {})[k] = fn
 
     out = {"clusters": {}, "sector_links": {}, "_meta": {
         "title": "MRA interior cluster stitching (community-defined)",
@@ -159,6 +187,9 @@ def main():
         "sectors": sum(c["sector_count"] for c in out["clusters"].values()),
         "links": sum(len(c["links"]) for c in out["clusters"].values()),
         "duplicate_filenames": sorted(set(dup_filenames)),
+        "cells_skipped": skipped,
+        "invalid_filenames": invalid,
+        "duplicate_cells_by_filename": duplicate,
     }
 
     with open(OUT, "w") as fh:
@@ -171,6 +202,9 @@ def main():
     if dup_filenames:
         print(f"  NOTE: {len(set(dup_filenames))} filename(s) appear in >1 cell; "
               "last wins in sector_links:", sorted(set(dup_filenames))[:8])
+    print(f"  skipped rows:       {skipped}")
+    print(f"  invalid filenames:  {invalid}")
+    print(f"  duplicate filenames:{duplicate}")
 
 
 if __name__ == "__main__":

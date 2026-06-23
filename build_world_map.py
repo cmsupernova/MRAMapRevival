@@ -76,20 +76,37 @@ def load_placements(arg):
         return []
 
 
+def valid_filenames():
+    out = set()
+    for root in (B.MAPS_DIR, B.MAPSALL_DIR):
+        for r, _d, fs in os.walk(root):
+            for f in fs:
+                if f.upper().endswith(".SEC") and not f.startswith("._"):
+                    out.add(f)
+    return out
+
+
 def main():
     arg = next((a for a in sys.argv[1:] if not a.startswith("-")), None)
     core = B.build()                       # binary-grounded core (also writes coords json)
     sectors = core["sectors"]
     b2b = core["block_to_base"]
     placements = load_placements(arg)
+    valid = valid_filenames()
+    sector_key_by_base = {base: f"{s['x_block']},{s['y_block']},{s['layer']}"
+                          for base, s in sectors.items()}
+    seen_files = {}
 
-    added = overridden = cleared = skipped = 0
+    added = overridden = cleared = skipped = invalid = duplicate = name_conflict = 0
     for p in placements:
         try:
             mp_x, mp_y = int(p["mp_x"]), int(p["mp_y"])
             layer = (p.get("layer") or "b").lower()
             fname = p["filename"]
         except (KeyError, TypeError, ValueError):
+            skipped += 1
+            continue
+        if layer not in ("a", "b", "c"):
             skipped += 1
             continue
         xb, yb = xblock_of_mpx(mp_x), yblock_of_mpy(mp_y)
@@ -100,11 +117,24 @@ def main():
                 sectors.pop(old, None)
                 cleared += 1
             continue
+        if fname not in valid:
+            invalid += 1
+            continue
+        if fname in seen_files:
+            duplicate += 1
+            continue
+        seen_files[fname] = key
         base = fname[:-4] if fname.upper().endswith(".SEC") else fname
+        owner = sector_key_by_base.get(base)
+        if owner is not None and owner != key:
+            # Same sector name at two addresses would overwrite sectors[base].
+            name_conflict += 1
+            continue
         existed = key in b2b
         # drop any prior occupant of this block so addressing stays 1:1
         if existed:
             sectors.pop(b2b[key], None)
+        sector_key_by_base[base] = key
         prefix = MPX_TO_PREFIX.get(mp_x)
         sectors[base] = {
             "filename": base + ".SEC",
@@ -139,6 +169,9 @@ def main():
         "community_overrode_core": overridden,
         "community_cleared": cleared,
         "placements_skipped": skipped,
+        "placements_invalid_filename": invalid,
+        "placements_duplicate_filename": duplicate,
+        "placements_name_conflict": name_conflict,
     }
     core.pop("holes", None)                # holes report is core-only; drop here
 
@@ -156,6 +189,9 @@ def main():
     print(f"  community overrode:   {overridden}")
     print(f"  core tiles cleared:   {cleared}")
     print(f"  placements skipped:   {skipped}")
+    print(f"  invalid filenames:    {invalid}")
+    print(f"  duplicate filenames:  {duplicate}")
+    print(f"  name conflicts:       {name_conflict}")
     print(f"  consistency errors:   {len(errs)}")
     for e in errs[:10]:
         print("    ", e)

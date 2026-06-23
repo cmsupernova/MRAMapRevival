@@ -71,6 +71,9 @@
     <div class="legend" id="status" style="margin-top:10px"></div></div>
   <div class="palette">
     <input id="filter" placeholder="search any SEC..." style="width:100%">
+    <label class="legend" style="display:block;margin-top:6px">
+      <input id="coordtoggle" type="checkbox"> include coordinate/world SECs
+    </label>
     <div class="chips" id="chips"></div>
     <div class="tiles" id="pbody"></div>
   </div>
@@ -84,13 +87,17 @@
 const FLOORS=['c','b','a'], FLOOR_LABEL={c:'Upper (c)',b:'Ground (b)',a:'Under (a)'};
 let layer='b', cols=6, rows=6, cell=64;
 let cname='', state={};   // state[cluster] = { 'lx,ly,layer': filename }
-const TILE=({}); (window.MANIFEST?[...MANIFEST.area,...MANIFEST.coordinate]:[]).forEach(t=>TILE[t.filename]=t);
-const ALL=Object.values(TILE).sort((a,b)=>a.filename.localeCompare(b.filename));
-
-// cluster prefixes: leading letters before first digit (>=2 files)
-const groups={};
-ALL.forEach(t=>{ const m=t.filename.toLowerCase().match(/^([a-z]+)/); if(m){ (groups[m[1]]=groups[m[1]]||[]).push(t); } });
-const PREFIXES=Object.keys(groups).filter(k=>groups[k].length>=2).sort();
+const AREA=(window.MANIFEST&&MANIFEST.area?MANIFEST.area:[]).slice().sort((a,b)=>a.filename.localeCompare(b.filename));
+const COORD=(window.MANIFEST&&MANIFEST.coordinate?MANIFEST.coordinate:[]).slice().sort((a,b)=>a.filename.localeCompare(b.filename));
+const ALL=[...AREA,...COORD];
+const TILE=({}); ALL.forEach(t=>{ if(!TILE[t.filename]) TILE[t.filename]=t; }); // prefer area art for duplicate names
+let INCLUDE_COORD=false;
+function paletteItems(){ return INCLUDE_COORD ? ALL : AREA; }
+function currentGroups(){
+  const groups={};
+  paletteItems().forEach(t=>{ const m=t.filename.toLowerCase().match(/^([a-z]+)/); if(m){ (groups[m[1]]=groups[m[1]]||[]).push(t); } });
+  return {groups, prefixes:Object.keys(groups).filter(k=>groups[k].length>=2).sort()};
+}
 
 function key(lx,ly){ return lx+','+ly+','+layer; }
 function curCells(){ return state[cname]||(state[cname]={}); }
@@ -151,11 +158,15 @@ FLOORS.forEach(f=>{ const b=document.createElement('button'); b.textContent=FLOO
 
 // ---- palette ----
 const pbody=document.getElementById('pbody'), chipsEl=document.getElementById('chips');
-PREFIXES.forEach(p=>{ const ch=document.createElement('span'); ch.className='chip'; ch.textContent=p+' ('+groups[p].length+')';
-  ch.onclick=()=>{ document.getElementById('filter').value=p; buildPalette(p); markUsed(); }; chipsEl.appendChild(ch); });
+function buildChips(){
+  chipsEl.innerHTML='';
+  const {groups,prefixes}=currentGroups();
+  prefixes.forEach(p=>{ const ch=document.createElement('span'); ch.className='chip'; ch.textContent=p+' ('+groups[p].length+')';
+    ch.onclick=()=>{ document.getElementById('filter').value=p; buildPalette(p); markUsed(); }; chipsEl.appendChild(ch); });
+}
 function buildPalette(q=''){
   q=q.toLowerCase(); pbody.innerHTML='';
-  ALL.filter(t=>!q||t.filename.toLowerCase().includes(q)).slice(0,180).forEach(t=>{
+  paletteItems().filter(t=>!q||t.filename.toLowerCase().includes(q)).slice(0,180).forEach(t=>{
     const tw=document.createElement('div'); tw.className='tw'; tw.dataset.fn=t.filename;
     const im=document.createElement('img'); im.src=t.png; im.draggable=true; im.title=t.filename;
     im.addEventListener('dragstart',e=>e.dataTransfer.setData('fn',t.filename));
@@ -195,7 +206,7 @@ function openPop(lx,ly,evt){
   const res=document.createElement('div'); pop.appendChild(res);
   function run(){ const q=inp.value.toLowerCase().trim(); res.innerHTML=''; if(!q) return;
     const g=document.createElement('div'); g.className='ptiles';
-    ALL.filter(t=>t.filename.toLowerCase().includes(q)).slice(0,40).forEach(t=>{
+    paletteItems().filter(t=>t.filename.toLowerCase().includes(q)).slice(0,40).forEach(t=>{
       const pt=document.createElement('div'); pt.className='pt';
       const im=document.createElement('img'); im.src=t.png; im.title=t.filename;
       const s=document.createElement('span'); s.textContent=t.filename.replace('.SEC','');
@@ -237,7 +248,8 @@ function suggestFor(lx,ly){
   if(!cons.length) return [];
   let cand=[...cons[0]]; for(let i=1;i<cons.length;i++) cand=cand.filter(f=>cons[i].has(f));
   const used=new Set(Object.values(cells));
-  return cand.filter(f=>!used.has(f)).slice(0,12);
+  const allowed=new Set(paletteItems().map(t=>t.filename));
+  return cand.filter(f=>!used.has(f)&&allowed.has(f)).slice(0,12);
 }
 
 // ---- derived links + export ----
@@ -283,6 +295,8 @@ cnameEl.addEventListener('change',()=>{ cname=cnameEl.value.trim().toLowerCase()
   if(cname && Object.keys(curCells()).length===0){ document.getElementById('filter').value=cname; }
   buildPalette(document.getElementById('filter').value); buildGrid(); markUsed(); status(); });
 document.getElementById('filter').addEventListener('input',e=>buildPalette(e.target.value));
+document.getElementById('coordtoggle').addEventListener('change',e=>{ INCLUDE_COORD=e.target.checked;
+  buildChips(); buildPalette(document.getElementById('filter').value); });
 function setZoom(p){ cell=Math.max(28,Math.min(128,p)); document.documentElement.style.setProperty('--cell',cell+'px'); document.getElementById('zlvl').textContent=cell; }
 document.getElementById('zin').onclick=()=>setZoom(cell+8);
 document.getElementById('zout').onclick=()=>setZoom(cell-8);
@@ -332,7 +346,7 @@ document.getElementById('cfgsave').onclick=()=>{
   localStorage.setItem('mra_name',document.getElementById('cfgname').value.trim()||'anon');
   cfgbar.style.display='none'; DB.connect(); };
 
-buildPalette(); buildGrid(); status(); DB.connect();
+buildChips(); buildPalette(); buildGrid(); status(); DB.connect();
 </script>
 </body>
 </html>

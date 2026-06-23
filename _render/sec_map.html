@@ -142,7 +142,11 @@ function displayLayer(ew,ns){
   if(FLOOR!=='surface') return FLOOR;
   const p=presentLayers(ew,ns); return p.length?p[0]:'b';
 }
-function placeLayer(){ return FLOOR==='surface' ? 'b' : FLOOR; }
+function editLayer(ew,ns){
+  // Surface view shows the topmost occupied floor. Edits should target that
+  // visible floor; empty surface cells still default to ground.
+  return FLOOR==='surface' ? displayLayer(ew,ns) : FLOOR;
+}
 
 // floor selector
 const floorsEl=document.getElementById('floors');
@@ -178,7 +182,7 @@ function makeCell(ew,ns){
   c.addEventListener('dragleave',()=>c.classList.remove('dragover'));
   c.addEventListener('drop',e=>{e.preventDefault();c.classList.remove('dragover');
     const fn=e.dataTransfer.getData('fn'), png=e.dataTransfer.getData('png');
-    if(fn){ setPlacement(ew,ns,placeLayer(),{filename:fn,png,source:'area'}); }});
+    if(fn){ setPlacement(ew,ns,editLayer(ew,ns),{filename:fn,png,source:'area'}); }});
   const sug=(window.SUGGESTIONS||{})[key];
   if(sug && sug.candidates && sug.candidates.length) c.classList.add('hassug');
   c.addEventListener('click',e=>{ if(e.target.classList.contains('x')) return; openEditor(ew,ns,e); });
@@ -252,7 +256,7 @@ function tileGrid(items,ew,ns,lay){
   return g;
 }
 function openEditor(ew,ns,evt){
-  const key=ew+","+ns, lay=placeLayer(), ck=ew+","+ns+","+lay;
+  const key=ew+","+ns, lay=editLayer(ew,ns), ck=ew+","+ns+","+lay;
   const placed=placements[ck], core=coordByCell[ck];
   const cur=placed||core;
   const lname=(window.LAYOUT||{})[key]||'(unnamed)';
@@ -307,7 +311,7 @@ function openEditor(ew,ns,evt){
   inp.focus();
 }
 function quickClear(ew,ns){
-  const lay=placeLayer(), ck=ew+","+ns+","+lay;
+  const lay=editLayer(ew,ns), ck=ew+","+ns+","+lay;
   if(placements[ck]) removePlacement(ck);
   else if(coordByCell[ck]) setPlacement(ew,ns,lay,{filename:CLEARED,png:'',source:'area'});
 }
@@ -429,7 +433,7 @@ document.getElementById('cfgclear').onclick=()=>{
 DB.connect();
 
 document.getElementById('export').addEventListener('click',()=>{
-  const out=Object.entries(placements).filter(([k,p])=>p.filename!==CLEARED).map(([k,p])=>{
+  const out=Object.entries(placements).map(([k,p])=>{
     const [ew,ns,lay]=k.split(',');
     return {filename:p.filename, mp_x:+ew, mp_y:+ns, layer:lay, mp_z:FLOOR_Z[lay]||50,
             place_name:(window.LAYOUT||{})[ew+","+ns]||null};
