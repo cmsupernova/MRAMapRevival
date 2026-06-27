@@ -114,6 +114,8 @@
   <label class="legend"><input type="checkbox" id="labels"> labels on placed</label>
   <span id="sync" class="legend" title="click to configure sharing" style="cursor:pointer">local only</span>
   <button id="seed" title="auto-fill empty named cells with their best-match tile (draft, reversible)">Seed empty</button>
+  <button id="importbtn" title="load an exported build (area_placements*.json) into the active tab">Import</button>
+  <input id="importfile" type="file" accept=".json" style="display:none">
   <button id="export">Export</button>
   <a href="sec_edit.html" class="legend" style="color:var(--accent)">SEC editor &rarr;</a>
   <a href="sec_cluster.html" class="legend" style="color:var(--accent)">interiors &rarr;</a>
@@ -611,6 +613,34 @@ document.getElementById('export').addEventListener('click',()=>{
   const blob=new Blob([JSON.stringify({dataset:DATASET, area_placements:out},null,1)],{type:'application/json'});
   const fname=DATASET==='merged'?'area_placements.json':'area_placements_'+DATASET+'.json';
   const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=fname; a.click();
+});
+
+// Import a previously exported build into the active tab. Accepts the tool's
+// own export ({dataset, area_placements:[...]}) or a raw placement array.
+document.getElementById('importbtn').onclick=()=>document.getElementById('importfile').click();
+document.getElementById('importfile').addEventListener('change',e=>{
+  const f=e.target.files[0]; if(!f) return;
+  const rd=new FileReader();
+  rd.onload=()=>{ try{
+    const o=JSON.parse(rd.result);
+    const rows=o.area_placements||o.placements||(Array.isArray(o)?o:[]);
+    if(!rows.length){ alert('No placements found in that file.'); return; }
+    if(o.dataset && placementsByDS[o.dataset] && o.dataset!==DATASET){
+      if(confirm('This file is a "'+o.dataset+'" build. Switch to that tab and load it there?')) switchDataset(o.dataset);
+    }
+    if(!confirm('Load '+rows.length+' placements into the "'+DATASET+'" build? Existing cells with the same position are overwritten.')) return;
+    let n=0;
+    rows.forEach(p=>{ if(!p||!p.filename) return;
+      const ew=+p.mp_x, ns=+p.mp_y, lay=p.layer||'b';
+      if(isNaN(ew)||isNaN(ns)) return;
+      const t=TILE_BY_NAME[p.filename];
+      setPlacement(ew,ns,lay,{filename:p.filename, png:t?t.png:('tiles/'+p.filename+'.png'), source:srcOf(p.filename)});
+      n++;
+    });
+    alert('Imported '+n+' placements into the "'+DATASET+'" build.');
+  }catch(err){ alert('Bad JSON: '+err); } };
+  rd.readAsText(f);
+  e.target.value='';
 });
 
 // draft seeder: fill empty named cells with their best-match suggestion.
