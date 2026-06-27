@@ -105,7 +105,7 @@
 <div class="wrap">
   <div class="gridpane"><div id="grid" class="grid"></div></div>
   <div class="palette">
-    <input type="search" id="filter" placeholder="filter area tiles..." style="width:100%">
+    <input type="search" id="filter" placeholder="filter tiles..." style="width:100%">
     <div id="palettebody"></div>
   </div>
 </div>
@@ -347,28 +347,53 @@ buildGrid();
 const pbody=document.getElementById('palettebody');
 const byRegion={}, AREA_BY_NAME={};
 (MANIFEST.area||[]).forEach(t=>{ (byRegion[t.region||'?']=byRegion[t.region||'?']||[]).push(t); AREA_BY_NAME[t.filename]=t; });
+function usedFilenames(){
+  const used=new Set();
+  const keys=new Set([...Object.keys(coordByCell), ...Object.keys(placements)]);
+  keys.forEach(ck=>{
+    const pl=placements[ck], core=coordByCell[ck];
+    if(pl?.filename===CLEARED) return;
+    const eff=pl||core;
+    if(eff?.filename) used.add(eff.filename);
+  });
+  return used;
+}
+function appendTileWrap(wrap,t,draggable){
+  const tw=document.createElement('div'); tw.className='tilewrap';
+  const im=document.createElement('img'); im.className='tile'; im.src=t.png;
+  im.dataset.fn=t.filename;
+  im.title=t.filename+(t.place_name?' — '+t.place_name:'');
+  if(draggable){
+    im.draggable=true;
+    im.addEventListener('dragstart',e=>{e.dataTransfer.setData('fn',t.filename);e.dataTransfer.setData('png',t.png);});
+  }
+  attachHover(im,t.png,t.filename);
+  const nm=document.createElement('div'); nm.className='nm'; nm.textContent=t.filename.replace('.SEC','');
+  tw.appendChild(im); tw.appendChild(nm); wrap.appendChild(tw);
+}
 function buildPalette(filter=''){
   pbody.innerHTML='';
+  const q=filter.toLowerCase();
+  const core=(MANIFEST.coordinate||[]).filter(t=>
+    !q||t.filename.toLowerCase().includes(q)||(t.place_name||'').toLowerCase().includes(q));
+  if(core.length){
+    const h=document.createElement('div'); h.className='region'; h.textContent='Core / coordinate ('+core.length+')'; pbody.appendChild(h);
+    const wrap=document.createElement('div'); wrap.className='tiles';
+    core.forEach(t=>appendTileWrap(wrap,t,false));
+    pbody.appendChild(wrap);
+  }
   Object.keys(byRegion).sort().forEach(reg=>{
-    const items=byRegion[reg].filter(t=>t.filename.toLowerCase().includes(filter));
+    const items=byRegion[reg].filter(t=>!q||t.filename.toLowerCase().includes(q));
     if(!items.length) return;
     const h=document.createElement('div'); h.className='region'; h.textContent=reg+' ('+items.length+')'; pbody.appendChild(h);
     const wrap=document.createElement('div'); wrap.className='tiles';
-    items.forEach(t=>{
-      const tw=document.createElement('div'); tw.className='tilewrap';
-      const im=document.createElement('img'); im.className='tile'; im.src=t.png; im.draggable=true;
-      im.dataset.fn=t.filename; im.title=t.filename;
-      im.addEventListener('dragstart',e=>{e.dataTransfer.setData('fn',t.filename);e.dataTransfer.setData('png',t.png);});
-      attachHover(im,t.png,t.filename);
-      const nm=document.createElement('div'); nm.className='nm'; nm.textContent=t.filename.replace('.SEC','');
-      tw.appendChild(im); tw.appendChild(nm); wrap.appendChild(tw);
-    });
+    items.forEach(t=>appendTileWrap(wrap,t,true));
     pbody.appendChild(wrap);
   });
   markUsed();
 }
 function markUsed(){
-  const used=new Set(Object.values(placements).map(p=>p.filename).filter(f=>f!==CLEARED));
+  const used=usedFilenames();
   pbody.querySelectorAll('.tilewrap').forEach(tw=>{ const im=tw.querySelector('img.tile');
     tw.classList.toggle('used', !!im && used.has(im.dataset.fn)); });
 }
@@ -407,6 +432,7 @@ const DB = {
           else applyRemote(p.new.cell, p.new);
         }).subscribe();
       this.ready=true; this.status('shared: '+this.name+' ('+(data?data.length:0)+' placed)');
+      markUsed();
     }catch(e){ this.ready=false; this.status('connect failed'); console.error(e); }
   },
   upsert(cell,ew,ns,lay,filename){ if(!this.ready) return;
@@ -450,7 +476,7 @@ document.getElementById('seed').addEventListener('click',()=>{
     .sort((a,b)=>{const A=a[0].split(',').map(Number),B=b[0].split(',').map(Number);return A[1]-B[1]||A[0]-B[0];});
   if(!cells.length){ alert('No suggestions loaded.'); return; }
   if(!confirm('Auto-fill empty named cells with their best-match tile (draft)?\n\nThis writes to the shared map. Every cell stays editable - click to replace, right-click to clear.')) return;
-  const used=new Set(Object.values(placements).map(p=>p.filename));
+  const used=usedFilenames();
   let n=0;
   cells.forEach(([key,s])=>{
     const [ew,ns]=key.split(',').map(Number), lay='b', ck=ew+','+ns+','+lay;
