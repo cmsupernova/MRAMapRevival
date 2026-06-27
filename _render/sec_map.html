@@ -91,12 +91,22 @@
   .floors { display:flex; gap:3px; }
   .floors button { padding:5px 9px; }
   .floors button.on { border-color:var(--accent); background:#143; color:#fff; }
+  .tabs { display:flex; gap:0; border:1px solid var(--line); border-radius:7px; overflow:hidden; }
+  .tabs button { border:none; border-radius:0; border-right:1px solid var(--line); padding:6px 11px; background:#23262e; color:#9aa0ad; font-weight:600; }
+  .tabs button:last-child { border-right:none; }
+  .tabs button.on { background:var(--accent); color:#06121f; }
+  .tabs button:hover:not(.on) { background:#2c313c; color:var(--txt); }
 </style>
 </head>
 <body>
 <header>
   <h1>MRA SEC Map Builder</h1>
-  <span class="legend">green = core (auto). blue = your placement. Drag a tile on, or click a cell to edit / replace / blank it. Right-click clears.</span>
+  <span class="tabs" id="tabs">
+    <button data-ds="merged" class="on">Merged</button>
+    <button data-ds="c2006">2006 coordinate</button>
+    <button data-ds="n2011">2011 name-based</button>
+  </span>
+  <span class="legend" id="legendtxt">Merged: 2006 core plus your placements. Drag a tile on, or click a cell to edit / replace / blank it. Right-click clears.</span>
   <span class="sp"></span>
   <span class="floors" id="floors"></span>
   <span class="zoom"><button id="zout">-</button><span id="zlvl" class="legend">60</span><button id="zin">+</button></span>
@@ -143,15 +153,31 @@ const FLOOR_Z={a:45,b:50,c:55};
 const FLOOR_LABEL={surface:'Surface',c:'Upper (c)',b:'Ground (b)',a:'Under (a)'};
 let FLOOR='surface';
 
-// coordByCell["ew,ns,layer"] and placements["ew,ns,layer"] -> {filename,png,source,place}
-const coordByCell={}, placements={};
+// coordByCell["ew,ns,layer"] -> {filename,png,source,place} (the 2006 positioned core).
+const coordByCell={};
 (MANIFEST.coordinate||[]).forEach(t=>{
   if(t.mp_x==null||t.mp_y==null) return;
   const lay=t.layer||'b';
   coordByCell[t.mp_x+","+t.mp_y+","+lay]={filename:t.filename,png:t.png,source:"coord",place:t.place_name};
 });
+
+// Three independent builds share the grid but keep separate placement layers:
+//   merged - 2006 core + your overlay (the original combined map)
+//   c2006  - the 2006 coordinate map only (review/correct positioned sectors)
+//   n2011  - rebuild purely from 2011 name-based SECs (no core shown)
+const placementsByDS={merged:{}, c2006:{}, n2011:{}};
+const DS_CFG={
+  merged:{ showCore:true,  palette:'both',  legend:'Merged: 2006 core plus your placements. Drag a tile on, or click a cell to edit / replace / blank it. Right-click clears.' },
+  c2006: { showCore:true,  palette:'coord', legend:'2006 coordinate map only. Review and correct the original positioned sectors; no name-based tiles mixed in.' },
+  n2011: { showCore:false, palette:'area',  legend:'2011 name-based build. Empty grid - place the area SECs to reconstruct the world from scratch.' },
+};
+let DATASET='merged';
+let placements=placementsByDS[DATASET];
+function showCore(){ return DS_CFG[DATASET].showCore; }
+function coreAt(ck){ return showCore() ? coordByCell[ck] : undefined; }
+
 function presentLayers(ew,ns){ // layers (any source) at this cell, topmost-first
-  return FLOOR_ORDER.filter(l=>coordByCell[ew+","+ns+","+l]||placements[ew+","+ns+","+l]);
+  return FLOOR_ORDER.filter(l=>coreAt(ew+","+ns+","+l)||placements[ew+","+ns+","+l]);
 }
 function displayLayer(ew,ns){
   if(FLOOR!=='surface') return FLOOR;
@@ -163,7 +189,7 @@ function editLayer(ew,ns){
   return FLOOR==='surface' ? displayLayer(ew,ns) : FLOOR;
 }
 function cellEffective(ck){
-  const pl=placements[ck], core=coordByCell[ck];
+  const pl=placements[ck], core=coreAt(ck);
   if(pl?.filename===CLEARED) return null;
   return pl||core||null;
 }
@@ -217,7 +243,7 @@ function makeCell(ew,ns){
   c.addEventListener('dragleave',()=>c.classList.remove('dragover'));
   c.addEventListener('drop',e=>{e.preventDefault();c.classList.remove('dragover');
     const fn=e.dataTransfer.getData('fn'), png=e.dataTransfer.getData('png');
-    if(fn){ setPlacement(ew,ns,editLayer(ew,ns),{filename:fn,png,source:'area'}); }});
+    if(fn){ setPlacement(ew,ns,editLayer(ew,ns),{filename:fn,png,source:srcOf(fn)}); }});
   const sug=(window.SUGGESTIONS||{})[key];
   if(sug && sug.candidates && sug.candidates.length) c.classList.add('hassug');
   c.addEventListener('click',e=>{ if(e.target.classList.contains('x')) return; openEditor(ew,ns,e); });
@@ -236,25 +262,37 @@ function removePlacement(ck){
   delete placements[ck]; renderCell(+ew,+ns); markUsed();
   DB.remove(ck);
 }
-// apply a change that arrived FROM the DB (no echo back)
-function applyRemote(ck,rec){
+// Stored Supabase cell keys are prefixed per dataset (merged stays unprefixed
+// for backward compatibility with existing community rows).
+function dsCell(ck){ return DATASET==='merged' ? ck : DATASET+':'+ck; }
+function parseStored(stored){
+  const i=stored.indexOf(':');
+  if(i>0){ const pfx=stored.slice(0,i); if(placementsByDS[pfx]) return {ds:pfx, ck:stored.slice(i+1)}; }
+  return {ds:'merged', ck:stored};
+}
+// apply a change that arrived FROM the DB (no echo back). Routes to the right
+// dataset by key prefix; only re-renders if it targets the active dataset.
+function applyRemote(storedCell,rec){
+  const {ds,ck}=parseStored(storedCell);
+  const target=placementsByDS[ds]; if(!target) return;
   const [ew,ns]=ck.split(',');
-  if(rec){ const t=AREA_BY_NAME[rec.filename]; placements[ck]={filename:rec.filename, png:t?t.png:'', source:'area'}; }
-  else delete placements[ck];
-  renderCell(+ew,+ns); markUsed();
+  if(rec){ const t=TILE_BY_NAME[rec.filename]; target[ck]={filename:rec.filename, png:t?t.png:'', source:srcOf(rec.filename)}; }
+  else delete target[ck];
+  if(ds===DATASET){ renderCell(+ew,+ns); markUsed(); }
 }
 function renderCell(ew,ns){
   const c=CELLS[ew+","+ns]; if(!c) return;
   [...c.querySelectorAll('img,.x,.badge,.stair')].forEach(n=>n.remove());
   c.classList.remove('coord','area','cleared');
   const lay=displayLayer(ew,ns), ck=ew+","+ns+","+lay;
-  const p=placements[ck]||coordByCell[ck];
+  const p=placements[ck]||coreAt(ck);
+  const isUser=!!placements[ck] && placements[ck].filename!==CLEARED;
   if(p && p.filename===CLEARED){ c.classList.add('cleared'); }
   else if(p){
     const im=document.createElement('img'); im.src=p.png; im.title=(p.place||'')+' '+p.filename+' ['+lay+']';
     attachHover(im,p.png,p.filename); c.appendChild(im);
     c.classList.add(p.source);
-    if(p.source==='area'){ const x=document.createElement('div'); x.className='x'; x.textContent='x';
+    if(isUser){ const x=document.createElement('div'); x.className='x'; x.textContent='x';
       x.onclick=(ev)=>{ev.stopPropagation();removePlacement(ck);}; c.appendChild(x); }
   }
   if(p && p.filename!==CLEARED && SHOWLABELS){
@@ -285,14 +323,14 @@ function tileGrid(items,ew,ns,lay){
     attachHover(im,cd.png,cd.filename);
     const nm=document.createElement('span'); nm.textContent=cd.filename.replace('.SEC','');
     t.appendChild(im); t.appendChild(nm);
-    t.onclick=()=>{ setPlacement(ew,ns,lay,{filename:cd.filename,png:cd.png,source:'area'}); pop.style.display='none'; };
+    t.onclick=()=>{ setPlacement(ew,ns,lay,{filename:cd.filename,png:cd.png,source:srcOf(cd.filename)}); pop.style.display='none'; };
     g.appendChild(t);
   });
   return g;
 }
 function openEditor(ew,ns,evt,editLay){
   const key=ew+","+ns, lay=editLay||editLayer(ew,ns), ck=ew+","+ns+","+lay;
-  const placed=placements[ck], core=coordByCell[ck];
+  const placed=placements[ck], core=coreAt(ck);
   const cur=placed||core;
   const lname=(window.LAYOUT||{})[key]||'(unnamed)';
   const sug=(window.SUGGESTIONS||{})[key];
@@ -322,15 +360,15 @@ function openEditor(ew,ns,evt,editLay){
     const title=document.createElement('b'); title.textContent=POP_FLOOR[l]; tx.appendChild(title);
     const sub=document.createElement('span');
     if(isCur && eff){
-      sub.textContent=(placed?'your placement · ':'core · ')+eff.filename.replace('.SEC','');
+      sub.textContent=(placed?'your placement - ':'core - ')+eff.filename.replace('.SEC','');
     } else if(occupied){
-      sub.textContent=(placements[lck]?'your placement · ':'core · ')+eff.filename.replace('.SEC','');
+      sub.textContent=(placements[lck]?'your placement - ':'core - ')+eff.filename.replace('.SEC','');
     } else if(isCur){
-      sub.textContent='(empty — editing this floor)';
+      sub.textContent='(empty - editing this floor)';
     } else if(!occupied && movable){
-      sub.textContent='empty — click to move here';
+      sub.textContent='empty - click to move here';
     } else {
-      sub.textContent='empty — click to edit this floor';
+      sub.textContent='empty - click to edit this floor';
     }
     tx.appendChild(sub); btn.appendChild(tx);
     if(!isCur && !occupied){
@@ -352,7 +390,7 @@ function openEditor(ew,ns,evt,editLay){
     curDiv.appendChild(m);
   } else {
     const m=document.createElement('div'); m.className='empty';
-    m.textContent=(cur && cur.filename===CLEARED)?'(blanked — core tile hidden on '+lay+')':'(empty on '+lay+')';
+    m.textContent=(cur && cur.filename===CLEARED)?'(blanked - core tile hidden on '+lay+')':'(empty on '+lay+')';
     curDiv.appendChild(m);
   }
   pop.appendChild(curDiv);
@@ -366,20 +404,23 @@ function openEditor(ew,ns,evt,editLay){
     clr.textContent='Blank this core tile'; clr.onclick=()=>{setPlacement(ew,ns,lay,{filename:CLEARED,png:'',source:'area'}); openEditor(ew,ns,evt,lay);};
   } else { clr.style.display='none'; }
   pop.appendChild(clr);
-  // suggestions for this named cell
-  if(sug && sug.candidates && sug.candidates.length){
+  // suggestions for this named cell (name-based tiles only; not for the pure 2006 build)
+  if(DS_CFG[DATASET].palette!=='coord' && sug && sug.candidates && sug.candidates.length){
     const sh=document.createElement('div'); sh.className='region'; sh.textContent='Suggested for "'+sug.place_name+'"';
     pop.appendChild(sh);
     pop.appendChild(tileGrid(sug.candidates.map(c=>({filename:c.filename,png:c.png})),ew,ns,lay));
   }
-  // free search over every area tile
-  const inp=document.createElement('input'); inp.className='psearch'; inp.placeholder='search any area tile to place...';
+  // free search over the tiles valid for this build
+  const searchPool=DS_CFG[DATASET].palette==='coord' ? (MANIFEST.coordinate||[]) : (MANIFEST.area||[]);
+  const inp=document.createElement('input'); inp.className='psearch';
+  inp.placeholder=DS_CFG[DATASET].palette==='coord'?'search any coordinate tile to place...':'search any area tile to place...';
   pop.appendChild(inp);
   const results=document.createElement('div'); pop.appendChild(results);
   inp.addEventListener('input',()=>{
     const q=inp.value.toLowerCase().trim(); results.innerHTML='';
     if(!q) return;
-    results.appendChild(tileGrid((MANIFEST.area||[]).filter(t=>t.filename.toLowerCase().includes(q)).slice(0,40),ew,ns,lay));
+    results.appendChild(tileGrid(searchPool.filter(t=>
+      t.filename.toLowerCase().includes(q)||(t.place_name||'').toLowerCase().includes(q)).slice(0,40),ew,ns,lay));
   });
   pop.style.display='block';
   const x=Math.min(evt.clientX+8, innerWidth-356), y=Math.min(evt.clientY+8, innerHeight-440);
@@ -389,7 +430,7 @@ function openEditor(ew,ns,evt,editLay){
 function quickClear(ew,ns){
   const lay=editLayer(ew,ns), ck=ew+","+ns+","+lay;
   if(placements[ck]) removePlacement(ck);
-  else if(coordByCell[ck]) setPlacement(ew,ns,lay,{filename:CLEARED,png:'',source:'area'});
+  else if(coreAt(ck)) setPlacement(ew,ns,lay,{filename:CLEARED,png:'',source:'area'});
 }
 document.addEventListener('click',e=>{ if(!pop.contains(e.target) &&
   !e.target.classList.contains('cell') && !e.target.closest('.cell')) pop.style.display='none'; });
@@ -421,15 +462,19 @@ buildGrid();
 
 // palette
 const pbody=document.getElementById('palettebody');
-const byRegion={}, AREA_BY_NAME={};
-(MANIFEST.area||[]).forEach(t=>{ (byRegion[t.region||'?']=byRegion[t.region||'?']||[]).push(t); AREA_BY_NAME[t.filename]=t; });
+const byRegion={}, AREA_BY_NAME={}, TILE_BY_NAME={};
+const COORD_NAMES=new Set((MANIFEST.coordinate||[]).map(t=>t.filename));
+(MANIFEST.coordinate||[]).forEach(t=>{ TILE_BY_NAME[t.filename]=t; });
+(MANIFEST.area||[]).forEach(t=>{ (byRegion[t.region||'?']=byRegion[t.region||'?']||[]).push(t); AREA_BY_NAME[t.filename]=t; TILE_BY_NAME[t.filename]=t; });
+function srcOf(fn){ return COORD_NAMES.has(fn) ? 'coord' : 'area'; }
 function usedFilenames(){
   const used=new Set();
-  const keys=new Set([...Object.keys(coordByCell), ...Object.keys(placements)]);
+  const keys=new Set(Object.keys(placements));
+  if(showCore()) Object.keys(coordByCell).forEach(k=>keys.add(k));
   keys.forEach(ck=>{
-    const pl=placements[ck], core=coordByCell[ck];
+    const pl=placements[ck];
     if(pl?.filename===CLEARED) return;
-    const eff=pl||core;
+    const eff=pl||coreAt(ck);
     if(eff?.filename) used.add(eff.filename);
   });
   return used;
@@ -438,7 +483,7 @@ function appendTileWrap(wrap,t,draggable){
   const tw=document.createElement('div'); tw.className='tilewrap';
   const im=document.createElement('img'); im.className='tile'; im.src=t.png;
   im.dataset.fn=t.filename;
-  im.title=t.filename+(t.place_name?' — '+t.place_name:'');
+  im.title=t.filename+(t.place_name?' - '+t.place_name:'');
   if(draggable){
     im.draggable=true;
     im.addEventListener('dragstart',e=>{e.dataTransfer.setData('fn',t.filename);e.dataTransfer.setData('png',t.png);});
@@ -450,22 +495,29 @@ function appendTileWrap(wrap,t,draggable){
 function buildPalette(filter=''){
   pbody.innerHTML='';
   const q=filter.toLowerCase();
-  const core=(MANIFEST.coordinate||[]).filter(t=>
-    !q||t.filename.toLowerCase().includes(q)||(t.place_name||'').toLowerCase().includes(q));
-  if(core.length){
-    const h=document.createElement('div'); h.className='region'; h.textContent='Core / coordinate ('+core.length+')'; pbody.appendChild(h);
-    const wrap=document.createElement('div'); wrap.className='tiles';
-    core.forEach(t=>appendTileWrap(wrap,t,false));
-    pbody.appendChild(wrap);
+  const mode=DS_CFG[DATASET].palette;          // 'both' | 'coord' | 'area'
+  if(mode!=='area'){
+    // coordinate tiles are positioned by filename, so draggable only in builds
+    // that have no positioned core of their own to fight with (none today).
+    const core=(MANIFEST.coordinate||[]).filter(t=>
+      !q||t.filename.toLowerCase().includes(q)||(t.place_name||'').toLowerCase().includes(q));
+    if(core.length){
+      const h=document.createElement('div'); h.className='region'; h.textContent='Core / coordinate ('+core.length+')'; pbody.appendChild(h);
+      const wrap=document.createElement('div'); wrap.className='tiles';
+      core.forEach(t=>appendTileWrap(wrap,t,mode==='coord'));
+      pbody.appendChild(wrap);
+    }
   }
-  Object.keys(byRegion).sort().forEach(reg=>{
-    const items=byRegion[reg].filter(t=>!q||t.filename.toLowerCase().includes(q));
-    if(!items.length) return;
-    const h=document.createElement('div'); h.className='region'; h.textContent=reg+' ('+items.length+')'; pbody.appendChild(h);
-    const wrap=document.createElement('div'); wrap.className='tiles';
-    items.forEach(t=>appendTileWrap(wrap,t,true));
-    pbody.appendChild(wrap);
-  });
+  if(mode!=='coord'){
+    Object.keys(byRegion).sort().forEach(reg=>{
+      const items=byRegion[reg].filter(t=>!q||t.filename.toLowerCase().includes(q));
+      if(!items.length) return;
+      const h=document.createElement('div'); h.className='region'; h.textContent=reg+' ('+items.length+')'; pbody.appendChild(h);
+      const wrap=document.createElement('div'); wrap.className='tiles';
+      items.forEach(t=>appendTileWrap(wrap,t,true));
+      pbody.appendChild(wrap);
+    });
+  }
   markUsed();
 }
 function markUsed(){
@@ -512,12 +564,28 @@ const DB = {
     }catch(e){ this.ready=false; this.status('connect failed'); console.error(e); }
   },
   upsert(cell,ew,ns,lay,filename){ if(!this.ready) return;
-    this.client.from(TABLE).upsert({cell, filename, mp_x:ew, mp_y:ns, layer:lay,
+    this.client.from(TABLE).upsert({cell:dsCell(cell), filename, mp_x:ew, mp_y:ns, layer:lay,
       mp_z:FLOOR_Z[lay]||50, place_name:(window.LAYOUT||{})[ew+","+ns]||null,
       updated_by:this.name, updated_at:new Date().toISOString()}).then(({error})=>{ if(error) console.error(error); }); },
   remove(cell){ if(!this.ready) return;
-    this.client.from(TABLE).delete().eq('cell',cell).then(({error})=>{ if(error) console.error(error); }); },
+    this.client.from(TABLE).delete().eq('cell',dsCell(cell)).then(({error})=>{ if(error) console.error(error); }); },
 };
+
+// dataset tabs: each build keeps its own placement layer and palette
+function switchDataset(ds){
+  if(!placementsByDS[ds]) return;
+  DATASET=ds; placements=placementsByDS[ds];
+  document.querySelectorAll('#tabs button').forEach(b=>b.classList.toggle('on', b.dataset.ds===ds));
+  document.getElementById('legendtxt').textContent=DS_CFG[ds].legend;
+  const seedBtn=document.getElementById('seed');
+  seedBtn.disabled=(DS_CFG[ds].palette==='coord');
+  seedBtn.style.opacity=seedBtn.disabled?'.4':'';
+  seedBtn.title=seedBtn.disabled?'Seeding uses name-based tiles; not available in the 2006 build':'auto-fill empty named cells with their best-match tile (draft, reversible)';
+  buildPalette(document.getElementById('filter').value.toLowerCase());
+  refreshCells();
+  pop.style.display='none';
+}
+document.querySelectorAll('#tabs button').forEach(b=>b.onclick=()=>switchDataset(b.dataset.ds));
 
 const syncEl=document.getElementById('sync'), cfgbar=document.getElementById('cfgbar');
 syncEl.onclick=()=>{ cfgbar.style.display = cfgbar.style.display==='none'?'block':'none';
@@ -540,14 +608,16 @@ document.getElementById('export').addEventListener('click',()=>{
     return {filename:p.filename, mp_x:+ew, mp_y:+ns, layer:lay, mp_z:FLOOR_Z[lay]||50,
             place_name:(window.LAYOUT||{})[ew+","+ns]||null};
   }).sort((a,b)=>a.mp_y-b.mp_y||a.mp_x-b.mp_x||a.layer.localeCompare(b.layer));
-  const blob=new Blob([JSON.stringify({area_placements:out},null,1)],{type:'application/json'});
-  const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='area_placements.json'; a.click();
+  const blob=new Blob([JSON.stringify({dataset:DATASET, area_placements:out},null,1)],{type:'application/json'});
+  const fname=DATASET==='merged'?'area_placements.json':'area_placements_'+DATASET+'.json';
+  const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=fname; a.click();
 });
 
 // draft seeder: fill empty named cells with their best-match suggestion.
 // Distinct file per cell (greedy) so regions aren't filled with one repeated
 // tile. Skips cells already holding a core or placed tile. Fully reversible.
 document.getElementById('seed').addEventListener('click',()=>{
+  if(DS_CFG[DATASET].palette==='coord'){ alert('Seeding uses name-based tiles; switch to Merged or 2011 name-based.'); return; }
   const cells=Object.entries(window.SUGGESTIONS||{}).filter(([k,s])=>s.candidates&&s.candidates.length)
     .sort((a,b)=>{const A=a[0].split(',').map(Number),B=b[0].split(',').map(Number);return A[1]-B[1]||A[0]-B[0];});
   if(!cells.length){ alert('No suggestions loaded.'); return; }
@@ -556,7 +626,7 @@ document.getElementById('seed').addEventListener('click',()=>{
   let n=0;
   cells.forEach(([key,s])=>{
     const [ew,ns]=key.split(',').map(Number), lay='b', ck=ew+','+ns+','+lay;
-    if(placements[ck]||coordByCell[ck]) return;
+    if(placements[ck]||coreAt(ck)) return;
     const pick=s.candidates.find(c=>!used.has(c.filename))||s.candidates[0];
     if(!pick) return;
     used.add(pick.filename);
