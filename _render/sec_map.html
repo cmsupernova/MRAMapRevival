@@ -68,6 +68,21 @@
   #pop button.clr { background:#3a2326; border-color:#a3454a; color:#ffb3b3; margin-bottom:8px; width:100%; }
   #pop input.psearch { width:100%; margin:2px 0 6px; }
   #pop .region { margin:4px 0; }
+  #pop .pfloors { display:flex; flex-direction:column; gap:4px; margin:0 0 10px; }
+  #pop .pf { display:flex; align-items:center; gap:8px; width:100%; text-align:left; padding:7px 9px;
+    border:1px solid var(--line); border-radius:6px; background:#2a2d36; color:var(--txt); font-size:11px; }
+  #pop .pf img { width:32px; height:32px; image-rendering:auto; border:1px solid var(--line); border-radius:3px; background:#000; flex:none; }
+  #pop .pf .pftxt { flex:1; min-width:0; }
+  #pop .pf .pftxt b { display:block; font-size:11px; letter-spacing:.03em; }
+  #pop .pf .pftxt span { display:block; font-size:10px; color:#9aa0ad; overflow:hidden; white-space:nowrap; text-overflow:ellipsis; }
+  #pop .pf.on { border-color:var(--accent); background:#1c2630; box-shadow:inset 0 0 0 1px rgba(90,169,255,.25); }
+  #pop .pf.on .pftxt b { color:#fff; }
+  #pop .pf.avail { cursor:pointer; }
+  #pop .pf.avail:hover { border-color:var(--accent); }
+  #pop .pf.busy { opacity:.42; cursor:not-allowed; color:#7e8696; }
+  #pop .pf.busy:hover { border-color:var(--line); }
+  #pop .pf.busy img { opacity:.55; }
+  #pop .pf .ph { width:32px; height:32px; flex:none; border:1px dashed #3a3f49; border-radius:3px; }
   #hov { position:fixed; z-index:60; pointer-events:none; display:none; background:var(--panel);
     border:1px solid var(--accent); border-radius:8px; padding:6px; box-shadow:0 8px 28px rgba(0,0,0,.6); }
   #hov img { width:192px; height:192px; image-rendering:auto; display:block; border-radius:4px; background:#000; }
@@ -147,6 +162,26 @@ function editLayer(ew,ns){
   // visible floor; empty surface cells still default to ground.
   return FLOOR==='surface' ? displayLayer(ew,ns) : FLOOR;
 }
+function cellEffective(ck){
+  const pl=placements[ck], core=coordByCell[ck];
+  if(pl?.filename===CLEARED) return null;
+  return pl||core||null;
+}
+function isFloorOccupied(ew,ns,lay){ return !!cellEffective(ew+','+ns+','+lay); }
+function userPlacement(ew,ns,lay){
+  const pl=placements[ew+','+ns+','+lay];
+  return (pl && pl.filename!==CLEARED) ? pl : null;
+}
+function movePlacement(ew,ns,fromLay,toLay){
+  const fromCk=ew+','+ns+','+fromLay, toCk=ew+','+ns+','+toLay;
+  const rec=placements[fromCk];
+  if(!rec || rec.filename===CLEARED || isFloorOccupied(ew,ns,toLay)) return false;
+  delete placements[fromCk]; DB.remove(fromCk);
+  placements[toCk]=rec; renderCell(ew,ns); markUsed();
+  DB.upsert(toCk,ew,ns,toLay,rec.filename);
+  return true;
+}
+const POP_FLOOR={c:'UPPER (c)',b:'GROUND (b)',a:'UNDER (a)'};
 
 // floor selector
 const floorsEl=document.getElementById('floors');
@@ -255,39 +290,80 @@ function tileGrid(items,ew,ns,lay){
   });
   return g;
 }
-function openEditor(ew,ns,evt){
-  const key=ew+","+ns, lay=editLayer(ew,ns), ck=ew+","+ns+","+lay;
+function openEditor(ew,ns,evt,editLay){
+  const key=ew+","+ns, lay=editLay||editLayer(ew,ns), ck=ew+","+ns+","+lay;
   const placed=placements[ck], core=coordByCell[ck];
   const cur=placed||core;
   const lname=(window.LAYOUT||{})[key]||'(unnamed)';
   const sug=(window.SUGGESTIONS||{})[key];
+  const movable=userPlacement(ew,ns,lay);
   pop.innerHTML='';
   const h=document.createElement('h3');
   h.innerHTML='<span class="x2">close</span>'+lname+
-    ' <span class="legend">('+ew+','+ns+', floor '+lay+')</span>';
+    ' <span class="legend">('+ew+','+ns+')</span>';
   pop.appendChild(h);
   h.querySelector('.x2').onclick=()=>pop.style.display='none';
-  // current contents
+  // floor picker: c / b / a with move-to-empty
+  const fl=document.createElement('div'); fl.className='pfloors';
+  FLOOR_ORDER.forEach(l=>{
+    const lck=ew+','+ns+','+l, eff=cellEffective(lck);
+    const isCur=l===lay, occupied=!!eff;
+    const btn=document.createElement('button'); btn.type='button'; btn.className='pf';
+    if(isCur) btn.classList.add('on');
+    else if(occupied) btn.classList.add('busy');
+    else btn.classList.add('avail');
+    if(eff?.png){
+      const im=document.createElement('img'); im.src=eff.png; im.title=eff.filename;
+      attachHover(im,eff.png,eff.filename); btn.appendChild(im);
+    } else {
+      const ph=document.createElement('div'); ph.className='ph'; btn.appendChild(ph);
+    }
+    const tx=document.createElement('div'); tx.className='pftxt';
+    const title=document.createElement('b'); title.textContent=POP_FLOOR[l]; tx.appendChild(title);
+    const sub=document.createElement('span');
+    if(isCur && eff){
+      sub.textContent=(placed?'your placement · ':'core · ')+eff.filename.replace('.SEC','');
+    } else if(occupied){
+      sub.textContent=(placements[lck]?'your placement · ':'core · ')+eff.filename.replace('.SEC','');
+    } else if(isCur){
+      sub.textContent='(empty — editing this floor)';
+    } else if(!occupied && movable){
+      sub.textContent='empty — click to move here';
+    } else {
+      sub.textContent='empty — click to edit this floor';
+    }
+    tx.appendChild(sub); btn.appendChild(tx);
+    if(!isCur && !occupied){
+      btn.onclick=()=>{
+        if(movable && movePlacement(ew,ns,lay,l)) openEditor(ew,ns,evt,l);
+        else openEditor(ew,ns,evt,l);
+      };
+    }
+    fl.appendChild(btn);
+  });
+  pop.appendChild(fl);
+  // current contents (selected floor)
   const curDiv=document.createElement('div'); curDiv.className='cur';
   if(cur && cur.filename!==CLEARED){
     const im=document.createElement('img'); im.src=cur.png; attachHover(im,cur.png,cur.filename); curDiv.appendChild(im);
     const m=document.createElement('div'); m.className='meta';
-    m.innerHTML='<b>'+(placed?'your placement':'core (auto)')+'</b><br>'+cur.filename.replace('.SEC','');
+    m.innerHTML='<b>'+(placed?'your placement':'core (auto)')+'</b><br>'+cur.filename.replace('.SEC','')+
+      ' <span class="legend">['+lay+']</span>';
     curDiv.appendChild(m);
   } else {
     const m=document.createElement('div'); m.className='empty';
-    m.textContent=(cur && cur.filename===CLEARED)?'(blanked - core tile hidden)':'(empty)';
+    m.textContent=(cur && cur.filename===CLEARED)?'(blanked — core tile hidden on '+lay+')':'(empty on '+lay+')';
     curDiv.appendChild(m);
   }
   pop.appendChild(curDiv);
   // clear / blank / restore
   const clr=document.createElement('button'); clr.className='clr';
   if(placed && placed.filename!==CLEARED){
-    clr.textContent='Remove placement'; clr.onclick=()=>{removePlacement(ck); openEditor(ew,ns,evt);};
+    clr.textContent='Remove placement'; clr.onclick=()=>{removePlacement(ck); openEditor(ew,ns,evt,lay);};
   } else if(placed && placed.filename===CLEARED){
-    clr.textContent='Restore core tile'; clr.onclick=()=>{removePlacement(ck); openEditor(ew,ns,evt);};
+    clr.textContent='Restore core tile'; clr.onclick=()=>{removePlacement(ck); openEditor(ew,ns,evt,lay);};
   } else if(core){
-    clr.textContent='Blank this core tile'; clr.onclick=()=>{setPlacement(ew,ns,lay,{filename:CLEARED,png:'',source:'area'}); openEditor(ew,ns,evt);};
+    clr.textContent='Blank this core tile'; clr.onclick=()=>{setPlacement(ew,ns,lay,{filename:CLEARED,png:'',source:'area'}); openEditor(ew,ns,evt,lay);};
   } else { clr.style.display='none'; }
   pop.appendChild(clr);
   // suggestions for this named cell
