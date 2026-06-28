@@ -1,0 +1,1 @@
+window.EQUIV = {"Dunsmore.SEC": {"coord": "Dunsmore.SEC", "feat": 1.0, "sim": 1.0}, "greenwood3.SEC": {"coord": "YBD290321b.SEC", "feat": 0.8919, "sim": 0.75}, "uswick3.SEC": {"coord": "DQEV130161c.SEC", "feat": 0.9688, "sim": 0.8301}};

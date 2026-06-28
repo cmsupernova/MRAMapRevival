@@ -25,6 +25,10 @@
   .tilewrap.used::after { content:'\2713'; position:absolute; top:1px; right:1px; z-index:3;
     font-size:9px; line-height:14px; width:14px; height:14px; text-align:center;
     color:#0b1f0e; background:#67d67d; border-radius:50%; font-weight:700; }
+  .tilewrap.equiv .tile { outline:2px solid #ffd166; outline-offset:-2px; }
+  .tilewrap.equiv::before { content:'06'; position:absolute; top:1px; left:1px; z-index:3;
+    font-size:8px; line-height:13px; min-width:15px; height:13px; padding:0 2px; text-align:center;
+    color:#2a210a; background:#ffd166; border-radius:7px; font-weight:700; }
   .tilewrap .nm { font-size:8px; color:#7e8696; text-align:center; overflow:hidden; white-space:nowrap; text-overflow:ellipsis; }
   /* grid */
   .grid { display:grid; gap:1px; background:var(--line); border:1px solid var(--line); width:max-content; }
@@ -108,7 +112,7 @@
     <button data-ds="c2006">2006 coordinate</button>
     <button data-ds="n2011">2011 name-based</button>
   </span>
-  <span class="legend" id="legendtxt">Merged: 2006 core plus your placements. Drag a tile on, or click a cell to edit / replace / blank it. Right-click clears.</span>
+  <span class="legend" id="legendtxt">Merged: 2006 core plus your placements. Drag a tile on, or click a cell to edit / replace / blank it. Right-click clears. Yellow 06 flag = a 2006 version of that tile is already placed.</span>
   <span class="sp"></span>
   <span class="floors" id="floors"></span>
   <span class="zoom"><button id="zout">-</button><span id="zlvl" class="legend">60</span><button id="zin">+</button></span>
@@ -144,6 +148,7 @@
 <script src="data.js"></script>
 <script src="suggestions.js"></script>
 <script src="stairs.js"></script>
+<script src="equiv.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
 const EW_MIN=10, EW_MAX=100, NS_MIN=15, NS_MAX=90, STEP=5;
@@ -171,7 +176,7 @@ const coordByCell={};
 //   n2011  - rebuild purely from 2011 name-based SECs (no core shown)
 const placementsByDS={merged:{}, c2006:{}, n2011:{}};
 const DS_CFG={
-  merged:{ showCore:true,  palette:'both',  legend:'Merged: 2006 core plus your placements. Drag a tile on, or click a cell to edit / replace / blank it. Right-click clears.' },
+  merged:{ showCore:true,  palette:'both',  legend:'Merged: 2006 core plus your placements. Drag a tile on, or click a cell to edit / replace / blank it. Right-click clears. Yellow 06 flag = a 2006 version of that tile is already placed.' },
   c2006: { showCore:true,  palette:'coord', legend:'2006 coordinate map only. Review and correct the original positioned sectors; no name-based tiles mixed in.' },
   n2011: { showCore:false, palette:'area',  legend:'2011 name-based build. Empty grid - place the area SECs to reconstruct the world from scratch.' },
 };
@@ -526,8 +531,19 @@ function buildPalette(filter=''){
 }
 function markUsed(){
   const used=usedFilenames();
-  pbody.querySelectorAll('.tilewrap').forEach(tw=>{ const im=tw.querySelector('img.tile');
-    tw.classList.toggle('used', !!im && used.has(im.dataset.fn)); });
+  // In merged view, a 2011 name tile whose 2006 content-equivalent is already
+  // on the map gets a yellow "06" flag so you don't place a redundant copy.
+  const eq=window.EQUIV||{}, showEquiv=(DATASET==='merged');
+  pbody.querySelectorAll('.tilewrap').forEach(tw=>{
+    const im=tw.querySelector('img.tile'); if(!im) return;
+    const fn=im.dataset.fn, isUsed=used.has(fn);
+    tw.classList.toggle('used', isUsed);
+    const e=eq[fn];
+    const twin=showEquiv && !isUsed && e && used.has(e.coord);
+    tw.classList.toggle('equiv', !!twin);
+    if(twin) tw.title='2006 version already placed: '+e.coord.replace('.SEC','')+' ('+Math.round(e.sim*100)+'% identical)';
+    else tw.removeAttribute('title');
+  });
 }
 buildPalette();
 document.getElementById('filter').addEventListener('input',e=>buildPalette(e.target.value.toLowerCase()));
