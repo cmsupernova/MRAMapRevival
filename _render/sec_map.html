@@ -112,12 +112,13 @@
     <button data-ds="c2006">2006 coordinate</button>
     <button data-ds="n2011">2011 name-based</button>
   </span>
-  <span class="legend" id="legendtxt">Merged: 2006 core plus your placements. Drag a tile on, or click a cell to edit / replace / blank it. Right-click clears. Yellow 06 flag = a 2006 version of that tile is already placed.</span>
+  <span class="legend" id="legendtxt">Merged: coordinate layout with matched 2011 tiles swapped in (blue). Green tiles are 2006 with no confident 2011 match yet. Toggle "prefer 2011" off to see the original 2006 art and yellow 06 flags.</span>
   <span class="sp"></span>
   <span class="floors" id="floors"></span>
   <span class="zoom"><button id="zout">-</button><span id="zlvl" class="legend">60</span><button id="zin">+</button></span>
   <label class="legend"><input type="checkbox" id="guides" checked> guide names</label>
   <label class="legend"><input type="checkbox" id="labels"> labels on placed</label>
+  <label class="legend" id="prefwrap" title="swap each matched 2006 tile for its closest 2011 counterpart (merged view)"><input type="checkbox" id="prefer2011" checked> prefer 2011</label>
   <span id="sync" class="legend" title="click to configure sharing" style="cursor:pointer">local only</span>
   <button id="seed" title="auto-fill empty named cells with their best-match tile (draft, reversible)">Seed empty</button>
   <button id="importbtn" title="load an exported build (area_placements*.json) into the active tab">Import</button>
@@ -149,6 +150,7 @@
 <script src="suggestions.js"></script>
 <script src="stairs.js"></script>
 <script src="equiv.js"></script>
+<script src="era_map.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
 const EW_MIN=10, EW_MAX=100, NS_MIN=15, NS_MAX=90, STEP=5;
@@ -176,14 +178,32 @@ const coordByCell={};
 //   n2011  - rebuild purely from 2011 name-based SECs (no core shown)
 const placementsByDS={merged:{}, c2006:{}, n2011:{}};
 const DS_CFG={
-  merged:{ showCore:true,  palette:'both',  legend:'Merged: 2006 core plus your placements. Drag a tile on, or click a cell to edit / replace / blank it. Right-click clears. Yellow 06 flag = a 2006 version of that tile is already placed.' },
+  merged:{ showCore:true,  palette:'both',  legend:'Merged: coordinate layout with matched 2011 tiles swapped in (blue). Green tiles are 2006 with no confident 2011 match yet. Toggle "prefer 2011" off to see the original 2006 art and yellow 06 flags.' },
   c2006: { showCore:true,  palette:'coord', legend:'2006 coordinate map only. Review and correct the original positioned sectors; no name-based tiles mixed in.' },
   n2011: { showCore:false, palette:'area',  legend:'2011 name-based build. Empty grid - place the area SECs to reconstruct the world from scratch.' },
 };
 let DATASET='merged';
 let placements=placementsByDS[DATASET];
 function showCore(){ return DS_CFG[DATASET].showCore; }
-function coreAt(ck){ return showCore() ? coordByCell[ck] : undefined; }
+
+// era_map.js maps each 2006 coordinate SEC to its closest 2011 name-based SEC
+// (match_eras.py). In the merged view we can swap the positioned 2006 tile for
+// its newer 2011 counterpart so the map uses the up-to-date art while keeping
+// the coordinate layout. Only confident matches are used.
+let PREFER2011=true;
+const coordAlt={};
+Object.entries(window.ERA_MAP||{}).forEach(([cf,v])=>{ if(v.ok) coordAlt[cf]={area:v.area, png:v.png, score:v.score}; });
+function substituting(){ return DATASET==='merged' && PREFER2011; }
+function coreAt(ck){
+  if(!showCore()) return undefined;
+  const core=coordByCell[ck];
+  if(!core) return core;
+  if(substituting()){
+    const alt=coordAlt[core.filename];
+    if(alt) return {filename:alt.area, png:alt.png, source:'area', place:core.place, from2006:core.filename, score:alt.score};
+  }
+  return core;
+}
 
 function presentLayers(ew,ns){ // layers (any source) at this cell, topmost-first
   return FLOOR_ORDER.filter(l=>coreAt(ew+","+ns+","+l)||placements[ew+","+ns+","+l]);
@@ -394,8 +414,9 @@ function openEditor(ew,ns,evt,editLay){
   if(cur && cur.filename!==CLEARED){
     const im=document.createElement('img'); im.src=cur.png; attachHover(im,cur.png,cur.filename); curDiv.appendChild(im);
     const m=document.createElement('div'); m.className='meta';
-    m.innerHTML='<b>'+(placed?'your placement':'core (auto)')+'</b><br>'+cur.filename.replace('.SEC','')+
-      ' <span class="legend">['+lay+']</span>';
+    const role=placed?'your placement':(cur.from2006?'2011 match':'core (auto)');
+    const note=cur.from2006?' <span class="legend">(was '+cur.from2006.replace('.SEC','')+', '+Math.round((cur.score||0)*100)+'%)</span>':'';
+    m.innerHTML='<b>'+role+'</b><br>'+cur.filename.replace('.SEC','')+note+' <span class="legend">['+lay+']</span>';
     curDiv.appendChild(m);
   } else {
     const m=document.createElement('div'); m.className='empty';
@@ -466,6 +487,8 @@ function setZoom(px){ ZOOM=Math.max(24,Math.min(160,px));
 document.getElementById('zin').onclick=()=>setZoom(ZOOM+12);
 document.getElementById('zout').onclick=()=>setZoom(ZOOM-12);
 document.getElementById('labels').addEventListener('change',e=>{ SHOWLABELS=e.target.checked; refreshCells(); });
+document.getElementById('prefer2011').addEventListener('change',e=>{ PREFER2011=e.target.checked;
+  buildPalette(document.getElementById('filter').value.toLowerCase()); refreshCells(); });
 function refreshCells(){ NSS.forEach(n=>EWS.forEach(e=>renderCell(e,n))); }
 buildGrid();
 
@@ -505,7 +528,9 @@ function buildPalette(filter=''){
   pbody.innerHTML='';
   const q=filter.toLowerCase();
   const mode=DS_CFG[DATASET].palette;          // 'both' | 'coord' | 'area'
-  if(mode!=='area'){
+  // when substituting 2011 art in merged view, the 2006 tiles are off the map,
+  // so hide the coordinate palette section and build from the 2011 set only.
+  if(mode!=='area' && !substituting()){
     // coordinate tiles are positioned by filename, so draggable only in builds
     // that have no positioned core of their own to fight with (none today).
     const core=(MANIFEST.coordinate||[]).filter(t=>
@@ -597,6 +622,7 @@ function switchDataset(ds){
   DATASET=ds; placements=placementsByDS[ds];
   document.querySelectorAll('#tabs button').forEach(b=>b.classList.toggle('on', b.dataset.ds===ds));
   document.getElementById('legendtxt').textContent=DS_CFG[ds].legend;
+  document.getElementById('prefwrap').style.display=(ds==='merged')?'':'none';
   const seedBtn=document.getElementById('seed');
   seedBtn.disabled=(DS_CFG[ds].palette==='coord');
   seedBtn.style.opacity=seedBtn.disabled?'.4':'';
