@@ -178,7 +178,13 @@ for(let n=NS_MIN;n<=NS_MAX;n+=STEP) NSS.push(n);
 // Flat "surface" build: a large blank canvas with simple 0-indexed col,row
 // coordinates (no 2006 coordinate baggage, single layer). col,row is the
 // placed sector's world position for spawn/logout bookkeeping.
-const FLAT_W=40, FLAT_H=40;
+// FLAT_W/FLAT_H, FLAT_WORLD_OFF and FLAT_WORLD_SCALE must match
+// anchor_blocks.py: the world grid sits FLAT_WORLD_OFF cells in from the
+// top-left (nothing starts pinned against the edge) and every world cell
+// covers a SCALE x SCALE canvas area, because 2011 regions are physically
+// larger than their 2006 footprint (Haven alone is 4x3 sectors).
+const FLAT_W=56, FLAT_H=56;
+const FLAT_WORLD_OFF=6, FLAT_WORLD_SCALE=2;
 const FLAT_COLS=[], FLAT_ROWS=[];
 for(let i=0;i<FLAT_W;i++) FLAT_COLS.push(i);
 for(let i=0;i<FLAT_H;i++) FLAT_ROWS.push(i);
@@ -186,11 +192,18 @@ function isFlat(){ return !!DS_CFG[DATASET].flat; }
 function curCols(){ return isFlat()?FLAT_COLS:EWS; }
 function curRows(){ return isFlat()?FLAT_ROWS:NSS; }
 // world guide names projected onto the flat canvas (same mapping as
-// anchor_blocks.py: world cell -> canvas col/row with a 1-cell border)
-const FLAT_GUIDE={};
+// anchor_blocks.py). FLAT_GUIDE covers the full SCALE x SCALE area of each
+// world cell (tooltips/editor); FLAT_GUIDE_LABEL marks only its top-left
+// cell so the on-canvas label isn't repeated 4x.
+const FLAT_GUIDE={}, FLAT_GUIDE_LABEL={};
 Object.entries(window.LAYOUT||{}).forEach(([k,v])=>{
   const [ew,ns]=k.split(',').map(Number);
-  FLAT_GUIDE[((ew-10)/5+1)+','+((ns-15)/5+1)]=v;
+  const c=(ew-10)/5*FLAT_WORLD_SCALE+FLAT_WORLD_OFF;
+  const r=(ns-15)/5*FLAT_WORLD_SCALE+FLAT_WORLD_OFF;
+  FLAT_GUIDE_LABEL[c+','+r]=v;
+  for(let dy=0;dy<FLAT_WORLD_SCALE;dy++)
+    for(let dx=0;dx<FLAT_WORLD_SCALE;dx++)
+      FLAT_GUIDE[(c+dx)+','+(r+dy)]=v;
 });
 
 // Floors are a z-axis at the same EW/NS: a=under(45) b=ground(50) c=upper(55).
@@ -305,7 +318,7 @@ function makeCell(ew,ns){
   const key=ew+","+ns;
   const c=document.createElement('div');
   c.className='cell'; c.dataset.ew=ew; c.dataset.ns=ns; CELLS[key]=c;
-  const lname=isFlat()?FLAT_GUIDE[key]:(window.LAYOUT||{})[key];
+  const lname=isFlat()?FLAT_GUIDE_LABEL[key]:(window.LAYOUT||{})[key];
   if(lname){ const g=document.createElement('div'); g.className='guide'; g.textContent=lname; c.appendChild(g);
     if(lname==='Void'||lname==='Empty'||lname.startsWith('River')) c.classList.add('void'); }
   c.addEventListener('dragover',e=>{e.preventDefault();c.classList.add('dragover');});
@@ -642,7 +655,7 @@ function layoutBlocksFlat(){
   const blocks=Object.values(BLOCK_BY_ID);
   if(!blocks.length){ alert('No assembled blocks loaded (blocks.js).'); return; }
   const anchors=window.BLOCK_ANCHORS||{};
-  if(!confirm('Lay out '+blocks.length+' assembled region blocks at their approximate world positions?\n\n(anchored by 2006 matches and guide names; unanchored regions park at the bottom)\nExisting placements are untouched; blocks with any piece already placed are skipped.')) return;
+  if(!confirm('Lay out '+blocks.length+' assembled region blocks at their approximate world positions?\n\n2006-matched blocks land exactly; name-guessed blocks keep a 1-cell gap so you can fine-tune. Unanchored regions park below the world area.\nExisting placements are untouched; blocks with any piece already placed are skipped.')) return;
   const occ=new Set();
   Object.entries(placements).forEach(([k,p])=>{ if(p&&p.filename!==CLEARED) occ.add(k.split(',').slice(0,2).join(',')); });
   const fits=(ax,ay,b,pad)=>{
@@ -668,26 +681,35 @@ function layoutBlocksFlat(){
     used.add(p.filename); occ.add(x+','+y);
   }); };
   let done=0, skipped=0, nofit=0;
-  // anchored first, era matches before name guesses, big before small
+  // placement order: era-matched first (trusted spots), then name-guessed
+  // grouped by region so sibling blocks cluster together, big before small
   const anchored=blocks.filter(b=>anchors[b.id])
-    .sort((a,b)=>(anchors[a.id].method==='era'?0:1)-(anchors[b.id].method==='era'?0:1)
-      ||(b.w*b.h)-(a.w*a.h));
-  const parked=blocks.filter(b=>!anchors[b.id]).sort((a,b)=>(b.w*b.h)-(a.w*a.h));
+    .sort((a,b)=>{
+      const am=anchors[a.id].method==='era'?0:1, bm=anchors[b.id].method==='era'?0:1;
+      if(am!==bm) return am-bm;
+      if(a.region!==b.region) return a.region<b.region?-1:1;
+      return (b.w*b.h)-(a.w*a.h);
+    });
+  const parked=blocks.filter(b=>!anchors[b.id])
+    .sort((a,b)=>a.region!==b.region?(a.region<b.region?-1:1):(b.w*b.h)-(a.w*a.h));
   anchored.forEach(b=>{
     if(b.pieces.some(p=>used.has(p.filename))){ skipped++; return; }
     const a=anchors[b.id];
-    const spot=fits(a.col,a.row,b,0)?[a.col,a.row]:findNear(a.col,a.row,b,0);
+    // era anchors are true world spots (may abut); name guesses keep a
+    // 1-cell gap around themselves so blocks stay visually separate
+    const pad=a.method==='era'?0:1;
+    const spot=fits(a.col,a.row,b,pad)?[a.col,a.row]:findNear(a.col,a.row,b,pad);
     if(!spot){ nofit++; return; }
     stamp(b,spot[0],spot[1]); done++;
   });
-  // parking strip: below the world grid rows (world rows end at 16)
-  let px=0, py=18;
+  // parking strip: below the scaled world grid (16 world rows)
+  let px=2, py=FLAT_WORLD_OFF+16*FLAT_WORLD_SCALE+2;
   parked.forEach(b=>{
     if(b.pieces.some(p=>used.has(p.filename))){ skipped++; return; }
     const spot=findNear(px,py,b,1);
     if(!spot){ nofit++; return; }
     stamp(b,spot[0],spot[1]); done++;
-    px=Math.min(FLAT_W-1,spot[0]+b.w+1);
+    px=Math.min(FLAT_W-1,spot[0]+b.w+2);
   });
   alert('Laid out '+done+' blocks at world positions.'+(skipped?' Skipped '+skipped+' already placed.':'')+(nofit?' '+nofit+' had no room.':'')+'\n\nDrag any piece to move its whole block (or tick "move single piece").');
 }
