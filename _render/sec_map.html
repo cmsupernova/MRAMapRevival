@@ -206,7 +206,7 @@ const DS_CFG={
   merged:{ showCore:true,  palette:'both',  legend:'Merged: coordinate layout with matched 2011 tiles swapped in (blue). Green tiles are 2006 with no confident 2011 match yet. Toggle "prefer 2011" off to see the original 2006 art and yellow 06 flags.' },
   c2006: { showCore:true,  palette:'coord', legend:'2006 coordinate map only. Review and correct the original positioned sectors; no name-based tiles mixed in.' },
   n2011: { showCore:false, palette:'area',  legend:'2011 name-based build. Empty grid - place area SECs one by one, or drag an assembled region block to stamp a whole area at once.' },
-  flat:  { showCore:false, palette:'area',  flat:true, legend:'Flat surface build: one layer, lay sectors out as puzzle pieces on a blank canvas. col,row is each piece\u2019s world position. Click a placed piece to add teleport portals; manage teleport-only interiors in the panel.' },
+  flat:  { showCore:false, palette:'area',  flat:true, legend:'Flat surface build: one layer, lay sectors out as puzzle pieces on a blank canvas. col,row is each piece\u2019s world position. "Lay out blocks" presets every assembled region into empty space; drag pieces or blocks to rearrange. Click a placed piece to add teleport portals.' },
 };
 let DATASET='merged';
 let placements=placementsByDS[DATASET];
@@ -614,6 +614,33 @@ function placeBlock(id,ew,ns){
     setPlacement(x,y,lay,{filename:p.filename, png:tilePng(p.filename), source:srcOf(p.filename)});
   });
 }
+// flat canvas preset: shelf-pack every assembled block into empty space,
+// 1-cell margin between blocks, skipping blocks already (partly) placed.
+function layoutBlocksFlat(){
+  const blocks=Object.values(BLOCK_BY_ID).sort((a,b)=>(b.w*b.h)-(a.w*a.h)||b.h-a.h);
+  if(!blocks.length){ alert('No assembled blocks loaded (blocks.js).'); return; }
+  if(!confirm('Lay out '+blocks.length+' assembled region blocks into empty canvas space?\n\nExisting placements are untouched; blocks with any piece already placed are skipped. Every piece stays individually editable.')) return;
+  const blocked=new Set();
+  const mark=(x,y)=>{ for(let dy=-1;dy<=1;dy++) for(let dx=-1;dx<=1;dx++) blocked.add((x+dx)+','+(y+dy)); };
+  Object.entries(placements).forEach(([k,p])=>{ if(p&&p.filename!==CLEARED){ const [x,y]=k.split(','); mark(+x,+y); } });
+  const used=usedFilenames();
+  let done=0, skipped=0, nofit=0, cells=0;
+  blocks.forEach(b=>{
+    if(b.pieces.some(p=>used.has(p.filename))){ skipped++; return; }
+    let anchor=null;
+    for(let ay=0; ay<=FLAT_H-b.h && !anchor; ay++)
+      for(let ax=0; ax<=FLAT_W-b.w && !anchor; ax++)
+        if(b.pieces.every(p=>!blocked.has((ax+p.dx)+','+(ay+p.dy)))) anchor=[ax,ay];
+    if(!anchor){ nofit++; return; }
+    b.pieces.forEach(p=>{
+      const x=anchor[0]+p.dx, y=anchor[1]+p.dy;
+      setPlacement(x,y,'b',{filename:p.filename, png:tilePng(p.filename), source:srcOf(p.filename)});
+      used.add(p.filename); mark(x,y); cells++;
+    });
+    done++;
+  });
+  alert('Laid out '+done+' blocks ('+cells+' sectors).'+(skipped?' Skipped '+skipped+' already placed.':'')+(nofit?' '+nofit+' did not fit - clear space or export/import to a bigger canvas.':''));
+}
 function blockCard(b){
   const card=document.createElement('div'); card.className='blockcard'; card.draggable=true; card.dataset.block=b.id;
   card.title='drag onto the map: stamps all '+b.pieces.length+' pieces at their solved offsets'+
@@ -858,10 +885,17 @@ function switchDataset(ds){
   document.getElementById('prefwrap').style.display=(ds==='merged')?'':'none';
   document.getElementById('floors').style.display=isFlat()?'none':'';
   const seedBtn=document.getElementById('seed');
-  // seeding fills the named world grid; not meaningful on the flat canvas
-  seedBtn.disabled=(DS_CFG[ds].palette==='coord'||isFlat());
-  seedBtn.style.opacity=seedBtn.disabled?'.4':'';
-  seedBtn.title=seedBtn.disabled?'Seeding uses the named world grid; not available here':'auto-fill empty named cells with their best-match tile (draft, reversible)';
+  if(isFlat()){
+    // on the flat canvas the seed button lays out every assembled block
+    seedBtn.disabled=false; seedBtn.style.opacity='';
+    seedBtn.textContent='Lay out blocks';
+    seedBtn.title='stamp every assembled region block into empty canvas space as a draft layout (reversible)';
+  } else {
+    seedBtn.textContent='Seed empty';
+    seedBtn.disabled=(DS_CFG[ds].palette==='coord');
+    seedBtn.style.opacity=seedBtn.disabled?'.4':'';
+    seedBtn.title=seedBtn.disabled?'Seeding uses the named world grid; not available in the 2006 build':'auto-fill empty named cells with their best-match tile (draft, reversible)';
+  }
   // grid dimensions differ between flat and world builds, so rebuild it
   if(isFlat()!==wasFlat) buildGrid();
   buildPalette(document.getElementById('filter').value.toLowerCase());
@@ -960,6 +994,7 @@ document.getElementById('importfile').addEventListener('change',e=>{
 // Distinct file per cell (greedy) so regions aren't filled with one repeated
 // tile. Skips cells already holding a core or placed tile. Fully reversible.
 document.getElementById('seed').addEventListener('click',()=>{
+  if(isFlat()){ layoutBlocksFlat(); return; }
   if(DS_CFG[DATASET].palette==='coord'){ alert('Seeding uses name-based tiles; switch to Merged or 2011 name-based.'); return; }
   const cells=Object.entries(window.SUGGESTIONS||{}).filter(([k,s])=>s.candidates&&s.candidates.length)
     .sort((a,b)=>{const A=a[0].split(',').map(Number),B=b[0].split(',').map(Number);return A[1]-B[1]||A[0]-B[0];});
