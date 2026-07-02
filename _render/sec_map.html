@@ -593,10 +593,13 @@ function srcOf(fn){ return COORD_NAMES.has(fn) ? 'coord' : 'area'; }
 const BLOCK_BY_ID={};
 ((window.BLOCKS&&window.BLOCKS.blocks)||[]).forEach(b=>{ if(b.pieces.length>1) BLOCK_BY_ID[b.id]=b; });
 function tilePng(fn){ const t=TILE_BY_NAME[fn]; return t?t.png:('tiles/'+fn+'.png'); }
-// drop a whole block anchored at its top-left cell; pieces land at solved offsets
+// drop a whole block anchored at its top-left cell; pieces land at solved
+// offsets. Blocks are flat (no a/b/c of their own): on the world tabs they
+// stamp onto the floor selected in the header (Surface counts as Ground).
+function blockLayer(){ return (isFlat()||FLOOR==='surface') ? 'b' : FLOOR; }
 function placeBlock(id,ew,ns){
   const b=BLOCK_BY_ID[id]; if(!b) return;
-  const step=isFlat()?1:STEP, lay='b';
+  const step=isFlat()?1:STEP, lay=blockLayer();
   const cols=new Set(curCols()), rows=new Set(curRows());
   const targets=[];
   for(const p of b.pieces){
@@ -605,14 +608,16 @@ function placeBlock(id,ew,ns){
     targets.push([p,x,y]);
   }
   const occ=targets.filter(t=>isFloorOccupied(t[1],t[2],lay));
-  if(occ.length && !confirm(occ.length+' of '+targets.length+' cells are already occupied. Overwrite them?')) return;
+  const floorTxt=isFlat()?'':(' on '+(POP_FLOOR[lay]||lay));
+  if(occ.length && !confirm(occ.length+' of '+targets.length+' cells'+floorTxt+' are already occupied. Overwrite them?')) return;
   targets.forEach(([p,x,y])=>{
     setPlacement(x,y,lay,{filename:p.filename, png:tilePng(p.filename), source:srcOf(p.filename)});
   });
 }
 function blockCard(b){
   const card=document.createElement('div'); card.className='blockcard'; card.draggable=true; card.dataset.block=b.id;
-  card.title='drag onto the map: stamps all '+b.pieces.length+' pieces at their solved offsets';
+  card.title='drag onto the map: stamps all '+b.pieces.length+' pieces at their solved offsets'+
+    (isFlat()?'':' onto the floor picked in the header (Surface = Ground b)');
   const ct=document.createElement('span'); ct.className='bct'; card.appendChild(ct);
   const g=document.createElement('div'); g.className='bgrid';
   g.style.gridTemplateColumns='repeat('+b.w+',1fr)';
