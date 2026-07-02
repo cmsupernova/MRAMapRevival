@@ -30,6 +30,14 @@
     font-size:8px; line-height:13px; min-width:15px; height:13px; padding:0 2px; text-align:center;
     color:#2a210a; background:#ffd166; border-radius:7px; font-weight:700; }
   .tilewrap .nm { font-size:8px; color:#7e8696; text-align:center; overflow:hidden; white-space:nowrap; text-overflow:ellipsis; }
+  .blockcard { border:1px solid var(--line); border-radius:5px; padding:4px; margin:0 0 6px; cursor:grab; background:#1a1c22; position:relative; }
+  .blockcard:hover { border-color:var(--accent); }
+  .blockcard .bgrid { display:grid; gap:1px; }
+  .blockcard .bgrid img { width:100%; aspect-ratio:1; display:block; image-rendering:auto; background:#000; border-radius:1px; }
+  .blockcard .nm { font-size:9px; color:#7e8696; margin-top:3px; text-align:center; overflow:hidden; white-space:nowrap; text-overflow:ellipsis; }
+  .blockcard.used { opacity:.45; }
+  .blockcard.used .nm { color:#67d67d; }
+  .blockcard .bct { position:absolute; top:2px; right:4px; z-index:2; font-size:9px; color:#c2c7d2; background:rgba(0,0,0,.55); padding:0 4px; border-radius:6px; }
   /* grid */
   .grid { display:grid; gap:1px; background:var(--line); border:1px solid var(--line); width:max-content; }
   .colhdr, .rowhdr { background:var(--panel); color:#9aa0ad; font-size:10px; display:flex; align-items:center; justify-content:center; }
@@ -156,6 +164,7 @@
 <script src="stairs.js"></script>
 <script src="equiv.js"></script>
 <script src="era_map.js"></script>
+<script src="blocks.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
 const EW_MIN=10, EW_MAX=100, NS_MIN=15, NS_MAX=90, STEP=5;
@@ -196,7 +205,7 @@ const placementsByDS={merged:{}, c2006:{}, n2011:{}, flat:{}};
 const DS_CFG={
   merged:{ showCore:true,  palette:'both',  legend:'Merged: coordinate layout with matched 2011 tiles swapped in (blue). Green tiles are 2006 with no confident 2011 match yet. Toggle "prefer 2011" off to see the original 2006 art and yellow 06 flags.' },
   c2006: { showCore:true,  palette:'coord', legend:'2006 coordinate map only. Review and correct the original positioned sectors; no name-based tiles mixed in.' },
-  n2011: { showCore:false, palette:'area',  legend:'2011 name-based build. Empty grid - place the area SECs to reconstruct the world from scratch.' },
+  n2011: { showCore:false, palette:'area',  legend:'2011 name-based build. Empty grid - place area SECs one by one, or drag an assembled region block to stamp a whole area at once.' },
   flat:  { showCore:false, palette:'area',  flat:true, legend:'Flat surface build: one layer, lay sectors out as puzzle pieces on a blank canvas. col,row is each piece\u2019s world position. Click a placed piece to add teleport portals; manage teleport-only interiors in the panel.' },
 };
 let DATASET='merged';
@@ -292,6 +301,8 @@ function makeCell(ew,ns){
   c.addEventListener('dragover',e=>{e.preventDefault();c.classList.add('dragover');});
   c.addEventListener('dragleave',()=>c.classList.remove('dragover'));
   c.addEventListener('drop',e=>{e.preventDefault();c.classList.remove('dragover');
+    const bid=e.dataTransfer.getData('block');
+    if(bid){ placeBlock(bid,ew,ns); return; }
     const fn=e.dataTransfer.getData('fn'), png=e.dataTransfer.getData('png');
     if(fn){ setPlacement(ew,ns,editLayer(ew,ns),{filename:fn,png,source:srcOf(fn)}); }});
   const sug=isFlat()?null:(window.SUGGESTIONS||{})[key];
@@ -577,6 +588,47 @@ const COORD_NAMES=new Set((MANIFEST.coordinate||[]).map(t=>t.filename));
 (MANIFEST.coordinate||[]).forEach(t=>{ TILE_BY_NAME[t.filename]=t; });
 (MANIFEST.area||[]).forEach(t=>{ (byRegion[t.region||'?']=byRegion[t.region||'?']||[]).push(t); AREA_BY_NAME[t.filename]=t; TILE_BY_NAME[t.filename]=t; });
 function srcOf(fn){ return COORD_NAMES.has(fn) ? 'coord' : 'area'; }
+// assembled region blocks (assemble_regions.py -> blocks.js): whole areas
+// solved from edge matches, droppable onto the grid as one stamp
+const BLOCK_BY_ID={};
+((window.BLOCKS&&window.BLOCKS.blocks)||[]).forEach(b=>{ if(b.pieces.length>1) BLOCK_BY_ID[b.id]=b; });
+function tilePng(fn){ const t=TILE_BY_NAME[fn]; return t?t.png:('tiles/'+fn+'.png'); }
+// drop a whole block anchored at its top-left cell; pieces land at solved offsets
+function placeBlock(id,ew,ns){
+  const b=BLOCK_BY_ID[id]; if(!b) return;
+  const step=isFlat()?1:STEP, lay='b';
+  const cols=new Set(curCols()), rows=new Set(curRows());
+  const targets=[];
+  for(const p of b.pieces){
+    const x=ew+p.dx*step, y=ns+p.dy*step;
+    if(!cols.has(x)||!rows.has(y)){ alert('Block does not fit here - it runs off the grid.'); return; }
+    targets.push([p,x,y]);
+  }
+  const occ=targets.filter(t=>isFloorOccupied(t[1],t[2],lay));
+  if(occ.length && !confirm(occ.length+' of '+targets.length+' cells are already occupied. Overwrite them?')) return;
+  targets.forEach(([p,x,y])=>{
+    setPlacement(x,y,lay,{filename:p.filename, png:tilePng(p.filename), source:srcOf(p.filename)});
+  });
+}
+function blockCard(b){
+  const card=document.createElement('div'); card.className='blockcard'; card.draggable=true; card.dataset.block=b.id;
+  card.title='drag onto the map: stamps all '+b.pieces.length+' pieces at their solved offsets';
+  const ct=document.createElement('span'); ct.className='bct'; card.appendChild(ct);
+  const g=document.createElement('div'); g.className='bgrid';
+  g.style.gridTemplateColumns='repeat('+b.w+',1fr)';
+  b.pieces.forEach(p=>{
+    const im=document.createElement('img'); im.src=tilePng(p.filename); im.draggable=false;
+    im.style.gridColumn=p.dx+1; im.style.gridRow=p.dy+1;
+    im.title=p.filename; attachHover(im,im.src,p.filename);
+    g.appendChild(im);
+  });
+  card.appendChild(g);
+  const nm=document.createElement('div'); nm.className='nm';
+  nm.textContent=b.id+' ('+b.pieces.length+' pieces, '+b.w+'x'+b.h+')';
+  card.appendChild(nm);
+  card.addEventListener('dragstart',e=>{ e.dataTransfer.setData('block',b.id); });
+  return card;
+}
 function usedFilenames(){
   const used=new Set();
   const keys=new Set(Object.keys(placements));
@@ -606,6 +658,16 @@ function buildPalette(filter=''){
   pbody.innerHTML='';
   const q=filter.toLowerCase();
   const mode=DS_CFG[DATASET].palette;          // 'both' | 'coord' | 'area'
+  // assembled region blocks first: drag one to stamp a whole solved area
+  if(mode!=='coord'){
+    const bl=Object.values(BLOCK_BY_ID).filter(b=>!q || b.id.toLowerCase().includes(q)
+      || b.pieces.some(p=>p.filename.toLowerCase().includes(q)));
+    if(bl.length){
+      const h=document.createElement('div'); h.className='region';
+      h.textContent='Assembled regions ('+bl.length+') - drag to stamp'; pbody.appendChild(h);
+      bl.forEach(b=>pbody.appendChild(blockCard(b)));
+    }
+  }
   // when substituting 2011 art in merged view, the 2006 tiles are off the map,
   // so hide the coordinate palette section and build from the 2011 set only.
   if(mode!=='area' && !substituting()){
@@ -646,6 +708,12 @@ function markUsed(){
     tw.classList.toggle('equiv', !!twin);
     if(twin) tw.title='2006 version already placed: '+e.coord.replace('.SEC','')+' ('+Math.round(e.sim*100)+'% identical)';
     else tw.removeAttribute('title');
+  });
+  pbody.querySelectorAll('.blockcard').forEach(card=>{
+    const b=BLOCK_BY_ID[card.dataset.block]; if(!b) return;
+    const n=b.pieces.filter(p=>used.has(p.filename)).length;
+    card.querySelector('.bct').textContent=n+'/'+b.pieces.length+' placed';
+    card.classList.toggle('used', n===b.pieces.length);
   });
 }
 buildPalette();
