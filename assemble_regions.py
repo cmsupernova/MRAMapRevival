@@ -16,6 +16,12 @@ Pieces that never earn a strong link stay unplaced (reported as singletons)
 rather than being guessed. A folder can yield several disconnected blocks -
 many legitimately contain multiple areas (e.g. krell town + graveyard + guilds).
 
+A merge pass then joins blocks (and singletons) within a region when they
+INTERLOCK: if a sub-block slots against another satisfying several borders at
+once, that combinatorial fit is accepted as evidence even when each individual
+border is uniform (plain grass/water). This is what reunites e.g. greenwood's
+lake pieces with the town block despite their all-grass junctions.
+
 Filename direction hints (breedery2east, iun1south, dz1nw...) participate in
 the solve: a candidate position that agrees with a hint gets a score bonus and
 one that contradicts it gets a penalty, and a cardinal hint whose edges are
@@ -49,6 +55,12 @@ STRONG_INFO = 0.12   # ...on an edge that is not (nearly) uniform
 TOUCH_MIN = 0.85     # every touched neighbor edge must at least be compatible
 AMBIG_EPS = 0.02     # alternate positions scoring within this of the winner
 HINT_WEIGHT = 0.15   # score bonus/penalty when a name hint agrees/contradicts
+TOUCH_BONUS = 0.03   # merge-pass score per satisfied junction (interlock)
+MERGE_MARGIN = 0.03  # best merge offset must beat runner-up by this much
+MERGE_TOUCHES = 3    # junction count that counts as interlock evidence
+MERGE_FLOOR = 0.60   # merge junctions may dip to here (redrawn borders)...
+MERGE_MEAN = 0.90    # ...as long as the average junction similarity stays high
+MERGE_STRONG = 0.95  # slightly softer "strong" in the merge pass
 
 # filename suffix -> expected (dx, dy) sign relative to the base piece
 DIR_HINTS = {
@@ -179,6 +191,107 @@ def evaluate(E, byPos, pos, hints, p, x, y):
     return score + touches * 0.001 + hint_adjust(hints, pos, p, x, y)
 
 
+DIRS = ((1, 0), (-1, 0), (0, 1), (0, -1))
+
+
+def best_merge_offset(E, hints, A, B):
+    """Best non-overlapping placement of block B against block A.
+
+    Every A-B junction must be edge-compatible; the fit is accepted only with
+    real evidence (a strong informative junction, an interlock of several
+    junctions, or a hint-backed pair) and only if the best offset clearly
+    beats the runner-up. Returns (score, (ox, oy)) or None.
+    """
+    apos = {v: k for k, v in A.items()}
+    offs = set()
+    for ax, ay in A.values():
+        for bx, by in B.values():
+            for dx, dy in DIRS:
+                offs.add((ax + dx - bx, ay + dy - by))
+    results = []
+    for off in offs:
+        newcells = {(x + off[0], y + off[1]) for x, y in B.values()}
+        if newcells & set(apos):
+            continue
+        touches, score, strong, ok, sims = 0, 0.0, False, True, []
+        for p, (x, y) in B.items():
+            px, py = x + off[0], y + off[1]
+            for dx, dy in DIRS:
+                n = apos.get((px + dx, py + dy))
+                if not n:
+                    continue
+                s, w = junction(E, p, n, dx, dy)
+                if s < MERGE_FLOOR:
+                    ok = False
+                    break
+                touches += 1
+                sims.append(s)
+                score += s * w
+                if s >= MERGE_STRONG and w >= STRONG_INFO:
+                    strong = True
+            if not ok:
+                break
+        if not ok or not touches:
+            continue
+        if sum(sims) / len(sims) < MERGE_MEAN:
+            continue
+        hadj = 0.0
+        for p, (x, y) in B.items():
+            h = hints.get(p)
+            if h and h[0] in A:
+                bx, by = A[h[0]]
+                hadj += HINT_WEIGHT if rel_ok(h[1], h[2], x + off[0] - bx,
+                                             y + off[1] - by) else -HINT_WEIGHT
+        for p, (x, y) in A.items():
+            h = hints.get(p)
+            if h and h[0] in B:
+                bx, by = B[h[0]]
+                hadj += HINT_WEIGHT if rel_ok(h[1], h[2], x - bx - off[0],
+                                             y - by - off[1]) else -HINT_WEIGHT
+        total = score + touches * TOUCH_BONUS + hadj
+        evidence = strong or touches >= MERGE_TOUCHES or (touches >= 2 and hadj > 0)
+        results.append((total, off, evidence))
+    if not results:
+        return None
+    results.sort(key=lambda r: (-r[0], r[1]))
+    top = results[0]
+    if not top[2]:
+        return None
+    if len(results) > 1 and top[0] - results[1][0] < MERGE_MARGIN:
+        return None
+    return top[0], top[1]
+
+
+def merge_blocks(E, hints, units):
+    """Repeatedly merge (pos, amb) units that interlock. Modifies list order."""
+    merged = True
+    while merged:
+        merged = False
+        best = None
+        for i in range(len(units)):
+            for j in range(len(units)):
+                if i == j or len(units[i][0]) < len(units[j][0]):
+                    continue
+                if len(units[i][0]) == len(units[j][0]) and i > j:
+                    continue
+                r = best_merge_offset(E, hints, units[i][0], units[j][0])
+                if r and (not best or r[0] > best[0]):
+                    best = (r[0], i, j, r[1])
+        if best:
+            _sc, i, j, (ox, oy) = best
+            posA, ambA = units[i]
+            posB, ambB = units[j]
+            for p, (x, y) in posB.items():
+                posA[p] = (x + ox, y + oy)
+            for a in ambB:
+                a["chosen"] = [a["chosen"][0] + ox, a["chosen"][1] + oy]
+                a["alts"] = [[x + ox, y + oy] for x, y in a["alts"]]
+            ambA.extend(ambB)
+            del units[j]
+            merged = True
+    return units
+
+
 def solve_region(region, E):
     """Greedy constraint growth. Returns (blocks, singletons)."""
     remaining = set(E)
@@ -242,7 +355,12 @@ def solve_region(region, E):
             byPos[t] = p
             remaining.discard(p)
         blocks.append((pos, ambiguous))
-    return blocks, sorted(remaining)
+    # merge pass: interlocking sub-blocks and singletons rejoin their block
+    units = blocks + [({p: (0, 0)}, []) for p in sorted(remaining)]
+    units = merge_blocks(E, hints, units)
+    blocks = [u for u in units if len(u[0]) > 1]
+    singles = sorted(p for u in units if len(u[0]) == 1 for p in u[0])
+    return blocks, singles
 
 
 def hint_warnings(pos):
@@ -314,6 +432,9 @@ def montage(block, size=128):
 
 def main():
     os.makedirs(OUT_IMG, exist_ok=True)
+    for f in os.listdir(OUT_IMG):          # stale montages from previous runs
+        if f.endswith(".png"):
+            os.remove(os.path.join(OUT_IMG, f))
     regions = load_regions()
     all_blocks, singles = [], {}
     placed = warn_total = 0

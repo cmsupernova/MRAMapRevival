@@ -229,7 +229,7 @@
   {
    "id": "Hobs#1",
    "region": "Hobs",
-   "w": 3,
+   "w": 4,
    "h": 4,
    "pieces": [
     {
@@ -266,6 +266,26 @@
      "filename": "thfac.SEC",
      "dx": 1,
      "dy": 1
+    },
+    {
+     "filename": "thfac1.SEC",
+     "dx": 2,
+     "dy": 1
+    },
+    {
+     "filename": "thfac1east.SEC",
+     "dx": 3,
+     "dy": 1
+    },
+    {
+     "filename": "thfac1ne.SEC",
+     "dx": 3,
+     "dy": 0
+    },
+    {
+     "filename": "thfac1north.SEC",
+     "dx": 2,
+     "dy": 0
     },
     {
      "filename": "thfacnorth.SEC",
@@ -335,10 +355,59 @@
     },
     {
      "a": "thfac.SEC",
+     "b": "thfac1.SEC",
+     "dir": "E",
+     "sim": 1.0,
+     "info": 0.0
+    },
+    {
+     "a": "thfac.SEC",
      "b": "thf3.SEC",
      "dir": "S",
      "sim": 1.0,
      "info": 0.156
+    },
+    {
+     "a": "thfac1.SEC",
+     "b": "thfac1east.SEC",
+     "dir": "E",
+     "sim": 1.0,
+     "info": 0.312
+    },
+    {
+     "a": "thfac1.SEC",
+     "b": "thf1north.SEC",
+     "dir": "S",
+     "sim": 1.0,
+     "info": 0.0
+    },
+    {
+     "a": "thfac1ne.SEC",
+     "b": "thfac1east.SEC",
+     "dir": "S",
+     "sim": 1.0,
+     "info": 0.312
+    },
+    {
+     "a": "thfac1north.SEC",
+     "b": "thfac1ne.SEC",
+     "dir": "E",
+     "sim": 1.0,
+     "info": 0.031
+    },
+    {
+     "a": "thfac1north.SEC",
+     "b": "thfac1.SEC",
+     "dir": "S",
+     "sim": 1.0,
+     "info": 0.5
+    },
+    {
+     "a": "thfacnorth.SEC",
+     "b": "thfac1north.SEC",
+     "dir": "E",
+     "sim": 1.0,
+     "info": 0.0
     },
     {
      "a": "thfacnorth.SEC",
@@ -374,66 +443,6 @@
      "dir": "S",
      "sim": 1.0,
      "info": 0.062
-    }
-   ],
-   "ambiguous": [],
-   "warnings": []
-  },
-  {
-   "id": "Hobs#2",
-   "region": "Hobs",
-   "w": 2,
-   "h": 2,
-   "pieces": [
-    {
-     "filename": "thfac1.SEC",
-     "dx": 0,
-     "dy": 1
-    },
-    {
-     "filename": "thfac1east.SEC",
-     "dx": 1,
-     "dy": 1
-    },
-    {
-     "filename": "thfac1ne.SEC",
-     "dx": 1,
-     "dy": 0
-    },
-    {
-     "filename": "thfac1north.SEC",
-     "dx": 0,
-     "dy": 0
-    }
-   ],
-   "junctions": [
-    {
-     "a": "thfac1.SEC",
-     "b": "thfac1east.SEC",
-     "dir": "E",
-     "sim": 1.0,
-     "info": 0.312
-    },
-    {
-     "a": "thfac1ne.SEC",
-     "b": "thfac1east.SEC",
-     "dir": "S",
-     "sim": 1.0,
-     "info": 0.312
-    },
-    {
-     "a": "thfac1north.SEC",
-     "b": "thfac1ne.SEC",
-     "dir": "E",
-     "sim": 1.0,
-     "info": 0.031
-    },
-    {
-     "a": "thfac1north.SEC",
-     "b": "thfac1.SEC",
-     "dir": "S",
-     "sim": 1.0,
-     "info": 0.5
     }
    ],
    "ambiguous": [],
@@ -482,6 +491,16 @@
     {
      "filename": "krell10.SEC",
      "dx": 3,
+     "dy": 0
+    },
+    {
+     "filename": "krell13.SEC",
+     "dx": 2,
+     "dy": 0
+    },
+    {
+     "filename": "krell14.SEC",
+     "dx": 1,
      "dy": 0
     },
     {
@@ -554,6 +573,34 @@
      "dir": "S",
      "sim": 1.0,
      "info": 0.531
+    },
+    {
+     "a": "krell13.SEC",
+     "b": "krell10.SEC",
+     "dir": "E",
+     "sim": 0.875,
+     "info": 0.25
+    },
+    {
+     "a": "krell13.SEC",
+     "b": "krell8.SEC",
+     "dir": "S",
+     "sim": 0.906,
+     "info": 0.031
+    },
+    {
+     "a": "krell14.SEC",
+     "b": "krell13.SEC",
+     "dir": "E",
+     "sim": 1.0,
+     "info": 0.25
+    },
+    {
+     "a": "krell14.SEC",
+     "b": "krell9.SEC",
+     "dir": "S",
+     "sim": 1.0,
+     "info": 0.062
     },
     {
      "a": "krell15.SEC",
@@ -734,35 +781,6 @@
   {
    "id": "Krell#3",
    "region": "Krell",
-   "w": 2,
-   "h": 1,
-   "pieces": [
-    {
-     "filename": "krell13.SEC",
-     "dx": 1,
-     "dy": 0
-    },
-    {
-     "filename": "krell14.SEC",
-     "dx": 0,
-     "dy": 0
-    }
-   ],
-   "junctions": [
-    {
-     "a": "krell14.SEC",
-     "b": "krell13.SEC",
-     "dir": "E",
-     "sim": 1.0,
-     "info": 0.25
-    }
-   ],
-   "ambiguous": [],
-   "warnings": []
-  },
-  {
-   "id": "Krell#4",
-   "region": "Krell",
    "w": 1,
    "h": 2,
    "pieces": [
@@ -790,7 +808,7 @@
    "warnings": []
   },
   {
-   "id": "Krell#5",
+   "id": "Krell#4",
    "region": "Krell",
    "w": 1,
    "h": 2,
@@ -1131,6 +1149,11 @@
      "dy": 3
     },
     {
+     "filename": "sal19.SEC",
+     "dx": 5,
+     "dy": 3
+    },
+    {
      "filename": "sal2.SEC",
      "dx": 1,
      "dy": 2
@@ -1259,6 +1282,13 @@
      "info": 0.281
     },
     {
+     "a": "sal18.SEC",
+     "b": "sal19.SEC",
+     "dir": "E",
+     "sim": 0.969,
+     "info": 0.281
+    },
+    {
      "a": "sal2.SEC",
      "b": "sal3.SEC",
      "dir": "E",
@@ -1306,6 +1336,13 @@
      "dir": "S",
      "sim": 1.0,
      "info": 0.344
+    },
+    {
+     "a": "sal6.SEC",
+     "b": "sal19.SEC",
+     "dir": "S",
+     "sim": 0.938,
+     "info": 0.062
     },
     {
      "a": "sal8.SEC",
@@ -1749,6 +1786,11 @@
      "dy": 1
     },
     {
+     "filename": "breederyne.SEC",
+     "dx": 1,
+     "dy": 0
+    },
+    {
      "filename": "breederynorth.SEC",
      "dx": 0,
      "dy": 0
@@ -1761,6 +1803,20 @@
      "dir": "E",
      "sim": 1.0,
      "info": 0.531
+    },
+    {
+     "a": "breederyne.SEC",
+     "b": "breederyeast.SEC",
+     "dir": "S",
+     "sim": 0.906,
+     "info": 0.031
+    },
+    {
+     "a": "breederynorth.SEC",
+     "b": "breederyne.SEC",
+     "dir": "E",
+     "sim": 0.906,
+     "info": 0.031
     },
     {
      "a": "breederynorth.SEC",
@@ -1793,6 +1849,11 @@
      "filename": "breedery2north.SEC",
      "dx": 0,
      "dy": 0
+    },
+    {
+     "filename": "breedery2northeast.SEC",
+     "dx": 1,
+     "dy": 0
     }
    ],
    "junctions": [
@@ -1805,10 +1866,24 @@
     },
     {
      "a": "breedery2north.SEC",
+     "b": "breedery2northeast.SEC",
+     "dir": "E",
+     "sim": 0.969,
+     "info": 0.062
+    },
+    {
+     "a": "breedery2north.SEC",
      "b": "breedery2.SEC",
      "dir": "S",
      "sim": 1.0,
      "info": 0.188
+    },
+    {
+     "a": "breedery2northeast.SEC",
+     "b": "breedery2east.SEC",
+     "dir": "S",
+     "sim": 0.969,
+     "info": 0.062
     }
    ],
    "ambiguous": [],
@@ -1849,6 +1924,11 @@
      "filename": "dz2s.SEC",
      "dx": 2,
      "dy": 1
+    },
+    {
+     "filename": "dz3n.SEC",
+     "dx": 1,
+     "dy": 0
     },
     {
      "filename": "dz3nw.SEC",
@@ -1917,6 +1997,27 @@
      "info": 0.562
     },
     {
+     "a": "dz3n.SEC",
+     "b": "dz2n.SEC",
+     "dir": "E",
+     "sim": 1.0,
+     "info": 0.5
+    },
+    {
+     "a": "dz3n.SEC",
+     "b": "dz3s.SEC",
+     "dir": "S",
+     "sim": 0.812,
+     "info": 0.531
+    },
+    {
+     "a": "dz3nw.SEC",
+     "b": "dz3n.SEC",
+     "dir": "E",
+     "sim": 1.0,
+     "info": 0.094
+    },
+    {
      "a": "dz3nw.SEC",
      "b": "dz3sw.SEC",
      "dir": "S",
@@ -1963,6 +2064,11 @@
      "dy": 1
     },
     {
+     "filename": "gom2bnorth.SEC",
+     "dx": 1,
+     "dy": 0
+    },
+    {
      "filename": "gom2c.SEC",
      "dx": 0,
      "dy": 1
@@ -1989,11 +2095,32 @@
      "info": 0.594
     },
     {
+     "a": "gom2bnorth.SEC",
+     "b": "gom2anorth.SEC",
+     "dir": "E",
+     "sim": 1.0,
+     "info": 0.031
+    },
+    {
+     "a": "gom2bnorth.SEC",
+     "b": "gom2awest.SEC",
+     "dir": "S",
+     "sim": 1.0,
+     "info": 0.094
+    },
+    {
      "a": "gom2c.SEC",
      "b": "gom2awest.SEC",
      "dir": "E",
      "sim": 1.0,
      "info": 0.688
+    },
+    {
+     "a": "gom2cnorth.SEC",
+     "b": "gom2bnorth.SEC",
+     "dir": "E",
+     "sim": 1.0,
+     "info": 0.031
     },
     {
      "a": "gom2cnorth.SEC",
@@ -2009,17 +2136,22 @@
   {
    "id": "gom#2",
    "region": "gom",
-   "w": 2,
+   "w": 3,
    "h": 1,
    "pieces": [
     {
      "filename": "btse.SEC",
+     "dx": 1,
+     "dy": 0
+    },
+    {
+     "filename": "btsw.SEC",
      "dx": 0,
      "dy": 0
     },
     {
      "filename": "gom3ne.SEC",
-     "dx": 1,
+     "dx": 2,
      "dy": 0
     }
    ],
@@ -2030,6 +2162,13 @@
      "dir": "E",
      "sim": 1.0,
      "info": 0.562
+    },
+    {
+     "a": "btsw.SEC",
+     "b": "btse.SEC",
+     "dir": "E",
+     "sim": 0.969,
+     "info": 0.188
     }
    ],
    "ambiguous": [],
@@ -2067,67 +2206,87 @@
   {
    "id": "greenwood#1",
    "region": "greenwood",
-   "w": 3,
+   "w": 4,
    "h": 5,
    "pieces": [
     {
      "filename": "greenwood1.SEC",
-     "dx": 2,
+     "dx": 3,
      "dy": 0
     },
     {
      "filename": "greenwood10.SEC",
-     "dx": 2,
+     "dx": 3,
      "dy": 3
     },
     {
      "filename": "greenwood11.SEC",
+     "dx": 2,
+     "dy": 3
+    },
+    {
+     "filename": "greenwood12.SEC",
      "dx": 1,
      "dy": 3
     },
     {
+     "filename": "greenwood13.SEC",
+     "dx": 0,
+     "dy": 3
+    },
+    {
      "filename": "greenwood14.SEC",
-     "dx": 2,
+     "dx": 3,
      "dy": 4
     },
     {
      "filename": "greenwood15.SEC",
-     "dx": 1,
+     "dx": 2,
      "dy": 4
     },
     {
      "filename": "greenwood16.SEC",
-     "dx": 0,
+     "dx": 1,
      "dy": 4
     },
     {
      "filename": "greenwood2.SEC",
-     "dx": 1,
+     "dx": 2,
      "dy": 0
     },
     {
      "filename": "greenwood3.SEC",
-     "dx": 0,
+     "dx": 1,
      "dy": 0
     },
     {
      "filename": "greenwood4.SEC",
-     "dx": 2,
+     "dx": 3,
      "dy": 1
     },
     {
      "filename": "greenwood5.SEC",
-     "dx": 1,
+     "dx": 2,
      "dy": 1
     },
     {
      "filename": "greenwood6.SEC",
-     "dx": 0,
+     "dx": 1,
      "dy": 1
     },
     {
      "filename": "greenwood7.SEC",
+     "dx": 3,
+     "dy": 2
+    },
+    {
+     "filename": "greenwood8.SEC",
      "dx": 2,
+     "dy": 2
+    },
+    {
+     "filename": "greenwood9.SEC",
+     "dx": 1,
      "dy": 2
     }
    ],
@@ -2159,6 +2318,27 @@
      "dir": "S",
      "sim": 1.0,
      "info": 0.375
+    },
+    {
+     "a": "greenwood12.SEC",
+     "b": "greenwood11.SEC",
+     "dir": "E",
+     "sim": 1.0,
+     "info": 0.031
+    },
+    {
+     "a": "greenwood12.SEC",
+     "b": "greenwood16.SEC",
+     "dir": "S",
+     "sim": 1.0,
+     "info": 0.094
+    },
+    {
+     "a": "greenwood13.SEC",
+     "b": "greenwood12.SEC",
+     "dir": "E",
+     "sim": 1.0,
+     "info": 0.312
     },
     {
      "a": "greenwood15.SEC",
@@ -2217,6 +2397,13 @@
      "info": 0.125
     },
     {
+     "a": "greenwood5.SEC",
+     "b": "greenwood8.SEC",
+     "dir": "S",
+     "sim": 0.969,
+     "info": 0.312
+    },
+    {
      "a": "greenwood6.SEC",
      "b": "greenwood5.SEC",
      "dir": "E",
@@ -2224,50 +2411,32 @@
      "info": 0.0
     },
     {
+     "a": "greenwood6.SEC",
+     "b": "greenwood9.SEC",
+     "dir": "S",
+     "sim": 0.781,
+     "info": 0.5
+    },
+    {
      "a": "greenwood7.SEC",
      "b": "greenwood10.SEC",
      "dir": "S",
      "sim": 1.0,
      "info": 0.25
-    }
-   ],
-   "ambiguous": [],
-   "warnings": []
-  },
-  {
-   "id": "greenwood#2",
-   "region": "greenwood",
-   "w": 3,
-   "h": 2,
-   "pieces": [
-    {
-     "filename": "greenwood12.SEC",
-     "dx": 1,
-     "dy": 1
     },
     {
-     "filename": "greenwood13.SEC",
-     "dx": 0,
-     "dy": 1
-    },
-    {
-     "filename": "greenwood8.SEC",
-     "dx": 2,
-     "dy": 0
-    },
-    {
-     "filename": "greenwood9.SEC",
-     "dx": 1,
-     "dy": 0
-    }
-   ],
-   "junctions": [
-    {
-     "a": "greenwood13.SEC",
-     "b": "greenwood12.SEC",
+     "a": "greenwood8.SEC",
+     "b": "greenwood7.SEC",
      "dir": "E",
      "sim": 1.0,
-     "info": 0.312
+     "info": 0.0
+    },
+    {
+     "a": "greenwood8.SEC",
+     "b": "greenwood11.SEC",
+     "dir": "S",
+     "sim": 1.0,
+     "info": 0.0
     },
     {
      "a": "greenwood9.SEC",
@@ -3179,21 +3348,36 @@
    "id": "per#2",
    "region": "per",
    "w": 3,
-   "h": 1,
+   "h": 2,
    "pieces": [
     {
      "filename": "pern.SEC",
      "dx": 1,
-     "dy": 0
+     "dy": 1
     },
     {
      "filename": "perne.SEC",
      "dx": 2,
-     "dy": 0
+     "dy": 1
     },
     {
      "filename": "perw.SEC",
      "dx": 0,
+     "dy": 1
+    },
+    {
+     "filename": "prg1c.SEC",
+     "dx": 0,
+     "dy": 0
+    },
+    {
+     "filename": "prg3c.SEC",
+     "dx": 1,
+     "dy": 0
+    },
+    {
+     "filename": "prg3se.SEC",
+     "dx": 2,
      "dy": 0
     }
    ],
@@ -3211,6 +3395,41 @@
      "dir": "E",
      "sim": 1.0,
      "info": 0.469
+    },
+    {
+     "a": "prg1c.SEC",
+     "b": "prg3c.SEC",
+     "dir": "E",
+     "sim": 1.0,
+     "info": 0.125
+    },
+    {
+     "a": "prg1c.SEC",
+     "b": "perw.SEC",
+     "dir": "S",
+     "sim": 1.0,
+     "info": 0.0
+    },
+    {
+     "a": "prg3c.SEC",
+     "b": "prg3se.SEC",
+     "dir": "E",
+     "sim": 1.0,
+     "info": 0.156
+    },
+    {
+     "a": "prg3c.SEC",
+     "b": "pern.SEC",
+     "dir": "S",
+     "sim": 1.0,
+     "info": 0.0
+    },
+    {
+     "a": "prg3se.SEC",
+     "b": "perne.SEC",
+     "dir": "S",
+     "sim": 1.0,
+     "info": 0.0
     }
    ],
    "ambiguous": [],
@@ -3281,47 +3500,6 @@
      "dir": "S",
      "sim": 1.0,
      "info": 0.188
-    }
-   ],
-   "ambiguous": [],
-   "warnings": []
-  },
-  {
-   "id": "per#5",
-   "region": "per",
-   "w": 3,
-   "h": 1,
-   "pieces": [
-    {
-     "filename": "prg1c.SEC",
-     "dx": 0,
-     "dy": 0
-    },
-    {
-     "filename": "prg3c.SEC",
-     "dx": 1,
-     "dy": 0
-    },
-    {
-     "filename": "prg3se.SEC",
-     "dx": 2,
-     "dy": 0
-    }
-   ],
-   "junctions": [
-    {
-     "a": "prg1c.SEC",
-     "b": "prg3c.SEC",
-     "dir": "E",
-     "sim": 1.0,
-     "info": 0.125
-    },
-    {
-     "a": "prg3c.SEC",
-     "b": "prg3se.SEC",
-     "dir": "E",
-     "sim": 1.0,
-     "info": 0.156
     }
    ],
    "ambiguous": [],
@@ -3462,6 +3640,11 @@
      "dy": 0
     },
     {
+     "filename": "thfifnorthwest.SEC",
+     "dx": 0,
+     "dy": 0
+    },
+    {
      "filename": "thfifwest.SEC",
      "dx": 0,
      "dy": 1
@@ -3474,6 +3657,20 @@
      "dir": "S",
      "sim": 1.0,
      "info": 0.5
+    },
+    {
+     "a": "thfifnorthwest.SEC",
+     "b": "thfifnorth.SEC",
+     "dir": "E",
+     "sim": 1.0,
+     "info": 0.094
+    },
+    {
+     "a": "thfifnorthwest.SEC",
+     "b": "thfifwest.SEC",
+     "dir": "S",
+     "sim": 1.0,
+     "info": 0.094
     },
     {
      "a": "thfifwest.SEC",
@@ -4123,7 +4320,6 @@
    "clysmort9.SEC"
   ],
   "Towns/Salazad": [
-   "sal19.SEC",
    "sal7.SEC"
   ],
   "Towns/Uswick": [
@@ -4137,16 +4333,7 @@
    "verbonic4.SEC",
    "verbonic8.SEC"
   ],
-  "bredery": [
-   "breedery2northeast.SEC",
-   "breederyne.SEC"
-  ],
-  "dhaza": [
-   "dz3n.SEC"
-  ],
   "gom": [
-   "btsw.SEC",
-   "gom2bnorth.SEC",
    "gomlord.SEC"
   ],
   "greenwood": [
@@ -4202,9 +4389,6 @@
   "swamp": [
    "swamp1.SEC",
    "swamp2.SEC"
-  ],
-  "thfif": [
-   "thfifnorthwest.SEC"
   ],
   "ucm": [
    "ucm1.SEC",
