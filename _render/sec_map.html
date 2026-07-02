@@ -132,6 +132,8 @@
   <label class="legend"><input type="checkbox" id="labels"> labels on placed</label>
   <label class="legend" id="prefwrap" title="swap each matched 2006 tile for its closest 2011 counterpart (merged view)"><input type="checkbox" id="prefer2011" checked> prefer 2011</label>
   <span id="sync" class="legend" title="click to configure sharing" style="cursor:pointer">local only</span>
+  <label class="legend" id="movemodewrap" style="display:none" title="when dragging a placed piece: move it alone, or bring its whole connected block along"><input type="checkbox" id="movepiece"> move single piece</label>
+  <button id="clearmap" style="display:none; border-color:#a3454a; color:#ffb3b3" title="remove every placement from the flat canvas">Clear map</button>
   <button id="seed" title="auto-fill empty named cells with their best-match tile (draft, reversible)">Seed empty</button>
   <button id="importbtn" title="load an exported build (area_placements*.json) into the active tab">Import</button>
   <input id="importfile" type="file" accept=".json" style="display:none">
@@ -165,6 +167,7 @@
 <script src="equiv.js"></script>
 <script src="era_map.js"></script>
 <script src="blocks.js"></script>
+<script src="block_anchors.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
 const EW_MIN=10, EW_MAX=100, NS_MIN=15, NS_MAX=90, STEP=5;
@@ -182,6 +185,13 @@ for(let i=0;i<FLAT_H;i++) FLAT_ROWS.push(i);
 function isFlat(){ return !!DS_CFG[DATASET].flat; }
 function curCols(){ return isFlat()?FLAT_COLS:EWS; }
 function curRows(){ return isFlat()?FLAT_ROWS:NSS; }
+// world guide names projected onto the flat canvas (same mapping as
+// anchor_blocks.py: world cell -> canvas col/row with a 1-cell border)
+const FLAT_GUIDE={};
+Object.entries(window.LAYOUT||{}).forEach(([k,v])=>{
+  const [ew,ns]=k.split(',').map(Number);
+  FLAT_GUIDE[((ew-10)/5+1)+','+((ns-15)/5+1)]=v;
+});
 
 // Floors are a z-axis at the same EW/NS: a=under(45) b=ground(50) c=upper(55).
 const FLOOR_ORDER=['c','b','a'];                 // topmost-first for "Surface" view
@@ -206,7 +216,7 @@ const DS_CFG={
   merged:{ showCore:true,  palette:'both',  legend:'Merged: coordinate layout with matched 2011 tiles swapped in (blue). Green tiles are 2006 with no confident 2011 match yet. Toggle "prefer 2011" off to see the original 2006 art and yellow 06 flags.' },
   c2006: { showCore:true,  palette:'coord', legend:'2006 coordinate map only. Review and correct the original positioned sectors; no name-based tiles mixed in.' },
   n2011: { showCore:false, palette:'area',  legend:'2011 name-based build. Empty grid - place area SECs one by one, or drag an assembled region block to stamp a whole area at once.' },
-  flat:  { showCore:false, palette:'area',  flat:true, legend:'Flat surface build: one layer, lay sectors out as puzzle pieces on a blank canvas. col,row is each piece\u2019s world position. "Lay out blocks" presets every assembled region into empty space; drag pieces or blocks to rearrange. Click a placed piece to add teleport portals.' },
+  flat:  { showCore:false, palette:'area',  flat:true, legend:'Flat surface build: one layer, sectors as puzzle pieces. "Lay out blocks" places every assembled region at its approximate world spot (guide names shown on the canvas). Drag a placed piece to move its whole block, or tick "move single piece". Click a piece for portals.' },
 };
 let DATASET='merged';
 let placements=placementsByDS[DATASET];
@@ -295,12 +305,18 @@ function makeCell(ew,ns){
   const key=ew+","+ns;
   const c=document.createElement('div');
   c.className='cell'; c.dataset.ew=ew; c.dataset.ns=ns; CELLS[key]=c;
-  const lname=isFlat()?null:(window.LAYOUT||{})[key];
+  const lname=isFlat()?FLAT_GUIDE[key]:(window.LAYOUT||{})[key];
   if(lname){ const g=document.createElement('div'); g.className='guide'; g.textContent=lname; c.appendChild(g);
     if(lname==='Void'||lname==='Empty'||lname.startsWith('River')) c.classList.add('void'); }
   c.addEventListener('dragover',e=>{e.preventDefault();c.classList.add('dragover');});
   c.addEventListener('dragleave',()=>c.classList.remove('dragover'));
   c.addEventListener('drop',e=>{e.preventDefault();c.classList.remove('dragover');
+    const mv=e.dataTransfer.getData('mv');
+    if(mv){ const [sx,sy]=mv.split(',').map(Number);
+      const single=document.getElementById('movepiece').checked;
+      const cells=single?[[sx,sy]]:connectedGroup(sx,sy);
+      if(cells.length) moveCells(cells,ew-sx,ns-sy);
+      return; }
     const bid=e.dataTransfer.getData('block');
     if(bid){ placeBlock(bid,ew,ns); return; }
     const fn=e.dataTransfer.getData('fn'), png=e.dataTransfer.getData('png');
@@ -353,6 +369,10 @@ function renderCell(ew,ns){
     const im=document.createElement('img'); im.src=p.png; im.title=(p.place||'')+' '+p.filename+' ['+lay+']';
     attachHover(im,p.png,p.filename); c.appendChild(im);
     c.classList.add(p.source);
+    if(isFlat()&&isUser){ // drag to move (whole connected block or single piece)
+      im.draggable=true;
+      im.addEventListener('dragstart',e=>{ e.dataTransfer.setData('mv',ew+','+ns); hov.style.display='none'; });
+    }
     if(isUser){ const x=document.createElement('div'); x.className='x'; x.textContent='x';
       x.onclick=(ev)=>{ev.stopPropagation();removePlacement(ck);}; c.appendChild(x); }
   }
@@ -401,7 +421,7 @@ function openEditor(ew,ns,evt,editLay){
   const key=ew+","+ns, lay=editLay||editLayer(ew,ns), ck=ew+","+ns+","+lay;
   const placed=placements[ck], core=coreAt(ck);
   const cur=placed||core;
-  const lname=(isFlat()?null:(window.LAYOUT||{})[key])||'(unnamed)';
+  const lname=(isFlat()?FLAT_GUIDE[key]:(window.LAYOUT||{})[key])||'(unnamed)';
   const sug=isFlat()?null:(window.SUGGESTIONS||{})[key];
   const movable=userPlacement(ew,ns,lay);
   pop.innerHTML='';
@@ -614,32 +634,107 @@ function placeBlock(id,ew,ns){
     setPlacement(x,y,lay,{filename:p.filename, png:tilePng(p.filename), source:srcOf(p.filename)});
   });
 }
-// flat canvas preset: shelf-pack every assembled block into empty space,
-// 1-cell margin between blocks, skipping blocks already (partly) placed.
+// flat canvas preset: place every assembled block at its world anchor
+// (block_anchors.js: era matches + guide names). Anchored blocks that would
+// collide shift to the nearest free spot; unanchored blocks park below the
+// world rows. Skips blocks already (partly) placed.
 function layoutBlocksFlat(){
-  const blocks=Object.values(BLOCK_BY_ID).sort((a,b)=>(b.w*b.h)-(a.w*a.h)||b.h-a.h);
+  const blocks=Object.values(BLOCK_BY_ID);
   if(!blocks.length){ alert('No assembled blocks loaded (blocks.js).'); return; }
-  if(!confirm('Lay out '+blocks.length+' assembled region blocks into empty canvas space?\n\nExisting placements are untouched; blocks with any piece already placed are skipped. Every piece stays individually editable.')) return;
-  const blocked=new Set();
-  const mark=(x,y)=>{ for(let dy=-1;dy<=1;dy++) for(let dx=-1;dx<=1;dx++) blocked.add((x+dx)+','+(y+dy)); };
-  Object.entries(placements).forEach(([k,p])=>{ if(p&&p.filename!==CLEARED){ const [x,y]=k.split(','); mark(+x,+y); } });
+  const anchors=window.BLOCK_ANCHORS||{};
+  if(!confirm('Lay out '+blocks.length+' assembled region blocks at their approximate world positions?\n\n(anchored by 2006 matches and guide names; unanchored regions park at the bottom)\nExisting placements are untouched; blocks with any piece already placed are skipped.')) return;
+  const occ=new Set();
+  Object.entries(placements).forEach(([k,p])=>{ if(p&&p.filename!==CLEARED) occ.add(k.split(',').slice(0,2).join(',')); });
+  const fits=(ax,ay,b,pad)=>{
+    if(ax<0||ay<0||ax+b.w>FLAT_W||ay+b.h>FLAT_H) return false;
+    for(const p of b.pieces)
+      for(let dy=-pad;dy<=pad;dy++) for(let dx=-pad;dx<=pad;dx++)
+        if(occ.has((ax+p.dx+dx)+','+(ay+p.dy+dy))) return false;
+    return true;
+  };
+  // nearest free spot to (tx,ty), searching outward ring by ring
+  const findNear=(tx,ty,b,pad)=>{
+    for(let r=0;r<FLAT_W;r++)
+      for(let dy=-r;dy<=r;dy++) for(let dx=-r;dx<=r;dx++){
+        if(Math.max(Math.abs(dx),Math.abs(dy))!==r) continue;
+        if(fits(tx+dx,ty+dy,b,pad)) return [tx+dx,ty+dy];
+      }
+    return null;
+  };
   const used=usedFilenames();
-  let done=0, skipped=0, nofit=0, cells=0;
-  blocks.forEach(b=>{
+  const stamp=(b,ax,ay)=>{ b.pieces.forEach(p=>{
+    const x=ax+p.dx, y=ay+p.dy;
+    setPlacement(x,y,'b',{filename:p.filename, png:tilePng(p.filename), source:srcOf(p.filename)});
+    used.add(p.filename); occ.add(x+','+y);
+  }); };
+  let done=0, skipped=0, nofit=0;
+  // anchored first, era matches before name guesses, big before small
+  const anchored=blocks.filter(b=>anchors[b.id])
+    .sort((a,b)=>(anchors[a.id].method==='era'?0:1)-(anchors[b.id].method==='era'?0:1)
+      ||(b.w*b.h)-(a.w*a.h));
+  const parked=blocks.filter(b=>!anchors[b.id]).sort((a,b)=>(b.w*b.h)-(a.w*a.h));
+  anchored.forEach(b=>{
     if(b.pieces.some(p=>used.has(p.filename))){ skipped++; return; }
-    let anchor=null;
-    for(let ay=0; ay<=FLAT_H-b.h && !anchor; ay++)
-      for(let ax=0; ax<=FLAT_W-b.w && !anchor; ax++)
-        if(b.pieces.every(p=>!blocked.has((ax+p.dx)+','+(ay+p.dy)))) anchor=[ax,ay];
-    if(!anchor){ nofit++; return; }
-    b.pieces.forEach(p=>{
-      const x=anchor[0]+p.dx, y=anchor[1]+p.dy;
-      setPlacement(x,y,'b',{filename:p.filename, png:tilePng(p.filename), source:srcOf(p.filename)});
-      used.add(p.filename); mark(x,y); cells++;
-    });
-    done++;
+    const a=anchors[b.id];
+    const spot=fits(a.col,a.row,b,0)?[a.col,a.row]:findNear(a.col,a.row,b,0);
+    if(!spot){ nofit++; return; }
+    stamp(b,spot[0],spot[1]); done++;
   });
-  alert('Laid out '+done+' blocks ('+cells+' sectors).'+(skipped?' Skipped '+skipped+' already placed.':'')+(nofit?' '+nofit+' did not fit - clear space or export/import to a bigger canvas.':''));
+  // parking strip: below the world grid rows (world rows end at 16)
+  let px=0, py=18;
+  parked.forEach(b=>{
+    if(b.pieces.some(p=>used.has(p.filename))){ skipped++; return; }
+    const spot=findNear(px,py,b,1);
+    if(!spot){ nofit++; return; }
+    stamp(b,spot[0],spot[1]); done++;
+    px=Math.min(FLAT_W-1,spot[0]+b.w+1);
+  });
+  alert('Laid out '+done+' blocks at world positions.'+(skipped?' Skipped '+skipped+' already placed.':'')+(nofit?' '+nofit+' had no room.':'')+'\n\nDrag any piece to move its whole block (or tick "move single piece").');
+}
+// wipe the flat canvas (placements only; portals/interiors stay)
+function clearFlatMap(){
+  const keys=Object.keys(placements);
+  if(!keys.length){ alert('Flat canvas is already empty.'); return; }
+  if(!confirm('Remove ALL '+keys.length+' placements from the flat canvas?\n\nPortal links and the interiors list are kept. This also clears it for everyone on the shared map.')) return;
+  keys.forEach(ck=>{ delete placements[ck]; DB.remove(ck); });
+  refreshCells(); markUsed(); renderPortalPanel();
+}
+// connected group of placed cells (4-way) containing start - the physical
+// "block" as it currently sits on the canvas
+function connectedGroup(sx,sy){
+  const start=sx+','+sy+',b';
+  if(!placements[start]||placements[start].filename===CLEARED) return [];
+  const seen=new Set([sx+','+sy]), q=[[sx,sy]], out=[];
+  while(q.length){
+    const [x,y]=q.pop(); out.push([x,y]);
+    [[1,0],[-1,0],[0,1],[0,-1]].forEach(([dx,dy])=>{
+      const k=(x+dx)+','+(y+dy);
+      if(seen.has(k)) return;
+      const p=placements[k+',b'];
+      if(p&&p.filename!==CLEARED){ seen.add(k); q.push([x+dx,y+dy]); }
+    });
+  }
+  return out;
+}
+// move a set of placed cells by (dx,dy); refuses collisions outside the group
+function moveCells(cells,dx,dy){
+  if(!dx&&!dy) return;
+  const inGroup=new Set(cells.map(([x,y])=>x+','+y));
+  for(const [x,y] of cells){
+    const nx=x+dx, ny=y+dy;
+    if(nx<0||ny<0||nx>=FLAT_W||ny>=FLAT_H){ alert('That move runs off the canvas.'); return; }
+    const t=placements[nx+','+ny+',b'];
+    if(t&&t.filename!==CLEARED&&!inGroup.has(nx+','+ny)){ alert('That spot is occupied by another piece.'); return; }
+  }
+  const recs=cells.map(([x,y])=>[x,y,placements[x+','+y+',b']]);
+  const newKeys=new Set(recs.map(([x,y])=>(x+dx)+','+(y+dy)+',b'));
+  recs.forEach(([x,y])=>{ const k=x+','+y+',b'; delete placements[k];
+    if(!newKeys.has(k)) DB.remove(k); }); // moved-onto keys get upserted below
+  recs.forEach(([x,y,rec])=>{
+    placements[(x+dx)+','+(y+dy)+',b']=rec;
+    DB.upsert((x+dx)+','+(y+dy)+',b',x+dx,y+dy,'b',rec.filename);
+  });
+  refreshCells(); markUsed();
 }
 function blockCard(b){
   const card=document.createElement('div'); card.className='blockcard'; card.draggable=true; card.dataset.block=b.id;
@@ -884,6 +979,8 @@ function switchDataset(ds){
   document.getElementById('legendtxt').textContent=DS_CFG[ds].legend;
   document.getElementById('prefwrap').style.display=(ds==='merged')?'':'none';
   document.getElementById('floors').style.display=isFlat()?'none':'';
+  document.getElementById('movemodewrap').style.display=isFlat()?'':'none';
+  document.getElementById('clearmap').style.display=isFlat()?'':'none';
   const seedBtn=document.getElementById('seed');
   if(isFlat()){
     // on the flat canvas the seed button lays out every assembled block
@@ -993,6 +1090,7 @@ document.getElementById('importfile').addEventListener('change',e=>{
 // draft seeder: fill empty named cells with their best-match suggestion.
 // Distinct file per cell (greedy) so regions aren't filled with one repeated
 // tile. Skips cells already holding a core or placed tile. Fully reversible.
+document.getElementById('clearmap').addEventListener('click',()=>{ if(isFlat()) clearFlatMap(); });
 document.getElementById('seed').addEventListener('click',()=>{
   if(isFlat()){ layoutBlocksFlat(); return; }
   if(DS_CFG[DATASET].palette==='coord'){ alert('Seeding uses name-based tiles; switch to Merged or 2011 name-based.'); return; }
