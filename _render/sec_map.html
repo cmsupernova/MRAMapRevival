@@ -44,6 +44,8 @@
   .cell .badge { position:absolute; bottom:0; left:1px; font-size:8px; letter-spacing:1px; z-index:3; color:#566; }
   .cell .badge b { color:#ffd166; }
   .cell .stair { position:absolute; top:1px; left:1px; font-size:9px; line-height:1; z-index:3; color:#3fe0e0; text-shadow:0 0 2px #000; }
+  .cell .portmark { position:absolute; bottom:1px; right:1px; font-size:10px; line-height:1; z-index:4;
+    color:#1a0f2a; background:#c792ff; border-radius:6px; padding:0 3px; font-weight:700; }
   .cell .label { position:absolute; top:0; left:0; right:0; font-size:8px; line-height:1.2; z-index:2;
     background:rgba(0,0,0,.6); color:#fff; text-align:center; overflow:hidden; white-space:nowrap; text-overflow:ellipsis; padding:1px; }
   .zoom { display:flex; gap:3px; align-items:center; }
@@ -56,7 +58,8 @@
   .cell.cleared::before { content:''; position:absolute; inset:2px; z-index:1;
     outline:1px dashed #5a5f6b; outline-offset:-1px; }
   #pop { position:fixed; z-index:50; background:var(--panel); border:1px solid var(--accent);
-    border-radius:8px; padding:10px; box-shadow:0 8px 28px rgba(0,0,0,.6); width:340px; display:none; }
+    border-radius:8px; padding:10px; box-shadow:0 8px 28px rgba(0,0,0,.6); width:340px; display:none;
+    max-height:88vh; overflow:auto; }
   #pop h3 { margin:0 0 8px; font-size:13px; }
   #pop .ptiles { display:grid; grid-template-columns:repeat(4,1fr); gap:5px; max-height:240px; overflow:auto; }
   #pop .pt { cursor:pointer; text-align:center; }
@@ -111,6 +114,7 @@
     <button data-ds="merged" class="on">Merged</button>
     <button data-ds="c2006">2006 coordinate</button>
     <button data-ds="n2011">2011 name-based</button>
+    <button data-ds="flat">Flat surface</button>
   </span>
   <span class="legend" id="legendtxt">Merged: coordinate layout with matched 2011 tiles swapped in (blue). Green tiles are 2006 with no confident 2011 match yet. Toggle "prefer 2011" off to see the original 2006 art and yellow 06 flags.</span>
   <span class="sp"></span>
@@ -140,6 +144,7 @@
   <div class="gridpane"><div id="grid" class="grid"></div></div>
   <div class="palette">
     <input type="search" id="filter" placeholder="filter tiles..." style="width:100%">
+    <div id="portalpanel" style="display:none"></div>
     <div id="palettebody"></div>
   </div>
 </div>
@@ -157,6 +162,17 @@ const EW_MIN=10, EW_MAX=100, NS_MIN=15, NS_MAX=90, STEP=5;
 const EWS=[], NSS=[];
 for(let e=EW_MIN;e<=EW_MAX;e+=STEP) EWS.push(e);
 for(let n=NS_MIN;n<=NS_MAX;n+=STEP) NSS.push(n);
+
+// Flat "surface" build: a large blank canvas with simple 0-indexed col,row
+// coordinates (no 2006 coordinate baggage, single layer). col,row is the
+// placed sector's world position for spawn/logout bookkeeping.
+const FLAT_W=40, FLAT_H=40;
+const FLAT_COLS=[], FLAT_ROWS=[];
+for(let i=0;i<FLAT_W;i++) FLAT_COLS.push(i);
+for(let i=0;i<FLAT_H;i++) FLAT_ROWS.push(i);
+function isFlat(){ return !!DS_CFG[DATASET].flat; }
+function curCols(){ return isFlat()?FLAT_COLS:EWS; }
+function curRows(){ return isFlat()?FLAT_ROWS:NSS; }
 
 // Floors are a z-axis at the same EW/NS: a=under(45) b=ground(50) c=upper(55).
 const FLOOR_ORDER=['c','b','a'];                 // topmost-first for "Surface" view
@@ -176,11 +192,12 @@ const coordByCell={};
 //   merged - 2006 core + your overlay (the original combined map)
 //   c2006  - the 2006 coordinate map only (review/correct positioned sectors)
 //   n2011  - rebuild purely from 2011 name-based SECs (no core shown)
-const placementsByDS={merged:{}, c2006:{}, n2011:{}};
+const placementsByDS={merged:{}, c2006:{}, n2011:{}, flat:{}};
 const DS_CFG={
   merged:{ showCore:true,  palette:'both',  legend:'Merged: coordinate layout with matched 2011 tiles swapped in (blue). Green tiles are 2006 with no confident 2011 match yet. Toggle "prefer 2011" off to see the original 2006 art and yellow 06 flags.' },
   c2006: { showCore:true,  palette:'coord', legend:'2006 coordinate map only. Review and correct the original positioned sectors; no name-based tiles mixed in.' },
   n2011: { showCore:false, palette:'area',  legend:'2011 name-based build. Empty grid - place the area SECs to reconstruct the world from scratch.' },
+  flat:  { showCore:false, palette:'area',  flat:true, legend:'Flat surface build: one layer, lay sectors out as puzzle pieces on a blank canvas. col,row is each piece\u2019s world position. Click a placed piece to add teleport portals; manage teleport-only interiors in the panel.' },
 };
 let DATASET='merged';
 let placements=placementsByDS[DATASET];
@@ -209,10 +226,12 @@ function presentLayers(ew,ns){ // layers (any source) at this cell, topmost-firs
   return FLOOR_ORDER.filter(l=>coreAt(ew+","+ns+","+l)||placements[ew+","+ns+","+l]);
 }
 function displayLayer(ew,ns){
+  if(isFlat()) return 'b';                        // flat build is single-layer
   if(FLOOR!=='surface') return FLOOR;
   const p=presentLayers(ew,ns); return p.length?p[0]:'b';
 }
 function editLayer(ew,ns){
+  if(isFlat()) return 'b';
   // Surface view shows the topmost occupied floor. Edits should target that
   // visible floor; empty surface cells still default to ground.
   return FLOOR==='surface' ? displayLayer(ew,ns) : FLOOR;
@@ -249,13 +268,15 @@ const floorsEl=document.getElementById('floors');
 
 const grid=document.getElementById('grid');
 function buildGrid(){
-  grid.style.gridTemplateColumns=`28px repeat(${EWS.length}, var(--cell))`;
+  const cols=curCols(), rows=curRows();
+  Object.keys(CELLS).forEach(k=>delete CELLS[k]);
+  grid.style.gridTemplateColumns=`28px repeat(${cols.length}, var(--cell))`;
   grid.innerHTML='';
   grid.appendChild(corner(''));
-  EWS.forEach(e=>grid.appendChild(hdr('colhdr', e)));
-  NSS.forEach(n=>{
+  cols.forEach(e=>grid.appendChild(hdr('colhdr', e)));
+  rows.forEach(n=>{
     grid.appendChild(hdr('rowhdr', n));
-    EWS.forEach(e=>grid.appendChild(makeCell(e,n)));
+    cols.forEach(e=>grid.appendChild(makeCell(e,n)));
   });
 }
 function corner(){ const d=document.createElement('div'); d.className='colhdr'; return d; }
@@ -265,7 +286,7 @@ function makeCell(ew,ns){
   const key=ew+","+ns;
   const c=document.createElement('div');
   c.className='cell'; c.dataset.ew=ew; c.dataset.ns=ns; CELLS[key]=c;
-  const lname=(window.LAYOUT||{})[key];
+  const lname=isFlat()?null:(window.LAYOUT||{})[key];
   if(lname){ const g=document.createElement('div'); g.className='guide'; g.textContent=lname; c.appendChild(g);
     if(lname==='Void'||lname==='Empty'||lname.startsWith('River')) c.classList.add('void'); }
   c.addEventListener('dragover',e=>{e.preventDefault();c.classList.add('dragover');});
@@ -273,7 +294,7 @@ function makeCell(ew,ns){
   c.addEventListener('drop',e=>{e.preventDefault();c.classList.remove('dragover');
     const fn=e.dataTransfer.getData('fn'), png=e.dataTransfer.getData('png');
     if(fn){ setPlacement(ew,ns,editLayer(ew,ns),{filename:fn,png,source:srcOf(fn)}); }});
-  const sug=(window.SUGGESTIONS||{})[key];
+  const sug=isFlat()?null:(window.SUGGESTIONS||{})[key];
   if(sug && sug.candidates && sug.candidates.length) c.classList.add('hassug');
   c.addEventListener('click',e=>{ if(e.target.classList.contains('x')) return; openEditor(ew,ns,e); });
   c.addEventListener('contextmenu',e=>{ e.preventDefault(); quickClear(ew,ns); });
@@ -311,7 +332,7 @@ function applyRemote(storedCell,rec){
 }
 function renderCell(ew,ns){
   const c=CELLS[ew+","+ns]; if(!c) return;
-  [...c.querySelectorAll('img,.x,.badge,.stair')].forEach(n=>n.remove());
+  [...c.querySelectorAll('img,.x,.badge,.stair,.portmark')].forEach(n=>n.remove());
   c.classList.remove('coord','area','cleared');
   const lay=displayLayer(ew,ns), ck=ew+","+ns+","+lay;
   const p=placements[ck]||coreAt(ck);
@@ -336,10 +357,18 @@ function renderCell(ew,ns){
     c.appendChild(bd);
   }
   // floor-transition badge: this sector has stairs/portal tiles to another floor
-  const st=p&&p.filename!==CLEARED&&(window.STAIRS||{})[p.filename];
+  const st=!isFlat()&&p&&p.filename!==CLEARED&&(window.STAIRS||{})[p.filename];
   if(st){ const s=document.createElement('div'); s.className='stair';
     s.textContent=(st.u?'\u25B2':'')+(st.d?'\u25BC':'');
     s.title='floor transition: '+(st.u?'up ':'')+(st.d?'down':''); c.appendChild(s); }
+  // flat build: portal-out marker (this sector teleports somewhere)
+  if(isFlat()){
+    const np=portalsFrom(ew+","+ns);
+    if(np.length){ const pm=document.createElement('div'); pm.className='portmark';
+      pm.textContent='\u2197'+(np.length>1?np.length:'');
+      pm.title=np.length+' portal'+(np.length>1?'s':'')+': '+np.map(x=>x.to.replace('.SEC','')).join(', ');
+      c.appendChild(pm); }
+  }
 }
 // ---- cell editor popover: view / replace / blank any cell ----------------
 const pop=document.getElementById('pop');
@@ -361,8 +390,8 @@ function openEditor(ew,ns,evt,editLay){
   const key=ew+","+ns, lay=editLay||editLayer(ew,ns), ck=ew+","+ns+","+lay;
   const placed=placements[ck], core=coreAt(ck);
   const cur=placed||core;
-  const lname=(window.LAYOUT||{})[key]||'(unnamed)';
-  const sug=(window.SUGGESTIONS||{})[key];
+  const lname=(isFlat()?null:(window.LAYOUT||{})[key])||'(unnamed)';
+  const sug=isFlat()?null:(window.SUGGESTIONS||{})[key];
   const movable=userPlacement(ew,ns,lay);
   pop.innerHTML='';
   const h=document.createElement('h3');
@@ -370,7 +399,8 @@ function openEditor(ew,ns,evt,editLay){
     ' <span class="legend">('+ew+','+ns+')</span>';
   pop.appendChild(h);
   h.querySelector('.x2').onclick=()=>pop.style.display='none';
-  // floor picker: c / b / a with move-to-empty
+  // floor picker: c / b / a with move-to-empty (world builds only; flat is single-layer)
+  if(!isFlat()){
   const fl=document.createElement('div'); fl.className='pfloors';
   FLOOR_ORDER.forEach(l=>{
     const lck=ew+','+ns+','+l, eff=cellEffective(lck);
@@ -409,6 +439,7 @@ function openEditor(ew,ns,evt,editLay){
     fl.appendChild(btn);
   });
   pop.appendChild(fl);
+  }
   // current contents (selected floor)
   const curDiv=document.createElement('div'); curDiv.className='cur';
   if(cur && cur.filename!==CLEARED){
@@ -435,7 +466,7 @@ function openEditor(ew,ns,evt,editLay){
   } else { clr.style.display='none'; }
   pop.appendChild(clr);
   // suggestions for this named cell (name-based tiles only; not for the pure 2006 build)
-  if(DS_CFG[DATASET].palette!=='coord' && sug && sug.candidates && sug.candidates.length){
+  if(!isFlat() && DS_CFG[DATASET].palette!=='coord' && sug && sug.candidates && sug.candidates.length){
     const sh=document.createElement('div'); sh.className='region'; sh.textContent='Suggested for "'+sug.place_name+'"';
     pop.appendChild(sh);
     pop.appendChild(tileGrid(sug.candidates.map(c=>({filename:c.filename,png:c.png})),ew,ns,lay));
@@ -452,6 +483,53 @@ function openEditor(ew,ns,evt,editLay){
     results.appendChild(tileGrid(searchPool.filter(t=>
       t.filename.toLowerCase().includes(q)||(t.place_name||'').toLowerCase().includes(q)).slice(0,40),ew,ns,lay));
   });
+  // flat build: portals out of this sector
+  if(isFlat()){
+    const ps=document.createElement('div'); ps.className='region'; ps.style.marginTop='12px';
+    ps.textContent='Portals from here ('+portalsFrom(key).length+')'; pop.appendChild(ps);
+    if(!cur || cur.filename===CLEARED){
+      const hint=document.createElement('div'); hint.className='legend'; hint.textContent='Place a sector here first, then add portals.'; pop.appendChild(hint);
+    } else {
+      portalsFrom(key).forEach(p=>{
+        const r=document.createElement('div'); r.style.cssText='display:flex;gap:6px;font-size:11px;align-items:center;padding:2px 0';
+        const s=document.createElement('span'); s.style.cssText='flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#c2c7d2';
+        s.textContent='\u2192 '+p.to.replace('.SEC','')+' @'+p.enter[0]+','+p.enter[1]+(p.name?(' "'+p.name+'"'):'');
+        const x=document.createElement('span'); x.textContent='x'; x.style.cssText='color:#ff6b6b;cursor:pointer';
+        x.onclick=()=>{ removePortal(p); openEditor(ew,ns,evt,lay); };
+        r.appendChild(s); r.appendChild(x); pop.appendChild(r);
+      });
+      const form=document.createElement('div'); form.style.margin='6px 0';
+      const dest=document.createElement('input'); dest.className='psearch'; dest.placeholder='destination sector: search...'; form.appendChild(dest);
+      const chosenLbl=document.createElement('div'); chosenLbl.className='legend'; chosenLbl.style.margin='2px 0'; form.appendChild(chosenLbl);
+      const destRes=document.createElement('div'); form.appendChild(destRes);
+      let chosen=null;
+      function setChosen(fn){ chosen=fn; chosenLbl.innerHTML='dest: <b style="color:#fff">'+fn.replace('.SEC','')+'</b>'+(isInterior(fn)?' <span class="legend">(interior)</span>':''); destRes.innerHTML=''; dest.value=''; }
+      dest.addEventListener('input',()=>{ const q=dest.value.toLowerCase().trim(); destRes.innerHTML=''; if(!q) return;
+        const pool=[...INTERIORS.map(f=>TILE_BY_NAME[f]).filter(Boolean), ...(MANIFEST.area||[])];
+        const seen=new Set();
+        pool.filter(t=>{ if(seen.has(t.filename)) return false; seen.add(t.filename);
+          return t.filename.toLowerCase().includes(q)||(t.place_name||t.region||'').toLowerCase().includes(q); })
+          .slice(0,12).forEach(t=>{ const b=document.createElement('div');
+            b.style.cssText='font-size:11px;padding:3px 5px;cursor:pointer;border-bottom:1px solid var(--line)';
+            b.textContent=t.filename.replace('.SEC','')+(isInterior(t.filename)?'  (interior)':'');
+            b.onmouseenter=()=>b.style.background='#2c313c'; b.onmouseleave=()=>b.style.background='';
+            b.onclick=()=>setChosen(t.filename); destRes.appendChild(b); });
+      });
+      const enwrap=document.createElement('div'); enwrap.className='legend'; enwrap.style.margin='4px 0';
+      const enr=document.createElement('input'); enr.type='number'; enr.min=0; enr.max=31; enr.value=16; enr.style.width='48px';
+      const enc=document.createElement('input'); enc.type='number'; enc.min=0; enc.max=31; enc.value=16; enc.style.width='48px';
+      enwrap.appendChild(document.createTextNode('enter at row ')); enwrap.appendChild(enr);
+      enwrap.appendChild(document.createTextNode(' col ')); enwrap.appendChild(enc);
+      form.appendChild(enwrap);
+      const nm=document.createElement('input'); nm.placeholder='portal name (optional, -> .MSG)'; nm.style.cssText='width:100%;margin:4px 0';
+      form.appendChild(nm);
+      const add=document.createElement('button'); add.textContent='Add portal'; add.style.width='100%';
+      add.onclick=()=>{ if(!chosen){ alert('Pick a destination sector.'); return; }
+        addPortal(key, chosen, Math.max(0,Math.min(31,+enr.value||0)), Math.max(0,Math.min(31,+enc.value||0)), nm.value.trim());
+        openEditor(ew,ns,evt,lay); };
+      form.appendChild(add); pop.appendChild(form);
+    }
+  }
   pop.style.display='block';
   const x=Math.min(evt.clientX+8, innerWidth-356), y=Math.min(evt.clientY+8, innerHeight-440);
   pop.style.left=x+'px'; pop.style.top=Math.max(8,y)+'px';
@@ -489,7 +567,7 @@ document.getElementById('zout').onclick=()=>setZoom(ZOOM-12);
 document.getElementById('labels').addEventListener('change',e=>{ SHOWLABELS=e.target.checked; refreshCells(); });
 document.getElementById('prefer2011').addEventListener('change',e=>{ PREFER2011=e.target.checked;
   buildPalette(document.getElementById('filter').value.toLowerCase()); refreshCells(); });
-function refreshCells(){ NSS.forEach(n=>EWS.forEach(e=>renderCell(e,n))); }
+function refreshCells(){ curRows().forEach(n=>curCols().forEach(e=>renderCell(e,n))); }
 buildGrid();
 
 // palette
@@ -575,6 +653,87 @@ document.getElementById('filter').addEventListener('input',e=>buildPalette(e.tar
 document.getElementById('guides').addEventListener('change',e=>{
   document.querySelectorAll('.guide').forEach(g=>g.style.display=e.target.checked?'flex':'none');});
 
+// ---- flat build: teleport-only interiors + portal links ------------------
+// Interiors are sectors reached ONLY by teleport (never on the surface grid).
+// A portal links a placed surface cell -> a destination sector + entry cell.
+// Stored locally (the realtime placements table has no schema for this) and
+// included in the flat export. Compiles later to .CRT (dest) / .MSG (name).
+let INTERIORS=[];   // [filename]
+let PORTALS=[];      // [{from:"col,row", to:"file.SEC", enter:[r,c], name:""}]
+function loadPortalData(){ try{ const o=JSON.parse(localStorage.getItem('mra_flat_portals')||'{}');
+  INTERIORS=Array.isArray(o.interiors)?o.interiors:[]; PORTALS=Array.isArray(o.portals)?o.portals:[]; }catch(e){ INTERIORS=[]; PORTALS=[]; } }
+function savePortalData(){ localStorage.setItem('mra_flat_portals',JSON.stringify({interiors:INTERIORS,portals:PORTALS})); }
+function portalsFrom(ck){ return PORTALS.filter(p=>p.from===ck); }
+function isInterior(fn){ return INTERIORS.includes(fn); }
+function addInterior(fn){ if(fn && !INTERIORS.includes(fn)){ INTERIORS.push(fn); savePortalData(); renderPortalPanel(); } }
+function removeInterior(fn){ INTERIORS=INTERIORS.filter(x=>x!==fn); savePortalData(); renderPortalPanel(); }
+function addPortal(fromCk,to,er,ec,name){
+  PORTALS.push({from:fromCk,to,enter:[er,ec],name:name||''}); savePortalData();
+  const [ew,ns]=fromCk.split(','); renderCell(+ew,+ns); renderPortalPanel();
+}
+function removePortal(p){ PORTALS=PORTALS.filter(x=>x!==p); savePortalData();
+  const [ew,ns]=p.from.split(','); renderCell(+ew,+ns); renderPortalPanel(); }
+loadPortalData();
+
+const portalPanel=document.getElementById('portalpanel');
+function thumb(fn){ const t=TILE_BY_NAME[fn]; return t?t.png:('tiles/'+fn+'.png'); }
+function renderPortalPanel(){
+  if(!isFlat()){ portalPanel.style.display='none'; portalPanel.innerHTML=''; return; }
+  portalPanel.style.display='block'; portalPanel.innerHTML='';
+  // interiors
+  const ih=document.createElement('div'); ih.className='region'; ih.textContent='Teleport-only interiors ('+INTERIORS.length+')'; portalPanel.appendChild(ih);
+  const note=document.createElement('div'); note.className='legend'; note.style.margin='2px 0 6px';
+  note.textContent='Sectors reached only by portal (never on the grid).'; portalPanel.appendChild(note);
+  if(INTERIORS.length){
+    const list=document.createElement('div'); list.className='tiles';
+    INTERIORS.forEach(fn=>{
+      const tw=document.createElement('div'); tw.className='tilewrap';
+      const im=document.createElement('img'); im.className='tile'; im.src=thumb(fn); im.title=fn;
+      im.draggable=true; im.addEventListener('dragstart',e=>{e.dataTransfer.setData('fn',fn);e.dataTransfer.setData('png',thumb(fn));});
+      attachHover(im,thumb(fn),fn);
+      const nm=document.createElement('div'); nm.className='nm'; nm.textContent=fn.replace('.SEC','');
+      const rm=document.createElement('div'); rm.textContent='x'; rm.title='remove from interiors';
+      rm.style.cssText='position:absolute;top:0;right:1px;color:#ff6b6b;cursor:pointer;font-size:11px;z-index:3';
+      rm.onclick=()=>removeInterior(fn);
+      tw.appendChild(im); tw.appendChild(nm); tw.appendChild(rm); list.appendChild(tw);
+    });
+    portalPanel.appendChild(list);
+  }
+  const addWrap=document.createElement('div'); addWrap.style.margin='6px 0 4px';
+  const ai=document.createElement('input'); ai.type='search'; ai.placeholder='add interior: search SEC...'; ai.style.width='100%';
+  addWrap.appendChild(ai); portalPanel.appendChild(addWrap);
+  const ares=document.createElement('div'); ares.className='tiles'; portalPanel.appendChild(ares);
+  ai.addEventListener('input',()=>{ const q=ai.value.toLowerCase().trim(); ares.innerHTML='';
+    if(!q) return;
+    (MANIFEST.area||[]).filter(t=>t.filename.toLowerCase().includes(q)||(t.region||'').toLowerCase().includes(q))
+      .slice(0,16).forEach(t=>{
+        const tw=document.createElement('div'); tw.className='tilewrap';
+        const im=document.createElement('img'); im.className='tile'; im.src=t.png; im.title=t.filename;
+        attachHover(im,t.png,t.filename);
+        const nm=document.createElement('div'); nm.className='nm'; nm.textContent=t.filename.replace('.SEC','');
+        im.style.cursor='pointer'; im.onclick=()=>{ addInterior(t.filename); ai.value=''; ares.innerHTML=''; };
+        tw.appendChild(im); tw.appendChild(nm); ares.appendChild(tw);
+      });
+  });
+  // portal links summary
+  const ph=document.createElement('div'); ph.className='region'; ph.style.marginTop='12px';
+  ph.textContent='Portal links ('+PORTALS.length+')'; portalPanel.appendChild(ph);
+  const pnote=document.createElement('div'); pnote.className='legend'; pnote.style.margin='2px 0 6px';
+  pnote.textContent='Click a placed piece on the map to add a portal from it.'; portalPanel.appendChild(pnote);
+  PORTALS.forEach(p=>{
+    const row=document.createElement('div');
+    row.style.cssText='display:flex;align-items:center;gap:6px;font-size:11px;padding:3px 0;border-bottom:1px solid var(--line)';
+    const a=document.createElement('span'); a.style.color='#c792ff'; a.style.cursor='pointer';
+    a.textContent=p.from; a.title='focus this cell';
+    a.onclick=()=>{ const [ew,ns]=p.from.split(','); const el=CELLS[ew+','+ns]; if(el) el.scrollIntoView({block:'center',inline:'center'}); };
+    const mid=document.createElement('span'); mid.style.flex='1'; mid.style.minWidth='0'; mid.style.overflow='hidden'; mid.style.textOverflow='ellipsis'; mid.style.whiteSpace='nowrap';
+    mid.textContent='\u2192 '+p.to.replace('.SEC','')+' @'+p.enter[0]+','+p.enter[1]+(p.name?(' "'+p.name+'"'):'');
+    const rm=document.createElement('span'); rm.textContent='x'; rm.style.cssText='color:#ff6b6b;cursor:pointer'; rm.onclick=()=>removePortal(p);
+    row.appendChild(a); row.appendChild(mid); row.appendChild(rm); portalPanel.appendChild(row);
+  });
+}
+renderPortalPanel();
+
 // ---- shared persistence (Supabase) ---------------------------------------
 // Baked-in community project (publishable key is safe for client use; RLS
 // limits it to the placements table). Users can still override via the config
@@ -610,7 +769,7 @@ const DB = {
   },
   upsert(cell,ew,ns,lay,filename){ if(!this.ready) return;
     this.client.from(TABLE).upsert({cell:dsCell(cell), filename, mp_x:ew, mp_y:ns, layer:lay,
-      mp_z:FLOOR_Z[lay]||50, place_name:(window.LAYOUT||{})[ew+","+ns]||null,
+      mp_z:FLOOR_Z[lay]||50, place_name:isFlat()?null:((window.LAYOUT||{})[ew+","+ns]||null),
       updated_by:this.name, updated_at:new Date().toISOString()}).then(({error})=>{ if(error) console.error(error); }); },
   remove(cell){ if(!this.ready) return;
     this.client.from(TABLE).delete().eq('cell',dsCell(cell)).then(({error})=>{ if(error) console.error(error); }); },
@@ -619,15 +778,21 @@ const DB = {
 // dataset tabs: each build keeps its own placement layer and palette
 function switchDataset(ds){
   if(!placementsByDS[ds]) return;
+  const wasFlat=isFlat();
   DATASET=ds; placements=placementsByDS[ds];
   document.querySelectorAll('#tabs button').forEach(b=>b.classList.toggle('on', b.dataset.ds===ds));
   document.getElementById('legendtxt').textContent=DS_CFG[ds].legend;
   document.getElementById('prefwrap').style.display=(ds==='merged')?'':'none';
+  document.getElementById('floors').style.display=isFlat()?'none':'';
   const seedBtn=document.getElementById('seed');
-  seedBtn.disabled=(DS_CFG[ds].palette==='coord');
+  // seeding fills the named world grid; not meaningful on the flat canvas
+  seedBtn.disabled=(DS_CFG[ds].palette==='coord'||isFlat());
   seedBtn.style.opacity=seedBtn.disabled?'.4':'';
-  seedBtn.title=seedBtn.disabled?'Seeding uses name-based tiles; not available in the 2006 build':'auto-fill empty named cells with their best-match tile (draft, reversible)';
+  seedBtn.title=seedBtn.disabled?'Seeding uses the named world grid; not available here':'auto-fill empty named cells with their best-match tile (draft, reversible)';
+  // grid dimensions differ between flat and world builds, so rebuild it
+  if(isFlat()!==wasFlat) buildGrid();
   buildPalette(document.getElementById('filter').value.toLowerCase());
+  renderPortalPanel();
   refreshCells();
   pop.style.display='none';
 }
@@ -649,13 +814,26 @@ document.getElementById('cfgclear').onclick=()=>{
 DB.connect();
 
 document.getElementById('export').addEventListener('click',()=>{
-  const out=Object.entries(placements).map(([k,p])=>{
-    const [ew,ns,lay]=k.split(',');
-    return {filename:p.filename, mp_x:+ew, mp_y:+ns, layer:lay, mp_z:FLOOR_Z[lay]||50,
-            place_name:(window.LAYOUT||{})[ew+","+ns]||null};
-  }).sort((a,b)=>a.mp_y-b.mp_y||a.mp_x-b.mp_x||a.layer.localeCompare(b.layer));
-  const blob=new Blob([JSON.stringify({dataset:DATASET, area_placements:out},null,1)],{type:'application/json'});
-  const fname=DATASET==='merged'?'area_placements.json':'area_placements_'+DATASET+'.json';
+  let payload, fname;
+  if(isFlat()){
+    // flat surface: col,row positions on a blank canvas + teleport graph
+    const out=Object.entries(placements).filter(([k,p])=>p.filename!==CLEARED).map(([k,p])=>{
+      const [col,row]=k.split(','); return {filename:p.filename, col:+col, row:+row};
+    }).sort((a,b)=>a.row-b.row||a.col-b.col);
+    payload={dataset:'flat', grid:{w:FLAT_W,h:FLAT_H}, placements:out,
+             interiors:INTERIORS.slice(),
+             portals:PORTALS.map(p=>({from:p.from.split(',').map(Number), to:p.to, enter:p.enter.slice(), name:p.name||''}))};
+    fname='flat_surface.json';
+  } else {
+    const out=Object.entries(placements).map(([k,p])=>{
+      const [ew,ns,lay]=k.split(',');
+      return {filename:p.filename, mp_x:+ew, mp_y:+ns, layer:lay, mp_z:FLOOR_Z[lay]||50,
+              place_name:(window.LAYOUT||{})[ew+","+ns]||null};
+    }).sort((a,b)=>a.mp_y-b.mp_y||a.mp_x-b.mp_x||a.layer.localeCompare(b.layer));
+    payload={dataset:DATASET, area_placements:out};
+    fname=DATASET==='merged'?'area_placements.json':'area_placements_'+DATASET+'.json';
+  }
+  const blob=new Blob([JSON.stringify(payload,null,1)],{type:'application/json'});
   const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=fname; a.click();
 });
 
@@ -674,14 +852,32 @@ document.getElementById('importfile').addEventListener('change',e=>{
     }
     if(!confirm('Load '+rows.length+' placements into the "'+DATASET+'" build? Existing cells with the same position are overwritten.')) return;
     let n=0;
-    rows.forEach(p=>{ if(!p||!p.filename) return;
-      const ew=+p.mp_x, ns=+p.mp_y, lay=p.layer||'b';
-      if(isNaN(ew)||isNaN(ns)) return;
-      const t=TILE_BY_NAME[p.filename];
-      setPlacement(ew,ns,lay,{filename:p.filename, png:t?t.png:('tiles/'+p.filename+'.png'), source:srcOf(p.filename)});
-      n++;
-    });
-    alert('Imported '+n+' placements into the "'+DATASET+'" build.');
+    if(isFlat()){
+      rows.forEach(p=>{ if(!p||!p.filename) return;
+        const col=+(p.col!=null?p.col:p.mp_x), row=+(p.row!=null?p.row:p.mp_y);
+        if(isNaN(col)||isNaN(row)) return;
+        const t=TILE_BY_NAME[p.filename];
+        setPlacement(col,row,'b',{filename:p.filename, png:t?t.png:('tiles/'+p.filename+'.png'), source:srcOf(p.filename)});
+        n++;
+      });
+      if(Array.isArray(o.interiors)) o.interiors.forEach(addInterior);
+      if(Array.isArray(o.portals)) o.portals.forEach(p=>{
+        const from=Array.isArray(p.from)?p.from.join(','):p.from;
+        const en=Array.isArray(p.enter)?p.enter:[16,16];
+        if(from!=null && p.to) PORTALS.push({from:String(from), to:p.to, enter:[+en[0]||0,+en[1]||0], name:p.name||''});
+      });
+      savePortalData(); renderPortalPanel(); refreshCells();
+      alert('Imported '+n+' placements'+(o.portals?(' + '+o.portals.length+' portals'):'')+' into the flat build.');
+    } else {
+      rows.forEach(p=>{ if(!p||!p.filename) return;
+        const ew=+p.mp_x, ns=+p.mp_y, lay=p.layer||'b';
+        if(isNaN(ew)||isNaN(ns)) return;
+        const t=TILE_BY_NAME[p.filename];
+        setPlacement(ew,ns,lay,{filename:p.filename, png:t?t.png:('tiles/'+p.filename+'.png'), source:srcOf(p.filename)});
+        n++;
+      });
+      alert('Imported '+n+' placements into the "'+DATASET+'" build.');
+    }
   }catch(err){ alert('Bad JSON: '+err); } };
   rd.readAsText(f);
   e.target.value='';
