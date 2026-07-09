@@ -233,7 +233,7 @@ const DS_CFG={
   merged:{ showCore:true,  palette:'both',  legend:'Merged: coordinate layout with matched 2011 tiles swapped in (blue). Green tiles are 2006 with no confident 2011 match yet. Toggle "prefer 2011" off to see the original 2006 art and yellow 06 flags.' },
   c2006: { showCore:true,  palette:'coord', legend:'2006 coordinate map only. Review and correct the original positioned sectors; no name-based tiles mixed in.' },
   n2011: { showCore:false, palette:'area',  legend:'2011 name-based build. Empty grid - place area SECs one by one, or drag an assembled region block to stamp a whole area at once.' },
-  flat:  { showCore:false, palette:'area',  flat:true, legend:'Flat surface: puzzle pieces + portals. Orange ?N = mined teleports still needing a destination (checklist on the right). Drag pieces to move blocks; click a piece to link exits.' },
+  flat:  { showCore:false, palette:'area',  flat:true, legend:'Flat surface: puzzle pieces + portals. Orange ?N = open teleports. Click an exit to one-click link (nearby/interior picks) or ignore it. Checklist tracks remaining work.' },
 };
 let DATASET='merged';
 let placements=placementsByDS[DATASET];
@@ -539,7 +539,7 @@ function openEditor(ew,ns,evt,editLay){
     results.appendChild(tileGrid(searchPool.filter(t=>
       t.filename.toLowerCase().includes(q)||(t.place_name||'').toLowerCase().includes(q)).slice(0,40),ew,ns,lay));
   });
-  // flat build: mined exits + portals out of this sector
+  // flat build: mined exits + one-click portal linking
   if(isFlat()){
     const ps=document.createElement('div'); ps.className='region'; ps.style.marginTop='12px';
     const ex=cur&&cur.filename!==CLEARED?exitInfo(cur.filename):null;
@@ -560,16 +560,88 @@ function openEditor(ew,ns,evt,editLay){
     if(!cur || cur.filename===CLEARED){
       const hint=document.createElement('div'); hint.className='legend'; hint.textContent='Place a sector here first, then link exits.'; pop.appendChild(hint);
     } else {
+      const linkBox=document.createElement('div'); linkBox.style.display='none'; linkBox.style.margin='6px 0';
+      pop.appendChild(linkBox);
+      let pendingSrc=null;
+      const enr=document.createElement('input'); enr.type='number'; enr.min=0; enr.max=31; enr.value=16; enr.style.width='48px';
+      const enc=document.createElement('input'); enc.type='number'; enc.min=0; enc.max=31; enc.value=16; enc.style.width='48px';
+
+      function quickLink(toFn){
+        if(!pendingSrc){ alert('Pick an orange ? exit first.'); return; }
+        const er=Math.max(0,Math.min(31,+enr.value||0)), ec=Math.max(0,Math.min(31,+enc.value||0));
+        // if dest is not placed and not already an interior, offer to add it
+        const placed=placedByFilename();
+        if(!placed[toFn] && !isInterior(toFn)){
+          if(confirm(toFn.replace('.SEC','')+' is not on the map. Add it as a teleport-only interior?')) addInterior(toFn);
+        }
+        addPortal(key, toFn, er, ec, '', pendingSrc);
+        openEditor(ew,ns,evt,lay);
+      }
+      function showLinkUI(t){
+        pendingSrc=t;
+        linkBox.style.display='block'; linkBox.innerHTML='';
+        const title=document.createElement('div'); title.className='legend'; title.style.margin='0 0 4px';
+        title.innerHTML='Link <b style="color:#e8a54b">r'+t.r+'c'+t.c+' '+(TP_KIND[t.k]||t.k)+'</b> \u2192 click a destination:';
+        linkBox.appendChild(title);
+        const enwrap=document.createElement('div'); enwrap.className='legend'; enwrap.style.margin='2px 0 6px';
+        enwrap.appendChild(document.createTextNode('enter at row ')); enwrap.appendChild(enr);
+        enwrap.appendChild(document.createTextNode(' col ')); enwrap.appendChild(enc);
+        linkBox.appendChild(enwrap);
+        const sug=destSuggestions(cur.filename, ew, ns);
+        if(sug.length){
+          const grid=document.createElement('div'); grid.className='ptiles'; grid.style.maxHeight='160px';
+          sug.forEach(d=>{
+            const cell=document.createElement('div'); cell.className='pt'; cell.title=d.filename+' ('+d.why+')';
+            const im=document.createElement('img'); im.src=d.png; attachHover(im,d.png,d.filename);
+            const nm=document.createElement('span'); nm.textContent=d.filename.replace('.SEC','');
+            const why=document.createElement('span'); why.style.cssText='display:block;font-size:8px;color:#e8a54b'; why.textContent=d.why;
+            cell.appendChild(im); cell.appendChild(nm); cell.appendChild(why);
+            cell.onclick=(ev)=>{ev.stopPropagation(); quickLink(d.filename);};
+            grid.appendChild(cell);
+          });
+          linkBox.appendChild(grid);
+        } else {
+          const none=document.createElement('div'); none.className='legend'; none.textContent='No nearby/interior suggestions - search below.'; linkBox.appendChild(none);
+        }
+        const dest=document.createElement('input'); dest.className='psearch'; dest.placeholder='or search any sector...'; dest.style.marginTop='6px';
+        linkBox.appendChild(dest);
+        const destRes=document.createElement('div'); linkBox.appendChild(destRes);
+        dest.addEventListener('input',()=>{ const q=dest.value.toLowerCase().trim(); destRes.innerHTML=''; if(!q) return;
+          const pool=[...INTERIORS.map(f=>TILE_BY_NAME[f]).filter(Boolean), ...(MANIFEST.area||[])];
+          const seen=new Set();
+          pool.filter(t=>{ if(seen.has(t.filename)||t.filename===cur.filename) return false; seen.add(t.filename);
+            return t.filename.toLowerCase().includes(q)||(t.place_name||t.region||'').toLowerCase().includes(q); })
+            .slice(0,10).forEach(t=>{ const b=document.createElement('div');
+              b.style.cssText='font-size:11px;padding:3px 5px;cursor:pointer;border-bottom:1px solid var(--line)';
+              b.textContent=t.filename.replace('.SEC','')+(isInterior(t.filename)?'  (interior)':'');
+              b.onmouseenter=()=>b.style.background='#2c313c'; b.onmouseleave=()=>b.style.background='';
+              b.onclick=()=>quickLink(t.filename); destRes.appendChild(b); });
+        });
+        dest.focus();
+      }
+
       if(ex){
         const list=document.createElement('div'); list.style.margin='4px 0 8px';
         (ex.tp||[]).forEach(t=>{
           const linked=portalsFrom(key).find(p=>p.src&&p.src.r===t.r&&p.src.c===t.c);
+          const ignored=isIgnored(cur.filename,t.r,t.c);
+          if(ignored && !linked){
+            const r=document.createElement('div');
+            r.style.cssText='display:flex;gap:6px;font-size:11px;align-items:center;padding:2px 0;opacity:.55';
+            const tag=document.createElement('span'); tag.style.cssText='flex:none;color:#9aa0ad'; tag.textContent='\u2013';
+            const s=document.createElement('span'); s.style.cssText='flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#9aa0ad';
+            s.textContent='tp r'+t.r+'c'+t.c+' '+(TP_KIND[t.k]||('k'+t.k))+'  (ignored)';
+            const u=document.createElement('span'); u.textContent='undo'; u.style.cssText='color:#5aa9ff;cursor:pointer;font-size:10px';
+            u.onclick=(ev)=>{ev.stopPropagation(); unignoreExit(cur.filename,t.r,t.c); openEditor(ew,ns,evt,lay);};
+            r.appendChild(tag); r.appendChild(s); r.appendChild(u); list.appendChild(r);
+            return;
+          }
           const r=document.createElement('div');
-          r.style.cssText='display:flex;gap:6px;font-size:11px;align-items:center;padding:2px 0;cursor:pointer';
+          r.style.cssText='display:flex;gap:6px;font-size:11px;align-items:center;padding:2px 0';
           const tag=document.createElement('span');
           tag.style.cssText='flex:none;font-weight:700;color:'+(linked?'#c792ff':'#e8a54b');
           tag.textContent=linked?'\u2197':'?';
-          const s=document.createElement('span'); s.style.cssText='flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#c2c7d2';
+          const s=document.createElement('span'); s.style.cssText='flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#c2c7d2;cursor:pointer';
           s.textContent='tp r'+t.r+'c'+t.c+' '+(TP_KIND[t.k]||('k'+t.k))
             +(linked?(' \u2192 '+linked.to.replace('.SEC','')):'  (click to link)');
           r.appendChild(tag); r.appendChild(s);
@@ -578,11 +650,12 @@ function openEditor(ew,ns,evt,editLay){
             x.onclick=(ev)=>{ev.stopPropagation(); removePortal(linked); openEditor(ew,ns,evt,lay);};
             r.appendChild(x);
           } else {
-            r.onclick=()=>{
-              dest.value=''; setChosen(null);
-              pendingSrc=t; srcLbl.textContent='linking exit r'+t.r+'c'+t.c+' ('+(TP_KIND[t.k]||t.k)+')';
-              dest.focus();
-            };
+            s.onclick=()=>showLinkUI(t);
+            const ign=document.createElement('span'); ign.textContent='ignore';
+            ign.style.cssText='color:#9aa0ad;cursor:pointer;font-size:10px';
+            ign.title='dismiss from checklist';
+            ign.onclick=(ev)=>{ev.stopPropagation(); ignoreExit(cur.filename,t.r,t.c); renderCell(ew,ns); openEditor(ew,ns,evt,lay);};
+            r.appendChild(ign);
           }
           list.appendChild(r);
         });
@@ -608,49 +681,20 @@ function openEditor(ew,ns,evt,editLay){
         x.onclick=()=>{ removePortal(p); openEditor(ew,ns,evt,lay); };
         r.appendChild(s); r.appendChild(x); pop.appendChild(r);
       });
-      const form=document.createElement('div'); form.style.margin='6px 0';
-      const srcLbl=document.createElement('div'); srcLbl.className='legend'; srcLbl.style.margin='2px 0';
-      srcLbl.textContent=need.length?'pick an orange ? exit above, or add a manual portal':'add portal (optional: pick a mined exit first)';
-      form.appendChild(srcLbl);
-      let pendingSrc=need.length===1?need[0]:null;
-      if(pendingSrc) srcLbl.textContent='linking exit r'+pendingSrc.r+'c'+pendingSrc.c+' ('+(TP_KIND[pendingSrc.k]||pendingSrc.k)+')';
-      const dest=document.createElement('input'); dest.className='psearch'; dest.placeholder='destination sector: search...'; form.appendChild(dest);
-      const chosenLbl=document.createElement('div'); chosenLbl.className='legend'; chosenLbl.style.margin='2px 0'; form.appendChild(chosenLbl);
-      const destRes=document.createElement('div'); form.appendChild(destRes);
-      let chosen=null;
-      function setChosen(fn){ chosen=fn;
-        chosenLbl.innerHTML=fn?('dest: <b style="color:#fff">'+fn.replace('.SEC','')+'</b>'+(isInterior(fn)?' <span class="legend">(interior)</span>':'')):'';
-        destRes.innerHTML=''; dest.value=''; }
-      dest.addEventListener('input',()=>{ const q=dest.value.toLowerCase().trim(); destRes.innerHTML=''; if(!q) return;
-        const pool=[...INTERIORS.map(f=>TILE_BY_NAME[f]).filter(Boolean), ...(MANIFEST.area||[])];
-        const seen=new Set();
-        pool.filter(t=>{ if(seen.has(t.filename)) return false; seen.add(t.filename);
-          return t.filename.toLowerCase().includes(q)||(t.place_name||t.region||'').toLowerCase().includes(q); })
-          .slice(0,12).forEach(t=>{ const b=document.createElement('div');
-            b.style.cssText='font-size:11px;padding:3px 5px;cursor:pointer;border-bottom:1px solid var(--line)';
-            b.textContent=t.filename.replace('.SEC','')+(isInterior(t.filename)?'  (interior)':'');
-            b.onmouseenter=()=>b.style.background='#2c313c'; b.onmouseleave=()=>b.style.background='';
-            b.onclick=()=>setChosen(t.filename); destRes.appendChild(b); });
-      });
-      const enwrap=document.createElement('div'); enwrap.className='legend'; enwrap.style.margin='4px 0';
-      const enr=document.createElement('input'); enr.type='number'; enr.min=0; enr.max=31; enr.value=16; enr.style.width='48px';
-      const enc=document.createElement('input'); enc.type='number'; enc.min=0; enc.max=31; enc.value=16; enc.style.width='48px';
-      enwrap.appendChild(document.createTextNode('enter at row ')); enwrap.appendChild(enr);
-      enwrap.appendChild(document.createTextNode(' col ')); enwrap.appendChild(enc);
-      form.appendChild(enwrap);
-      const nm=document.createElement('input'); nm.placeholder='portal name (optional, -> .MSG)'; nm.style.cssText='width:100%;margin:4px 0';
-      form.appendChild(nm);
-      const add=document.createElement('button'); add.textContent='Add portal'; add.style.width='100%';
-      add.onclick=()=>{ if(!chosen){ alert('Pick a destination sector.'); return; }
-        addPortal(key, chosen, Math.max(0,Math.min(31,+enr.value||0)), Math.max(0,Math.min(31,+enc.value||0)), nm.value.trim(), pendingSrc);
-        openEditor(ew,ns,evt,lay); };
-      form.appendChild(add); pop.appendChild(form);
+      // move linkBox after the exit list so it appears under the clicked exit area
+      pop.appendChild(linkBox);
+      if(need.length===1) showLinkUI(need[0]);
+      else if(need.length){
+        const tip=document.createElement('div'); tip.className='legend'; tip.style.margin='4px 0';
+        tip.textContent='Click an orange ? exit to link it (or ignore).'; pop.appendChild(tip);
+      }
     }
   }
   pop.style.display='block';
   const x=Math.min(evt.clientX+8, innerWidth-356), y=Math.min(evt.clientY+8, innerHeight-440);
   pop.style.left=x+'px'; pop.style.top=Math.max(8,y)+'px';
-  inp.focus();
+  // leave focus on the link search if that UI is open; else tile search
+  if(!(isFlat() && pop.querySelector('.ptiles'))) inp.focus();
 }
 function quickClear(ew,ns){
   const lay=editLayer(ew,ns), ck=ew+","+ns+","+lay;
@@ -951,7 +995,7 @@ document.getElementById('guides').addEventListener('change',e=>{
   document.querySelectorAll('.guide').forEach(g=>g.style.display=e.target.checked?'flex':'none');});
 
 // ---- flat build: teleport-only interiors + portal links ------------------
-// Interiors are sectors reached ONLY by teleport (never on the surface grid).
+// Interiors are sectors reached ONLY by teleport (never on the grid).
 // A portal links a placed surface cell -> a destination sector + entry cell.
 // Stored locally (the realtime placements table has no schema for this) and
 // included in the flat export. Compiles later to .CRT (dest) / .MSG (name).
@@ -959,12 +1003,18 @@ document.getElementById('guides').addEventListener('change',e=>{
 // SEC_EXITS (portals.js) lists every teleportal/stair/fall cell mined from
 // the SEC binaries. Destinations are lost with .CRT/.MSG, so the checklist
 // tracks which mined teleports still need a human-authored portal link.
+// IGNORED exits are dismissed from the checklist (decorative / don't-care).
 let INTERIORS=[];   // [filename]
 let PORTALS=[];      // [{from:"col,row", to:"file.SEC", enter:[r,c], name:"", src?:{r,c,k}}]
+let IGNORED={};      // "file.SEC:r,c" -> true
 const TP_KIND={1:'teleportal',2:'room',3:'instant',4:'invisible'};
+function exitKey(fn,r,c){ return fn+':'+r+','+c; }
 function loadPortalData(){ try{ const o=JSON.parse(localStorage.getItem('mra_flat_portals')||'{}');
-  INTERIORS=Array.isArray(o.interiors)?o.interiors:[]; PORTALS=Array.isArray(o.portals)?o.portals:[]; }catch(e){ INTERIORS=[]; PORTALS=[]; } }
-function savePortalData(){ localStorage.setItem('mra_flat_portals',JSON.stringify({interiors:INTERIORS,portals:PORTALS})); }
+  INTERIORS=Array.isArray(o.interiors)?o.interiors:[];
+  PORTALS=Array.isArray(o.portals)?o.portals:[];
+  IGNORED=(o.ignored&&typeof o.ignored==='object')?o.ignored:{};
+}catch(e){ INTERIORS=[]; PORTALS=[]; IGNORED={}; } }
+function savePortalData(){ localStorage.setItem('mra_flat_portals',JSON.stringify({interiors:INTERIORS,portals:PORTALS,ignored:IGNORED})); }
 function portalsFrom(ck){ return PORTALS.filter(p=>p.from===ck); }
 function isInterior(fn){ return INTERIORS.includes(fn); }
 function addInterior(fn){ if(fn && !INTERIORS.includes(fn)){ INTERIORS.push(fn); savePortalData(); renderPortalPanel(); } }
@@ -977,25 +1027,35 @@ function addPortal(fromCk,to,er,ec,name,src){
 }
 function removePortal(p){ PORTALS=PORTALS.filter(x=>x!==p); savePortalData();
   const [ew,ns]=p.from.split(','); renderCell(+ew,+ns); renderPortalPanel(); }
+function isIgnored(fn,r,c){ return !!IGNORED[exitKey(fn,r,c)]; }
+function ignoreExit(fn,r,c){ IGNORED[exitKey(fn,r,c)]=true; savePortalData(); }
+function unignoreExit(fn,r,c){ delete IGNORED[exitKey(fn,r,c)]; savePortalData(); }
+function ignoreAllOpen(fn,ck){
+  unresolvedExits(fn,ck).forEach(t=>ignoreExit(fn,t.r,t.c));
+  savePortalData();
+}
 function exitInfo(fn){ return (window.SEC_EXITS||{})[fn]||null; }
 function exitCounts(fn){
   const e=exitInfo(fn); if(!e) return {tp:0,up:0,dn:0,fall:0,total:0};
   const tp=(e.tp||[]).length, up=(e.up||[]).length, dn=(e.dn||[]).length, fall=(e.fall||[]).length;
   return {tp,up,dn,fall,total:tp+up+dn+fall};
 }
-// teleports still needing a portal link from this placed cell (stairs/fall
-// are informational - they usually mean another floor of the same column,
-// not a named destination)
+// teleports still needing a portal link (ignored exits are hidden)
 function unresolvedExits(fn,ck){
   const e=exitInfo(fn); if(!e||!(e.tp||[]).length) return [];
   const linked=new Set(portalsFrom(ck).filter(p=>p.src).map(p=>p.src.r+','+p.src.c));
-  // also count portals without src as covering one exit (legacy links)
   let bare=portalsFrom(ck).filter(p=>!p.src).length;
   return (e.tp||[]).filter(t=>{
+    if(isIgnored(fn,t.r,t.c)) return false;
     if(linked.has(t.r+','+t.c)) return false;
     if(bare>0){ bare--; return false; }
     return true;
   });
+}
+function regionStem(fn){
+  const base=(fn||'').replace(/\.SEC$/i,'');
+  const m=base.match(/^([a-zA-Z]+)/);
+  return (m?m[1]:base).toLowerCase();
 }
 function placedByFilename(){
   const m={};
@@ -1008,6 +1068,37 @@ function placedByFilename(){
 }
 function focusCell(col,row){
   const el=CELLS[col+','+row]; if(el) el.scrollIntoView({block:'center',inline:'center'});
+}
+// ranked destination suggestions for one-click linking
+function destSuggestions(fromFn, fromCol, fromRow){
+  const placed=placedByFilename();
+  const used=new Set(Object.keys(placed));
+  const stem=regionStem(fromFn);
+  const out=[], seen=new Set([fromFn]);
+  const push=(fn,why)=>{
+    if(!fn||seen.has(fn)) return; seen.add(fn);
+    const t=TILE_BY_NAME[fn]; if(!t) return;
+    out.push({filename:fn, why, png:t.png, region:t.region||''});
+  };
+  INTERIORS.forEach(fn=>push(fn,'interior'));
+  // nearby placed (Chebyshev distance)
+  Object.entries(placed).forEach(([fn,loc])=>{
+    const d=Math.max(Math.abs(loc.col-fromCol), Math.abs(loc.row-fromRow));
+    if(d>0 && d<=3) push(fn,'near '+d);
+  });
+  // same-region unplaced (likely interiors / missing pieces)
+  (MANIFEST.area||[]).forEach(t=>{
+    if(used.has(t.filename)||isInterior(t.filename)) return;
+    if(regionStem(t.filename)===stem || (t.region||'').toLowerCase().includes(stem))
+      push(t.filename,'same region');
+  });
+  // other interiors-looking unplaced with exits of their own (teleport hubs)
+  (MANIFEST.area||[]).forEach(t=>{
+    if(used.has(t.filename)||isInterior(t.filename)) return;
+    const e=exitInfo(t.filename);
+    if(e&&(e.tp||[]).length) push(t.filename,'has exits');
+  });
+  return out.slice(0,24);
 }
 loadPortalData();
 
@@ -1023,23 +1114,25 @@ function renderPortalPanel(){
   portalPanel.style.display='block'; portalPanel.innerHTML='';
   const placed=placedByFilename();
 
-  // unresolved exit checklist (mined teleports without a portal link)
-  let needN=0, placedWithExits=0;
+  // unresolved exit checklist
+  let needN=0, placedWithExits=0, ignoredN=0;
   const needRows=[];
   Object.entries(placed).forEach(([fn,loc])=>{
     const need=unresolvedExits(fn,loc.ck);
     const counts=exitCounts(fn);
     if(counts.total) placedWithExits++;
+    (exitInfo(fn)?.tp||[]).forEach(t=>{ if(isIgnored(fn,t.r,t.c)) ignoredN++; });
     if(!need.length) return;
     needN+=need.length;
     needRows.push({fn,loc,need,counts});
   });
   needRows.sort((a,b)=>b.need.length-a.need.length||a.fn.localeCompare(b.fn));
   const ch=document.createElement('div'); ch.className='region';
-  ch.textContent='Unresolved exits ('+needN+' on '+needRows.length+' sectors)';
+  ch.textContent='Unresolved exits ('+needN+' on '+needRows.length+' sectors)'
+    +(ignoredN?('  ·  '+ignoredN+' ignored'):'');
   portalPanel.appendChild(ch);
   const cnote=document.createElement('div'); cnote.className='legend'; cnote.style.margin='2px 0 6px';
-  cnote.textContent=placedWithExits+' placed sectors have mined exits. Orange ?N on the map = teleports still needing a destination. Stairs/fall are listed in the cell editor.';
+  cnote.textContent='Orange ?N = open teleports. Click a row to link (nearby/interior picks). Use ignore on exits you do not care about.';
   portalPanel.appendChild(cnote);
   needRows.slice(0,40).forEach(({fn,loc,need,counts})=>{
     const row=document.createElement('div');
@@ -1054,11 +1147,24 @@ function renderPortalPanel(){
       +(counts.up||counts.dn?('  '+((counts.up?'\u25B2':'')+(counts.dn?'\u25BC':''))):'');
     mid.onclick=()=>{ focusCell(loc.col,loc.row); const el=CELLS[loc.col+','+loc.row];
       if(el){ const r=el.getBoundingClientRect(); openEditor(loc.col,loc.row,{clientX:r.left,clientY:r.top}); } };
-    row.appendChild(a); row.appendChild(mid); portalPanel.appendChild(row);
+    const ign=document.createElement('span'); ign.textContent='ignore';
+    ign.style.cssText='color:#9aa0ad;cursor:pointer;font-size:10px;flex:none';
+    ign.title='dismiss all open exits on this sector from the checklist';
+    ign.onclick=(ev)=>{ev.stopPropagation();
+      if(!confirm('Ignore all '+need.length+' open exits on '+fn.replace('.SEC','')+'?')) return;
+      ignoreAllOpen(fn,loc.ck); renderCell(loc.col,loc.row); renderPortalPanel(); };
+    row.appendChild(a); row.appendChild(mid); row.appendChild(ign); portalPanel.appendChild(row);
   });
   if(needRows.length>40){
     const more=document.createElement('div'); more.className='legend';
     more.textContent='...and '+(needRows.length-40)+' more'; portalPanel.appendChild(more);
+  }
+  if(ignoredN){
+    const undo=document.createElement('button'); undo.textContent='Clear all ignores ('+ignoredN+')';
+    undo.style.cssText='width:100%;margin:6px 0;font-size:11px';
+    undo.onclick=()=>{ if(!confirm('Restore '+ignoredN+' ignored exits to the checklist?')) return;
+      IGNORED={}; savePortalData(); refreshCells(); renderPortalPanel(); };
+    portalPanel.appendChild(undo);
   }
 
   // interiors
@@ -1214,6 +1320,7 @@ document.getElementById('export').addEventListener('click',()=>{
     }).sort((a,b)=>a.row-b.row||a.col-b.col);
     payload={dataset:'flat', grid:{w:FLAT_W,h:FLAT_H}, placements:out,
              interiors:INTERIORS.slice(),
+             ignored:Object.keys(IGNORED),
              portals:PORTALS.map(p=>({from:p.from.split(',').map(Number), to:p.to,
                enter:p.enter.slice(), name:p.name||'',
                ...(p.src?{src:{r:p.src.r,c:p.src.c,k:p.src.k}}:{})}))};
@@ -1255,6 +1362,8 @@ document.getElementById('importfile').addEventListener('change',e=>{
         n++;
       });
       if(Array.isArray(o.interiors)) o.interiors.forEach(addInterior);
+      if(Array.isArray(o.ignored)){ o.ignored.forEach(k=>{ if(k) IGNORED[k]=true; }); }
+      else if(o.ignored&&typeof o.ignored==='object'){ Object.assign(IGNORED,o.ignored); }
       if(Array.isArray(o.portals)) o.portals.forEach(p=>{
         const from=Array.isArray(p.from)?p.from.join(','):p.from;
         const en=Array.isArray(p.enter)?p.enter:[16,16];
@@ -1265,7 +1374,8 @@ document.getElementById('importfile').addEventListener('change',e=>{
         }
       });
       savePortalData(); renderPortalPanel(); refreshCells();
-      alert('Imported '+n+' placements'+(o.portals?(' + '+o.portals.length+' portals'):'')+' into the flat build.');
+      alert('Imported '+n+' placements'+(o.portals?(' + '+o.portals.length+' portals'):'')
+        +(o.ignored?(' + ignores'):'')+' into the flat build.');
     } else {
       rows.forEach(p=>{ if(!p||!p.filename) return;
         const ew=+p.mp_x, ns=+p.mp_y, lay=p.layer||'b';
