@@ -632,7 +632,7 @@ function openEditor(ew,ns,evt,editLay){
             const s=document.createElement('span'); s.style.cssText='flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#9aa0ad';
             s.textContent='tp r'+t.r+'c'+t.c+' '+(TP_KIND[t.k]||('k'+t.k))+'  (ignored)';
             const u=document.createElement('span'); u.textContent='undo'; u.style.cssText='color:#5aa9ff;cursor:pointer;font-size:10px';
-            u.onclick=(ev)=>{ev.stopPropagation(); unignoreExit(cur.filename,t.r,t.c); openEditor(ew,ns,evt,lay);};
+            u.onclick=(ev)=>{ev.stopPropagation(); unignoreExit(cur.filename,t.r,t.c); renderCell(ew,ns); openEditor(ew,ns,evt,lay);};
             r.appendChild(tag); r.appendChild(s); r.appendChild(u); list.appendChild(r);
             return;
           }
