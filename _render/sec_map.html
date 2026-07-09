@@ -54,6 +54,9 @@
   .cell .stair { position:absolute; top:1px; left:1px; font-size:9px; line-height:1; z-index:3; color:#3fe0e0; text-shadow:0 0 2px #000; }
   .cell .portmark { position:absolute; bottom:1px; right:1px; font-size:10px; line-height:1; z-index:4;
     color:#1a0f2a; background:#c792ff; border-radius:6px; padding:0 3px; font-weight:700; }
+  .cell .portmark.need { background:#e8a54b; color:#1a1208; }
+  .cell .exitmark { position:absolute; top:1px; right:1px; font-size:9px; line-height:1; z-index:4;
+    color:#1a1208; background:#e8a54b; border-radius:6px; padding:0 3px; font-weight:700; }
   .cell .label { position:absolute; top:0; left:0; right:0; font-size:8px; line-height:1.2; z-index:2;
     background:rgba(0,0,0,.6); color:#fff; text-align:center; overflow:hidden; white-space:nowrap; text-overflow:ellipsis; padding:1px; }
   .zoom { display:flex; gap:3px; align-items:center; }
@@ -168,6 +171,7 @@
 <script src="era_map.js"></script>
 <script src="blocks.js"></script>
 <script src="block_anchors.js"></script>
+<script src="portals.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
 const EW_MIN=10, EW_MAX=100, NS_MIN=15, NS_MAX=90, STEP=5;
@@ -229,7 +233,7 @@ const DS_CFG={
   merged:{ showCore:true,  palette:'both',  legend:'Merged: coordinate layout with matched 2011 tiles swapped in (blue). Green tiles are 2006 with no confident 2011 match yet. Toggle "prefer 2011" off to see the original 2006 art and yellow 06 flags.' },
   c2006: { showCore:true,  palette:'coord', legend:'2006 coordinate map only. Review and correct the original positioned sectors; no name-based tiles mixed in.' },
   n2011: { showCore:false, palette:'area',  legend:'2011 name-based build. Empty grid - place area SECs one by one, or drag an assembled region block to stamp a whole area at once.' },
-  flat:  { showCore:false, palette:'area',  flat:true, legend:'Flat surface build: one layer, sectors as puzzle pieces. "Lay out blocks" places every assembled region at its approximate world spot (guide names shown on the canvas). Drag a placed piece to move its whole block, or tick "move single piece". Click a piece for portals.' },
+  flat:  { showCore:false, palette:'area',  flat:true, legend:'Flat surface: puzzle pieces + portals. Orange ?N = mined teleports still needing a destination (checklist on the right). Drag pieces to move blocks; click a piece to link exits.' },
 };
 let DATASET='merged';
 let placements=placementsByDS[DATASET];
@@ -345,11 +349,13 @@ function makeCell(ew,ns){
 function setPlacement(ew,ns,lay,rec){
   const ck=ew+","+ns+","+lay;
   placements[ck]=rec; renderCell(ew,ns); markUsed();
+  if(isFlat()) schedulePortalPanel();
   DB.upsert(ck,ew,ns,lay,rec.filename);
 }
 function removePlacement(ck){
   const [ew,ns]=ck.split(',');
   delete placements[ck]; renderCell(+ew,+ns); markUsed();
+  if(isFlat()) schedulePortalPanel();
   DB.remove(ck);
 }
 // Stored Supabase cell keys are prefixed per dataset (merged stays unprefixed
@@ -372,7 +378,7 @@ function applyRemote(storedCell,rec){
 }
 function renderCell(ew,ns){
   const c=CELLS[ew+","+ns]; if(!c) return;
-  [...c.querySelectorAll('img,.x,.badge,.stair,.portmark')].forEach(n=>n.remove());
+  [...c.querySelectorAll('img,.x,.badge,.stair,.portmark,.exitmark')].forEach(n=>n.remove());
   c.classList.remove('coord','area','cleared');
   const lay=displayLayer(ew,ns), ck=ew+","+ns+","+lay;
   const p=placements[ck]||coreAt(ck);
@@ -405,13 +411,19 @@ function renderCell(ew,ns){
   if(st){ const s=document.createElement('div'); s.className='stair';
     s.textContent=(st.u?'\u25B2':'')+(st.d?'\u25BC':'');
     s.title='floor transition: '+(st.u?'up ':'')+(st.d?'down':''); c.appendChild(s); }
-  // flat build: portal-out marker (this sector teleports somewhere)
-  if(isFlat()){
-    const np=portalsFrom(ew+","+ns);
-    if(np.length){ const pm=document.createElement('div'); pm.className='portmark';
+  // flat build: authored portals + unresolved mined exits
+  if(isFlat() && p && p.filename!==CLEARED){
+    const ck=ew+","+ns, np=portalsFrom(ck), ex=exitInfo(p.filename), need=unresolvedExits(p.filename,ck);
+    if(np.length){ const pm=document.createElement('div'); pm.className='portmark'+(need.length?' need':'');
       pm.textContent='\u2197'+(np.length>1?np.length:'');
-      pm.title=np.length+' portal'+(np.length>1?'s':'')+': '+np.map(x=>x.to.replace('.SEC','')).join(', ');
+      pm.title=np.length+' portal'+(np.length>1?'s':'')+' linked'
+        +(need.length?(' / '+need.length+' exit'+(need.length>1?'s':'')+' still open'):'');
       c.appendChild(pm); }
+    else if(need.length){ const em=document.createElement('div'); em.className='exitmark';
+      em.textContent='?'+need.length;
+      em.title=need.length+' unresolved exit'+(need.length>1?'s':'')+' (teleport/stair) - click to link';
+      c.appendChild(em); }
+    else if(ex && (ex.tp||ex.up||ex.dn||ex.fall)){ /* exits exist but all teleports linked; stairs noted in editor */ }
   }
 }
 // ---- cell editor popover: view / replace / blank any cell ----------------
@@ -527,27 +539,88 @@ function openEditor(ew,ns,evt,editLay){
     results.appendChild(tileGrid(searchPool.filter(t=>
       t.filename.toLowerCase().includes(q)||(t.place_name||'').toLowerCase().includes(q)).slice(0,40),ew,ns,lay));
   });
-  // flat build: portals out of this sector
+  // flat build: mined exits + portals out of this sector
   if(isFlat()){
     const ps=document.createElement('div'); ps.className='region'; ps.style.marginTop='12px';
-    ps.textContent='Portals from here ('+portalsFrom(key).length+')'; pop.appendChild(ps);
+    const ex=cur&&cur.filename!==CLEARED?exitInfo(cur.filename):null;
+    const counts=cur&&cur.filename!==CLEARED?exitCounts(cur.filename):null;
+    const need=cur&&cur.filename!==CLEARED?unresolvedExits(cur.filename,key):[];
+    let hdr='Exits / portals';
+    if(counts&&counts.total){
+      hdr+='  (mined: '+counts.tp+' tp';
+      if(counts.up) hdr+=' '+counts.up+'\u25B2';
+      if(counts.dn) hdr+=' '+counts.dn+'\u25BC';
+      if(counts.fall) hdr+=' '+counts.fall+' fall';
+      hdr+=')';
+    }
+    hdr+='  linked '+portalsFrom(key).length;
+    if(need.length) hdr+='  open '+need.length;
+    ps.textContent=hdr;
+    pop.appendChild(ps);
     if(!cur || cur.filename===CLEARED){
-      const hint=document.createElement('div'); hint.className='legend'; hint.textContent='Place a sector here first, then add portals.'; pop.appendChild(hint);
+      const hint=document.createElement('div'); hint.className='legend'; hint.textContent='Place a sector here first, then link exits.'; pop.appendChild(hint);
     } else {
-      portalsFrom(key).forEach(p=>{
+      if(ex){
+        const list=document.createElement('div'); list.style.margin='4px 0 8px';
+        (ex.tp||[]).forEach(t=>{
+          const linked=portalsFrom(key).find(p=>p.src&&p.src.r===t.r&&p.src.c===t.c);
+          const r=document.createElement('div');
+          r.style.cssText='display:flex;gap:6px;font-size:11px;align-items:center;padding:2px 0;cursor:pointer';
+          const tag=document.createElement('span');
+          tag.style.cssText='flex:none;font-weight:700;color:'+(linked?'#c792ff':'#e8a54b');
+          tag.textContent=linked?'\u2197':'?';
+          const s=document.createElement('span'); s.style.cssText='flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#c2c7d2';
+          s.textContent='tp r'+t.r+'c'+t.c+' '+(TP_KIND[t.k]||('k'+t.k))
+            +(linked?(' \u2192 '+linked.to.replace('.SEC','')):'  (click to link)');
+          r.appendChild(tag); r.appendChild(s);
+          if(linked){
+            const x=document.createElement('span'); x.textContent='x'; x.style.cssText='color:#ff6b6b;cursor:pointer';
+            x.onclick=(ev)=>{ev.stopPropagation(); removePortal(linked); openEditor(ew,ns,evt,lay);};
+            r.appendChild(x);
+          } else {
+            r.onclick=()=>{
+              dest.value=''; setChosen(null);
+              pendingSrc=t; srcLbl.textContent='linking exit r'+t.r+'c'+t.c+' ('+(TP_KIND[t.k]||t.k)+')';
+              dest.focus();
+            };
+          }
+          list.appendChild(r);
+        });
+        (ex.up||[]).forEach(t=>{
+          const r=document.createElement('div'); r.className='legend';
+          r.textContent='\u25B2 stair up r'+t.r+'c'+t.c+' (same column, upper floor)'; list.appendChild(r);
+        });
+        (ex.dn||[]).forEach(t=>{
+          const r=document.createElement('div'); r.className='legend';
+          r.textContent='\u25BC stair down r'+t.r+'c'+t.c+' (same column, lower floor)'; list.appendChild(r);
+        });
+        (ex.fall||[]).forEach(t=>{
+          const r=document.createElement('div'); r.className='legend';
+          r.textContent='fall '+t.k+' r'+t.r+'c'+t.c; list.appendChild(r);
+        });
+        pop.appendChild(list);
+      }
+      portalsFrom(key).filter(p=>!p.src).forEach(p=>{
         const r=document.createElement('div'); r.style.cssText='display:flex;gap:6px;font-size:11px;align-items:center;padding:2px 0';
         const s=document.createElement('span'); s.style.cssText='flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#c2c7d2';
-        s.textContent='\u2192 '+p.to.replace('.SEC','')+' @'+p.enter[0]+','+p.enter[1]+(p.name?(' "'+p.name+'"'):'');
+        s.textContent='\u2197 (manual) \u2192 '+p.to.replace('.SEC','')+' @'+p.enter[0]+','+p.enter[1]+(p.name?(' "'+p.name+'"'):'');
         const x=document.createElement('span'); x.textContent='x'; x.style.cssText='color:#ff6b6b;cursor:pointer';
         x.onclick=()=>{ removePortal(p); openEditor(ew,ns,evt,lay); };
         r.appendChild(s); r.appendChild(x); pop.appendChild(r);
       });
       const form=document.createElement('div'); form.style.margin='6px 0';
+      const srcLbl=document.createElement('div'); srcLbl.className='legend'; srcLbl.style.margin='2px 0';
+      srcLbl.textContent=need.length?'pick an orange ? exit above, or add a manual portal':'add portal (optional: pick a mined exit first)';
+      form.appendChild(srcLbl);
+      let pendingSrc=need.length===1?need[0]:null;
+      if(pendingSrc) srcLbl.textContent='linking exit r'+pendingSrc.r+'c'+pendingSrc.c+' ('+(TP_KIND[pendingSrc.k]||pendingSrc.k)+')';
       const dest=document.createElement('input'); dest.className='psearch'; dest.placeholder='destination sector: search...'; form.appendChild(dest);
       const chosenLbl=document.createElement('div'); chosenLbl.className='legend'; chosenLbl.style.margin='2px 0'; form.appendChild(chosenLbl);
       const destRes=document.createElement('div'); form.appendChild(destRes);
       let chosen=null;
-      function setChosen(fn){ chosen=fn; chosenLbl.innerHTML='dest: <b style="color:#fff">'+fn.replace('.SEC','')+'</b>'+(isInterior(fn)?' <span class="legend">(interior)</span>':''); destRes.innerHTML=''; dest.value=''; }
+      function setChosen(fn){ chosen=fn;
+        chosenLbl.innerHTML=fn?('dest: <b style="color:#fff">'+fn.replace('.SEC','')+'</b>'+(isInterior(fn)?' <span class="legend">(interior)</span>':'')):'';
+        destRes.innerHTML=''; dest.value=''; }
       dest.addEventListener('input',()=>{ const q=dest.value.toLowerCase().trim(); destRes.innerHTML=''; if(!q) return;
         const pool=[...INTERIORS.map(f=>TILE_BY_NAME[f]).filter(Boolean), ...(MANIFEST.area||[])];
         const seen=new Set();
@@ -569,7 +642,7 @@ function openEditor(ew,ns,evt,editLay){
       form.appendChild(nm);
       const add=document.createElement('button'); add.textContent='Add portal'; add.style.width='100%';
       add.onclick=()=>{ if(!chosen){ alert('Pick a destination sector.'); return; }
-        addPortal(key, chosen, Math.max(0,Math.min(31,+enr.value||0)), Math.max(0,Math.min(31,+enc.value||0)), nm.value.trim());
+        addPortal(key, chosen, Math.max(0,Math.min(31,+enr.value||0)), Math.max(0,Math.min(31,+enc.value||0)), nm.value.trim(), pendingSrc);
         openEditor(ew,ns,evt,lay); };
       form.appendChild(add); pop.appendChild(form);
     }
@@ -756,7 +829,14 @@ function moveCells(cells,dx,dy){
     placements[(x+dx)+','+(y+dy)+',b']=rec;
     DB.upsert((x+dx)+','+(y+dy)+',b',x+dx,y+dy,'b',rec.filename);
   });
-  refreshCells(); markUsed();
+  // keep portal "from" keys attached to the moved pieces
+  let moved=false;
+  PORTALS.forEach(p=>{
+    const [fx,fy]=p.from.split(',').map(Number);
+    if(inGroup.has(fx+','+fy)){ p.from=(fx+dx)+','+(fy+dy); moved=true; }
+  });
+  if(moved) savePortalData();
+  refreshCells(); markUsed(); schedulePortalPanel();
 }
 function blockCard(b){
   const card=document.createElement('div'); card.className='blockcard'; card.draggable=true; card.dataset.block=b.id;
@@ -875,8 +955,13 @@ document.getElementById('guides').addEventListener('change',e=>{
 // A portal links a placed surface cell -> a destination sector + entry cell.
 // Stored locally (the realtime placements table has no schema for this) and
 // included in the flat export. Compiles later to .CRT (dest) / .MSG (name).
+//
+// SEC_EXITS (portals.js) lists every teleportal/stair/fall cell mined from
+// the SEC binaries. Destinations are lost with .CRT/.MSG, so the checklist
+// tracks which mined teleports still need a human-authored portal link.
 let INTERIORS=[];   // [filename]
-let PORTALS=[];      // [{from:"col,row", to:"file.SEC", enter:[r,c], name:""}]
+let PORTALS=[];      // [{from:"col,row", to:"file.SEC", enter:[r,c], name:"", src?:{r,c,k}}]
+const TP_KIND={1:'teleportal',2:'room',3:'instant',4:'invisible'};
 function loadPortalData(){ try{ const o=JSON.parse(localStorage.getItem('mra_flat_portals')||'{}');
   INTERIORS=Array.isArray(o.interiors)?o.interiors:[]; PORTALS=Array.isArray(o.portals)?o.portals:[]; }catch(e){ INTERIORS=[]; PORTALS=[]; } }
 function savePortalData(){ localStorage.setItem('mra_flat_portals',JSON.stringify({interiors:INTERIORS,portals:PORTALS})); }
@@ -884,21 +969,101 @@ function portalsFrom(ck){ return PORTALS.filter(p=>p.from===ck); }
 function isInterior(fn){ return INTERIORS.includes(fn); }
 function addInterior(fn){ if(fn && !INTERIORS.includes(fn)){ INTERIORS.push(fn); savePortalData(); renderPortalPanel(); } }
 function removeInterior(fn){ INTERIORS=INTERIORS.filter(x=>x!==fn); savePortalData(); renderPortalPanel(); }
-function addPortal(fromCk,to,er,ec,name){
-  PORTALS.push({from:fromCk,to,enter:[er,ec],name:name||''}); savePortalData();
+function addPortal(fromCk,to,er,ec,name,src){
+  const p={from:fromCk,to,enter:[er,ec],name:name||''};
+  if(src) p.src={r:+src.r,c:+src.c,k:+(src.k||0)};
+  PORTALS.push(p); savePortalData();
   const [ew,ns]=fromCk.split(','); renderCell(+ew,+ns); renderPortalPanel();
 }
 function removePortal(p){ PORTALS=PORTALS.filter(x=>x!==p); savePortalData();
   const [ew,ns]=p.from.split(','); renderCell(+ew,+ns); renderPortalPanel(); }
+function exitInfo(fn){ return (window.SEC_EXITS||{})[fn]||null; }
+function exitCounts(fn){
+  const e=exitInfo(fn); if(!e) return {tp:0,up:0,dn:0,fall:0,total:0};
+  const tp=(e.tp||[]).length, up=(e.up||[]).length, dn=(e.dn||[]).length, fall=(e.fall||[]).length;
+  return {tp,up,dn,fall,total:tp+up+dn+fall};
+}
+// teleports still needing a portal link from this placed cell (stairs/fall
+// are informational - they usually mean another floor of the same column,
+// not a named destination)
+function unresolvedExits(fn,ck){
+  const e=exitInfo(fn); if(!e||!(e.tp||[]).length) return [];
+  const linked=new Set(portalsFrom(ck).filter(p=>p.src).map(p=>p.src.r+','+p.src.c));
+  // also count portals without src as covering one exit (legacy links)
+  let bare=portalsFrom(ck).filter(p=>!p.src).length;
+  return (e.tp||[]).filter(t=>{
+    if(linked.has(t.r+','+t.c)) return false;
+    if(bare>0){ bare--; return false; }
+    return true;
+  });
+}
+function placedByFilename(){
+  const m={};
+  Object.entries(placements).forEach(([k,p])=>{
+    if(!p||p.filename===CLEARED) return;
+    const [col,row]=k.split(',');
+    m[p.filename]={col:+col,row:+row,ck:col+','+row};
+  });
+  return m;
+}
+function focusCell(col,row){
+  const el=CELLS[col+','+row]; if(el) el.scrollIntoView({block:'center',inline:'center'});
+}
 loadPortalData();
 
 const portalPanel=document.getElementById('portalpanel');
 function thumb(fn){ const t=TILE_BY_NAME[fn]; return t?t.png:('tiles/'+fn+'.png'); }
+let _portalPanelTimer=0;
+function schedulePortalPanel(){
+  if(_portalPanelTimer) clearTimeout(_portalPanelTimer);
+  _portalPanelTimer=setTimeout(()=>{ _portalPanelTimer=0; renderPortalPanel(); }, 50);
+}
 function renderPortalPanel(){
   if(!isFlat()){ portalPanel.style.display='none'; portalPanel.innerHTML=''; return; }
   portalPanel.style.display='block'; portalPanel.innerHTML='';
+  const placed=placedByFilename();
+
+  // unresolved exit checklist (mined teleports without a portal link)
+  let needN=0, placedWithExits=0;
+  const needRows=[];
+  Object.entries(placed).forEach(([fn,loc])=>{
+    const need=unresolvedExits(fn,loc.ck);
+    const counts=exitCounts(fn);
+    if(counts.total) placedWithExits++;
+    if(!need.length) return;
+    needN+=need.length;
+    needRows.push({fn,loc,need,counts});
+  });
+  needRows.sort((a,b)=>b.need.length-a.need.length||a.fn.localeCompare(b.fn));
+  const ch=document.createElement('div'); ch.className='region';
+  ch.textContent='Unresolved exits ('+needN+' on '+needRows.length+' sectors)';
+  portalPanel.appendChild(ch);
+  const cnote=document.createElement('div'); cnote.className='legend'; cnote.style.margin='2px 0 6px';
+  cnote.textContent=placedWithExits+' placed sectors have mined exits. Orange ?N on the map = teleports still needing a destination. Stairs/fall are listed in the cell editor.';
+  portalPanel.appendChild(cnote);
+  needRows.slice(0,40).forEach(({fn,loc,need,counts})=>{
+    const row=document.createElement('div');
+    row.style.cssText='display:flex;align-items:center;gap:6px;font-size:11px;padding:3px 0;border-bottom:1px solid var(--line)';
+    const a=document.createElement('span'); a.style.color='#e8a54b'; a.style.cursor='pointer'; a.style.fontWeight='700';
+    a.textContent='?'+need.length; a.title='focus '+loc.ck;
+    a.onclick=()=>focusCell(loc.col,loc.row);
+    const mid=document.createElement('span'); mid.style.flex='1'; mid.style.minWidth='0';
+    mid.style.overflow='hidden'; mid.style.textOverflow='ellipsis'; mid.style.whiteSpace='nowrap';
+    mid.style.cursor='pointer'; mid.title='open editor';
+    mid.textContent=fn.replace('.SEC','')+' @'+loc.ck
+      +(counts.up||counts.dn?('  '+((counts.up?'\u25B2':'')+(counts.dn?'\u25BC':''))):'');
+    mid.onclick=()=>{ focusCell(loc.col,loc.row); const el=CELLS[loc.col+','+loc.row];
+      if(el){ const r=el.getBoundingClientRect(); openEditor(loc.col,loc.row,{clientX:r.left,clientY:r.top}); } };
+    row.appendChild(a); row.appendChild(mid); portalPanel.appendChild(row);
+  });
+  if(needRows.length>40){
+    const more=document.createElement('div'); more.className='legend';
+    more.textContent='...and '+(needRows.length-40)+' more'; portalPanel.appendChild(more);
+  }
+
   // interiors
-  const ih=document.createElement('div'); ih.className='region'; ih.textContent='Teleport-only interiors ('+INTERIORS.length+')'; portalPanel.appendChild(ih);
+  const ih=document.createElement('div'); ih.className='region'; ih.style.marginTop='12px';
+  ih.textContent='Teleport-only interiors ('+INTERIORS.length+')'; portalPanel.appendChild(ih);
   const note=document.createElement('div'); note.className='legend'; note.style.margin='2px 0 6px';
   note.textContent='Sectors reached only by portal (never on the grid).'; portalPanel.appendChild(note);
   if(INTERIORS.length){
@@ -936,15 +1101,16 @@ function renderPortalPanel(){
   const ph=document.createElement('div'); ph.className='region'; ph.style.marginTop='12px';
   ph.textContent='Portal links ('+PORTALS.length+')'; portalPanel.appendChild(ph);
   const pnote=document.createElement('div'); pnote.className='legend'; pnote.style.margin='2px 0 6px';
-  pnote.textContent='Click a placed piece on the map to add a portal from it.'; portalPanel.appendChild(pnote);
+  pnote.textContent='Click a placed piece (or a checklist row) to link an exit.'; portalPanel.appendChild(pnote);
   PORTALS.forEach(p=>{
     const row=document.createElement('div');
     row.style.cssText='display:flex;align-items:center;gap:6px;font-size:11px;padding:3px 0;border-bottom:1px solid var(--line)';
     const a=document.createElement('span'); a.style.color='#c792ff'; a.style.cursor='pointer';
     a.textContent=p.from; a.title='focus this cell';
-    a.onclick=()=>{ const [ew,ns]=p.from.split(','); const el=CELLS[ew+','+ns]; if(el) el.scrollIntoView({block:'center',inline:'center'}); };
+    a.onclick=()=>{ const [ew,ns]=p.from.split(','); focusCell(+ew,+ns); };
     const mid=document.createElement('span'); mid.style.flex='1'; mid.style.minWidth='0'; mid.style.overflow='hidden'; mid.style.textOverflow='ellipsis'; mid.style.whiteSpace='nowrap';
-    mid.textContent='\u2192 '+p.to.replace('.SEC','')+' @'+p.enter[0]+','+p.enter[1]+(p.name?(' "'+p.name+'"'):'');
+    const src=p.src?(' from r'+p.src.r+'c'+p.src.c):'';
+    mid.textContent='\u2192 '+p.to.replace('.SEC','')+' @'+p.enter[0]+','+p.enter[1]+src+(p.name?(' "'+p.name+'"'):'');
     const rm=document.createElement('span'); rm.textContent='x'; rm.style.cssText='color:#ff6b6b;cursor:pointer'; rm.onclick=()=>removePortal(p);
     row.appendChild(a); row.appendChild(mid); row.appendChild(rm); portalPanel.appendChild(row);
   });
@@ -1048,7 +1214,9 @@ document.getElementById('export').addEventListener('click',()=>{
     }).sort((a,b)=>a.row-b.row||a.col-b.col);
     payload={dataset:'flat', grid:{w:FLAT_W,h:FLAT_H}, placements:out,
              interiors:INTERIORS.slice(),
-             portals:PORTALS.map(p=>({from:p.from.split(',').map(Number), to:p.to, enter:p.enter.slice(), name:p.name||''}))};
+             portals:PORTALS.map(p=>({from:p.from.split(',').map(Number), to:p.to,
+               enter:p.enter.slice(), name:p.name||'',
+               ...(p.src?{src:{r:p.src.r,c:p.src.c,k:p.src.k}}:{})}))};
     fname='flat_surface.json';
   } else {
     const out=Object.entries(placements).map(([k,p])=>{
@@ -1090,7 +1258,11 @@ document.getElementById('importfile').addEventListener('change',e=>{
       if(Array.isArray(o.portals)) o.portals.forEach(p=>{
         const from=Array.isArray(p.from)?p.from.join(','):p.from;
         const en=Array.isArray(p.enter)?p.enter:[16,16];
-        if(from!=null && p.to) PORTALS.push({from:String(from), to:p.to, enter:[+en[0]||0,+en[1]||0], name:p.name||''});
+        if(from!=null && p.to){
+          const rec={from:String(from), to:p.to, enter:[+en[0]||0,+en[1]||0], name:p.name||''};
+          if(p.src) rec.src={r:+p.src.r||0, c:+p.src.c||0, k:+p.src.k||0};
+          PORTALS.push(rec);
+        }
       });
       savePortalData(); renderPortalPanel(); refreshCells();
       alert('Imported '+n+' placements'+(o.portals?(' + '+o.portals.length+' portals'):'')+' into the flat build.');
