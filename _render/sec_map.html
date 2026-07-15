@@ -57,6 +57,13 @@
   .cell .portmark.need { background:#e8a54b; color:#1a1208; }
   .cell .exitmark { position:absolute; top:1px; right:1px; font-size:9px; line-height:1; z-index:4;
     color:#1a1208; background:#e8a54b; border-radius:6px; padding:0 3px; font-weight:700; }
+  .cell .tpmark { position:absolute; top:1px; left:1px; font-size:8px; line-height:1; z-index:4;
+    color:#0a1a2a; background:#5aa9ff; border-radius:6px; padding:0 3px; font-weight:700; }
+  .cell .stairmark { position:absolute; bottom:1px; left:1px; font-size:8px; line-height:1; z-index:4;
+    color:#082022; background:#3fe0e0; border-radius:6px; padding:0 3px; font-weight:700; }
+  .blockcard .lvls { display:flex; gap:2px; flex-wrap:wrap; margin:3px 0 0; }
+  .blockcard .lvls button { padding:1px 5px; font-size:9px; }
+  .blockcard .lvls button.on { border-color:var(--accent); color:#fff; }
   .cell .label { position:absolute; top:0; left:0; right:0; font-size:8px; line-height:1.2; z-index:2;
     background:rgba(0,0,0,.6); color:#fff; text-align:center; overflow:hidden; white-space:nowrap; text-overflow:ellipsis; padding:1px; }
   .zoom { display:flex; gap:3px; align-items:center; }
@@ -172,6 +179,7 @@
 <script src="blocks.js"></script>
 <script src="block_anchors.js"></script>
 <script src="portals.js"></script>
+<script src="level_clusters.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
 const EW_MIN=10, EW_MAX=100, NS_MIN=15, NS_MAX=90, STEP=5;
@@ -233,7 +241,7 @@ const DS_CFG={
   merged:{ showCore:true,  palette:'both',  legend:'Merged: coordinate layout with matched 2011 tiles swapped in (blue). Green tiles are 2006 with no confident 2011 match yet. Toggle "prefer 2011" off to see the original 2006 art and yellow 06 flags.' },
   c2006: { showCore:true,  palette:'coord', legend:'2006 coordinate map only. Review and correct the original positioned sectors; no name-based tiles mixed in.' },
   n2011: { showCore:false, palette:'area',  legend:'2011 name-based build. Empty grid - place area SECs one by one, or drag an assembled region block to stamp a whole area at once.' },
-  flat:  { showCore:false, palette:'area',  flat:true, legend:'Flat surface: puzzle pieces + portals. Orange ?N = open teleports. Click an exit to one-click link (nearby/interior picks) or ignore it. Checklist tracks remaining work.' },
+  flat:  { showCore:false, palette:'area',  flat:true, legend:'Flat surface: blue TP = waypoints (info only). Orange ?N = fixed warps needing a destination. Stairs show floor hints. Checklist splits floor review / fixed warps / waypoints.' },
 };
 let DATASET='merged';
 let placements=placementsByDS[DATASET];
@@ -378,7 +386,7 @@ function applyRemote(storedCell,rec){
 }
 function renderCell(ew,ns){
   const c=CELLS[ew+","+ns]; if(!c) return;
-  [...c.querySelectorAll('img,.x,.badge,.stair,.portmark,.exitmark')].forEach(n=>n.remove());
+  [...c.querySelectorAll('img,.x,.badge,.stair,.portmark,.exitmark,.tpmark,.stairmark')].forEach(n=>n.remove());
   c.classList.remove('coord','area','cleared');
   const lay=displayLayer(ew,ns), ck=ew+","+ns+","+lay;
   const p=placements[ck]||coreAt(ck);
@@ -411,19 +419,32 @@ function renderCell(ew,ns){
   if(st){ const s=document.createElement('div'); s.className='stair';
     s.textContent=(st.u?'\u25B2':'')+(st.d?'\u25BC':'');
     s.title='floor transition: '+(st.u?'up ':'')+(st.d?'down':''); c.appendChild(s); }
-  // flat build: authored portals + unresolved mined exits
+  // flat build: waypoints (blue), fixed warps (orange), stair floor hints
   if(isFlat() && p && p.filename!==CLEARED){
-    const ck=ew+","+ns, np=portalsFrom(ck), ex=exitInfo(p.filename), need=unresolvedExits(p.filename,ck);
+    const ck=ew+","+ns, np=portalsFrom(ck), need=unresolvedFixedWarps(p.filename,ck);
+    const wps=waypointCells(p.filename), rooms=roomWaypointCells(p.filename);
+    const stInfo=stairHint(p.filename);
+    if(wps.length||rooms.length){
+      const tm=document.createElement('div'); tm.className='tpmark';
+      tm.textContent='TP'+(wps.length+rooms.length>1?(wps.length+rooms.length):'');
+      tm.title=(wps.length? (wps.length+' waypoint pad'+(wps.length>1?'s':'')):'')
+        +(rooms.length?((wps.length?', ':'')+rooms.length+' room waypoint'):'')
+        +' (memorize pads - no fixed destination)';
+      c.appendChild(tm);
+    }
+    if(stInfo){
+      const sm=document.createElement('div'); sm.className='stairmark';
+      sm.textContent=stInfo.badge; sm.title=stInfo.title; c.appendChild(sm);
+    }
     if(np.length){ const pm=document.createElement('div'); pm.className='portmark'+(need.length?' need':'');
       pm.textContent='\u2197'+(np.length>1?np.length:'');
-      pm.title=np.length+' portal'+(np.length>1?'s':'')+' linked'
-        +(need.length?(' / '+need.length+' exit'+(need.length>1?'s':'')+' still open'):'');
+      pm.title=np.length+' fixed-warp link'+(np.length>1?'s':'')
+        +(need.length?(' / '+need.length+' still open'):'');
       c.appendChild(pm); }
     else if(need.length){ const em=document.createElement('div'); em.className='exitmark';
       em.textContent='?'+need.length;
-      em.title=need.length+' unresolved exit'+(need.length>1?'s':'')+' (teleport/stair) - click to link';
+      em.title=need.length+' unresolved fixed warp'+(need.length>1?'s':'')+' - click to link';
       c.appendChild(em); }
-    else if(ex && (ex.tp||ex.up||ex.dn||ex.fall)){ /* exits exist but all teleports linked; stairs noted in editor */ }
   }
 }
 // ---- cell editor popover: view / replace / blank any cell ----------------
@@ -539,15 +560,18 @@ function openEditor(ew,ns,evt,editLay){
     results.appendChild(tileGrid(searchPool.filter(t=>
       t.filename.toLowerCase().includes(q)||(t.place_name||'').toLowerCase().includes(q)).slice(0,40),ew,ns,lay));
   });
-  // flat build: mined exits + one-click portal linking
+  // flat build: mined exits + one-click fixed-warp linking
   if(isFlat()){
     const ps=document.createElement('div'); ps.className='region'; ps.style.marginTop='12px';
     const ex=cur&&cur.filename!==CLEARED?exitInfo(cur.filename):null;
     const counts=cur&&cur.filename!==CLEARED?exitCounts(cur.filename):null;
-    const need=cur&&cur.filename!==CLEARED?unresolvedExits(cur.filename,key):[];
-    let hdr='Exits / portals';
+    const need=cur&&cur.filename!==CLEARED?unresolvedFixedWarps(cur.filename,key):[];
+    let hdr='Transitions';
     if(counts&&counts.total){
-      hdr+='  (mined: '+counts.tp+' tp';
+      hdr+='  (';
+      if(counts.wp) hdr+=counts.wp+' TP';
+      if(counts.room) hdr+=' '+counts.room+' room';
+      if(counts.fw) hdr+=' '+counts.fw+' warp';
       if(counts.up) hdr+=' '+counts.up+'\u25B2';
       if(counts.dn) hdr+=' '+counts.dn+'\u25BC';
       if(counts.fall) hdr+=' '+counts.fall+' fall';
@@ -558,7 +582,7 @@ function openEditor(ew,ns,evt,editLay){
     ps.textContent=hdr;
     pop.appendChild(ps);
     if(!cur || cur.filename===CLEARED){
-      const hint=document.createElement('div'); hint.className='legend'; hint.textContent='Place a sector here first, then link exits.'; pop.appendChild(hint);
+      const hint=document.createElement('div'); hint.className='legend'; hint.textContent='Place a sector here first, then link fixed warps.'; pop.appendChild(hint);
     } else {
       const linkBox=document.createElement('div'); linkBox.style.display='none'; linkBox.style.margin='6px 0';
       pop.appendChild(linkBox);
@@ -567,9 +591,8 @@ function openEditor(ew,ns,evt,editLay){
       const enc=document.createElement('input'); enc.type='number'; enc.min=0; enc.max=31; enc.value=16; enc.style.width='48px';
 
       function quickLink(toFn){
-        if(!pendingSrc){ alert('Pick an orange ? exit first.'); return; }
+        if(!pendingSrc){ alert('Pick an orange fixed warp first.'); return; }
         const er=Math.max(0,Math.min(31,+enr.value||0)), ec=Math.max(0,Math.min(31,+enc.value||0));
-        // if dest is not placed and not already an interior, offer to add it
         const placed=placedByFilename();
         if(!placed[toFn] && !isInterior(toFn)){
           if(confirm(toFn.replace('.SEC','')+' is not on the map. Add it as a teleport-only interior?')) addInterior(toFn);
@@ -622,7 +645,21 @@ function openEditor(ew,ns,evt,editLay){
 
       if(ex){
         const list=document.createElement('div'); list.style.margin='4px 0 8px';
-        (ex.tp||[]).forEach(t=>{
+        // waypoints - informational
+        waypointCells(cur.filename).forEach(t=>{
+          const r=document.createElement('div');
+          r.style.cssText='display:flex;gap:6px;font-size:11px;align-items:center;padding:2px 0';
+          const tag=document.createElement('span'); tag.style.cssText='flex:none;font-weight:700;color:#5aa9ff'; tag.textContent='TP';
+          const s=document.createElement('span'); s.style.cssText='flex:1;color:#9aa0ad';
+          s.textContent='waypoint r'+t.r+'c'+t.c+' (memorize - no dest)';
+          r.appendChild(tag); r.appendChild(s); list.appendChild(r);
+        });
+        roomWaypointCells(cur.filename).forEach(t=>{
+          const r=document.createElement('div'); r.className='legend';
+          r.textContent='room waypoint r'+t.r+'c'+t.c; list.appendChild(r);
+        });
+        // fixed warps - linkable
+        fixedWarpCells(cur.filename).forEach(t=>{
           const linked=portalsFrom(key).find(p=>p.src&&p.src.r===t.r&&p.src.c===t.c);
           const ignored=isIgnored(cur.filename,t.r,t.c);
           if(ignored && !linked){
@@ -630,7 +667,7 @@ function openEditor(ew,ns,evt,editLay){
             r.style.cssText='display:flex;gap:6px;font-size:11px;align-items:center;padding:2px 0;opacity:.55';
             const tag=document.createElement('span'); tag.style.cssText='flex:none;color:#9aa0ad'; tag.textContent='\u2013';
             const s=document.createElement('span'); s.style.cssText='flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#9aa0ad';
-            s.textContent='tp r'+t.r+'c'+t.c+' '+(TP_KIND[t.k]||('k'+t.k))+'  (ignored)';
+            s.textContent='warp r'+t.r+'c'+t.c+' '+(TP_KIND[t.k]||('k'+t.k))+'  (ignored)';
             const u=document.createElement('span'); u.textContent='undo'; u.style.cssText='color:#5aa9ff;cursor:pointer;font-size:10px';
             u.onclick=(ev)=>{ev.stopPropagation(); unignoreExit(cur.filename,t.r,t.c); renderCell(ew,ns); openEditor(ew,ns,evt,lay);};
             r.appendChild(tag); r.appendChild(s); r.appendChild(u); list.appendChild(r);
@@ -642,7 +679,7 @@ function openEditor(ew,ns,evt,editLay){
           tag.style.cssText='flex:none;font-weight:700;color:'+(linked?'#c792ff':'#e8a54b');
           tag.textContent=linked?'\u2197':'?';
           const s=document.createElement('span'); s.style.cssText='flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#c2c7d2;cursor:pointer';
-          s.textContent='tp r'+t.r+'c'+t.c+' '+(TP_KIND[t.k]||('k'+t.k))
+          s.textContent='warp r'+t.r+'c'+t.c+' '+(TP_KIND[t.k]||('k'+t.k))
             +(linked?(' \u2192 '+linked.to.replace('.SEC','')):'  (click to link)');
           r.appendChild(tag); r.appendChild(s);
           if(linked){
@@ -659,17 +696,18 @@ function openEditor(ew,ns,evt,editLay){
           }
           list.appendChild(r);
         });
-        (ex.up||[]).forEach(t=>{
+        const sh=stairHint(cur.filename);
+        stairCells(cur.filename,'up').forEach(t=>{
           const r=document.createElement('div'); r.className='legend';
-          r.textContent='\u25B2 stair up r'+t.r+'c'+t.c+' (same column, upper floor)'; list.appendChild(r);
+          r.textContent='\u25B2 up r'+t.r+'c'+t.c+(sh&&sh.title.includes('L+')?(' - '+sh.title):' (floor review)'); list.appendChild(r);
         });
-        (ex.dn||[]).forEach(t=>{
+        stairCells(cur.filename,'down').forEach(t=>{
           const r=document.createElement('div'); r.className='legend';
-          r.textContent='\u25BC stair down r'+t.r+'c'+t.c+' (same column, lower floor)'; list.appendChild(r);
+          r.textContent='\u25BC down r'+t.r+'c'+t.c+(sh&&sh.title.includes('L-')?(' - '+sh.title):' (floor review)'); list.appendChild(r);
         });
-        (ex.fall||[]).forEach(t=>{
+        stairCells(cur.filename,'fall').forEach(t=>{
           const r=document.createElement('div'); r.className='legend';
-          r.textContent='fall '+t.k+' r'+t.r+'c'+t.c; list.appendChild(r);
+          r.textContent='fall '+(t.k||'')+' r'+t.r+'c'+t.c; list.appendChild(r);
         });
         pop.appendChild(list);
       }
@@ -681,12 +719,11 @@ function openEditor(ew,ns,evt,editLay){
         x.onclick=()=>{ removePortal(p); openEditor(ew,ns,evt,lay); };
         r.appendChild(s); r.appendChild(x); pop.appendChild(r);
       });
-      // move linkBox after the exit list so it appears under the clicked exit area
       pop.appendChild(linkBox);
       if(need.length===1) showLinkUI(need[0]);
       else if(need.length){
         const tip=document.createElement('div'); tip.className='legend'; tip.style.margin='4px 0';
-        tip.textContent='Click an orange ? exit to link it (or ignore).'; pop.appendChild(tip);
+        tip.textContent='Click an orange ? fixed warp to link it (or ignore).'; pop.appendChild(tip);
       }
     }
   }
@@ -747,12 +784,44 @@ function tilePng(fn){ const t=TILE_BY_NAME[fn]; return t?t.png:('tiles/'+fn+'.pn
 // offsets. Blocks are flat (no a/b/c of their own): on the world tabs they
 // stamp onto the floor selected in the header (Surface counts as Ground).
 function blockLayer(){ return (isFlat()||FLOOR==='surface') ? 'b' : FLOOR; }
+function stacksForRegion(region){
+  const LC=window.LEVEL_CLUSTERS||{};
+  const out=[];
+  (LC.clusters||[]).forEach(cl=>{ if(cl.region===region && (cl.floors||[]).length>1) out.push(cl); });
+  (LC.proposed_stacks||[]).forEach(cl=>{ if(cl.region===region && (cl.floors||[]).length>1) out.push(cl); });
+  return out;
+}
+function stackCoveringBlock(b){
+  const stacks=stacksForRegion(b.region);
+  const files=new Set(b.pieces.map(p=>p.filename));
+  for(const cl of stacks){
+    for(const fl of cl.floors||[]){
+      if((fl.pieces||[]).some(p=>files.has(p.filename))) return cl;
+    }
+  }
+  return null;
+}
 function placeBlock(id,ew,ns){
   const b=BLOCK_BY_ID[id]; if(!b) return;
   const step=isFlat()?1:STEP, lay=blockLayer();
   const cols=new Set(curCols()), rows=new Set(curRows());
+  const stack=isFlat()?stackCoveringBlock(b):null;
+  const surfLv=stack?+(stack.surface_level||0):0;
+  let pieces=b.pieces;
+  if(stack && isFlat()){
+    const surfFloor=(stack.floors||[]).find(f=>f.level===surfLv);
+    if(surfFloor){
+      const surfFiles=new Set((surfFloor.pieces||[]).map(p=>p.filename));
+      const onSurface=b.pieces.filter(p=>surfFiles.has(p.filename));
+      if(onSurface.length) pieces=onSurface;
+      (stack.floors||[]).forEach(fl=>{
+        if(fl.level===surfLv) return;
+        (fl.pieces||[]).forEach(p=>addInterior(p.filename));
+      });
+    }
+  }
   const targets=[];
-  for(const p of b.pieces){
+  for(const p of pieces){
     const x=ew+p.dx*step, y=ns+p.dy*step;
     if(!cols.has(x)||!rows.has(y)){ alert('Block does not fit here - it runs off the grid.'); return; }
     targets.push([p,x,y]);
@@ -884,20 +953,50 @@ function moveCells(cells,dx,dy){
 }
 function blockCard(b){
   const card=document.createElement('div'); card.className='blockcard'; card.draggable=true; card.dataset.block=b.id;
+  const stack=stackCoveringBlock(b);
   card.title='drag onto the map: stamps all '+b.pieces.length+' pieces at their solved offsets'+
-    (isFlat()?'':' onto the floor picked in the header (Surface = Ground b)');
-  const ct=document.createElement('span'); ct.className='bct'; card.appendChild(ct);
+    (isFlat()?(stack?' (surface floor only; other floors -> interiors)':''):' onto the floor picked in the header (Surface = Ground b)');
+  const ct=document.createElement('span'); ct.className='bct';
+  ct.textContent=stack?('L'+(stack.floors||[]).map(f=>f.level).join('/')):'';
+  card.appendChild(ct);
+  let viewLv=stack?+(stack.surface_level||0):0;
   const g=document.createElement('div'); g.className='bgrid';
-  g.style.gridTemplateColumns='repeat('+b.w+',1fr)';
-  b.pieces.forEach(p=>{
-    const im=document.createElement('img'); im.src=tilePng(p.filename); im.draggable=false;
-    im.style.gridColumn=p.dx+1; im.style.gridRow=p.dy+1;
-    im.title=p.filename; attachHover(im,im.src,p.filename);
-    g.appendChild(im);
-  });
+  function paint(){
+    g.innerHTML='';
+    let pieces=b.pieces, w=b.w, h=b.h;
+    if(stack){
+      const fl=(stack.floors||[]).find(f=>f.level===viewLv);
+      if(fl&&fl.pieces&&fl.pieces.length){
+        pieces=fl.pieces;
+        w=Math.max(1,...pieces.map(p=>p.dx+1));
+        h=Math.max(1,...pieces.map(p=>p.dy+1));
+      }
+    }
+    g.style.gridTemplateColumns='repeat('+w+',1fr)';
+    pieces.forEach(p=>{
+      const im=document.createElement('img'); im.src=tilePng(p.filename); im.draggable=false;
+      im.style.gridColumn=(p.dx||0)+1; im.style.gridRow=(p.dy||0)+1;
+      im.title=p.filename+(p.dz!=null?' L'+p.dz:''); attachHover(im,im.src,p.filename);
+      g.appendChild(im);
+    });
+  }
+  paint();
   card.appendChild(g);
+  if(stack && (stack.floors||[]).length>1){
+    const lv=document.createElement('div'); lv.className='lvls';
+    (stack.floors||[]).forEach(fl=>{
+      const btn=document.createElement('button'); btn.type='button';
+      btn.textContent='L'+fl.level+(fl.level===+(stack.surface_level||0)?'*':'');
+      if(fl.level===viewLv) btn.classList.add('on');
+      btn.onclick=(ev)=>{ ev.stopPropagation(); viewLv=fl.level;
+        [...lv.children].forEach(x=>x.classList.remove('on')); btn.classList.add('on'); paint(); };
+      lv.appendChild(btn);
+    });
+    card.appendChild(lv);
+  }
   const nm=document.createElement('div'); nm.className='nm';
-  nm.textContent=b.id+' ('+b.pieces.length+' pieces, '+b.w+'x'+b.h+')';
+  nm.textContent=b.id+' ('+b.pieces.length+' pieces, '+b.w+'x'+b.h+')'
+    +(stack?' ['+stack.confidence+']':'');
   card.appendChild(nm);
   card.addEventListener('dragstart',e=>{ e.dataTransfer.setData('block',b.id); });
   return card;
@@ -994,20 +1093,15 @@ document.getElementById('filter').addEventListener('input',e=>buildPalette(e.tar
 document.getElementById('guides').addEventListener('change',e=>{
   document.querySelectorAll('.guide').forEach(g=>g.style.display=e.target.checked?'flex':'none');});
 
-// ---- flat build: teleport-only interiors + portal links ------------------
-// Interiors are sectors reached ONLY by teleport (never on the grid).
-// A portal links a placed surface cell -> a destination sector + entry cell.
-// Stored locally (the realtime placements table has no schema for this) and
-// included in the flat export. Compiles later to .CRT (dest) / .MSG (name).
-//
-// SEC_EXITS (portals.js) lists every teleportal/stair/fall cell mined from
-// the SEC binaries. Destinations are lost with .CRT/.MSG, so the checklist
-// tracks which mined teleports still need a human-authored portal link.
-// IGNORED exits are dismissed from the checklist (decorative / don't-care).
+// ---- flat build: waypoints / fixed warps / floor review ------------------
+// Waypoints (obj 1) and room waypoints (obj 2) are memorize pads - informational.
+// Fixed warps (obj 3/4 instant/invisible) need authored destinations.
+// Stairs (up/down/fall) drive multi-floor assembly (see level_clusters.js).
+// Existing ignored/link state is kept; progress counts only fixed warps.
 let INTERIORS=[];   // [filename]
 let PORTALS=[];      // [{from:"col,row", to:"file.SEC", enter:[r,c], name:"", src?:{r,c,k}}]
-let IGNORED={};      // "file.SEC:r,c" -> true
-const TP_KIND={1:'teleportal',2:'room',3:'instant',4:'invisible'};
+let IGNORED={};      // "file.SEC:r,c" -> true  (legacy keys retained)
+const TP_KIND={1:'waypoint',2:'room waypoint',3:'instant',4:'invisible'};
 function exitKey(fn,r,c){ return fn+':'+r+','+c; }
 function loadPortalData(){ try{ const o=JSON.parse(localStorage.getItem('mra_flat_portals')||'{}');
   INTERIORS=Array.isArray(o.interiors)?o.interiors:[];
@@ -1031,26 +1125,70 @@ function isIgnored(fn,r,c){ return !!IGNORED[exitKey(fn,r,c)]; }
 function ignoreExit(fn,r,c){ IGNORED[exitKey(fn,r,c)]=true; savePortalData(); }
 function unignoreExit(fn,r,c){ delete IGNORED[exitKey(fn,r,c)]; savePortalData(); }
 function ignoreAllOpen(fn,ck){
-  unresolvedExits(fn,ck).forEach(t=>ignoreExit(fn,t.r,t.c));
+  unresolvedFixedWarps(fn,ck).forEach(t=>ignoreExit(fn,t.r,t.c));
   savePortalData();
 }
 function exitInfo(fn){ return (window.SEC_EXITS||{})[fn]||null; }
-function exitCounts(fn){
-  const e=exitInfo(fn); if(!e) return {tp:0,up:0,dn:0,fall:0,total:0};
-  const tp=(e.tp||[]).length, up=(e.up||[]).length, dn=(e.dn||[]).length, fall=(e.fall||[]).length;
-  return {tp,up,dn,fall,total:tp+up+dn+fall};
+function waypointCells(fn){
+  const e=exitInfo(fn); if(!e) return [];
+  if(e.waypoint) return e.waypoint;
+  return (e.tp||[]).filter(t=>t.k===1);
 }
-// teleports still needing a portal link (ignored exits are hidden)
-function unresolvedExits(fn,ck){
-  const e=exitInfo(fn); if(!e||!(e.tp||[]).length) return [];
+function roomWaypointCells(fn){
+  const e=exitInfo(fn); if(!e) return [];
+  if(e.room_waypoint) return e.room_waypoint;
+  return (e.tp||[]).filter(t=>t.k===2);
+}
+function fixedWarpCells(fn){
+  const e=exitInfo(fn); if(!e) return [];
+  if(e.fixed_warp) return e.fixed_warp.map(t=>({...t, k:t.k||3}));
+  return (e.tp||[]).filter(t=>t.k===3||t.k===4);
+}
+function stairCells(fn, kind){
+  const e=exitInfo(fn); if(!e) return [];
+  if(kind==='down') return e.down||e.dn||[];
+  return e[kind]||[];
+}
+function exitCounts(fn){
+  const wp=waypointCells(fn).length, room=roomWaypointCells(fn).length;
+  const fw=fixedWarpCells(fn).length;
+  const up=stairCells(fn,'up').length, dn=stairCells(fn,'down').length, fall=stairCells(fn,'fall').length;
+  return {wp,room,fw,up,dn,fall,tp:wp+room+fw, total:wp+room+fw+up+dn+fall};
+}
+// only fixed warps need a destination link (waypoints are informational)
+function unresolvedFixedWarps(fn,ck){
+  const cells=fixedWarpCells(fn); if(!cells.length) return [];
   const linked=new Set(portalsFrom(ck).filter(p=>p.src).map(p=>p.src.r+','+p.src.c));
   let bare=portalsFrom(ck).filter(p=>!p.src).length;
-  return (e.tp||[]).filter(t=>{
+  return cells.filter(t=>{
     if(isIgnored(fn,t.r,t.c)) return false;
     if(linked.has(t.r+','+t.c)) return false;
     if(bare>0){ bare--; return false; }
     return true;
   });
+}
+// legacy alias used by older call sites
+function unresolvedExits(fn,ck){ return unresolvedFixedWarps(fn,ck); }
+function stairHint(fn){
+  const up=stairCells(fn,'up'), dn=stairCells(fn,'down'), fall=stairCells(fn,'fall');
+  if(!up.length&&!dn.length&&!fall.length) return null;
+  const LC=window.LEVEL_CLUSTERS||{};
+  let dest='', conf='';
+  const scan=list=>{
+    for(const j of (list||[])){
+      for(const e of (j.evidence||[])){
+        if(e.up_file===fn){ dest='L+1 via '+e.down_file.replace('.SEC',''); conf=j.confidence; return true; }
+        if(e.down_file===fn){ dest='L-1 via '+e.up_file.replace('.SEC',''); conf=j.confidence; return true; }
+      }
+    }
+    return false;
+  };
+  for(const cl of (LC.clusters||[])) if(scan(cl.joins)) break;
+  if(!dest) scan(LC.suggested_joins);
+  if(!dest) scan(LC.review_joins);
+  const badge=(up.length?'\u25B2':'')+(dn.length?'\u25BC':'')+(fall.length?'F':'');
+  return {badge, title:(up.length?up.length+' up ':'')+(dn.length?dn.length+' down ':'')+(fall.length?fall.length+' fall ':'')
+    +(dest?(' \u2192 '+dest+(conf?' ['+conf+']':'')):' (needs floor review)')};
 }
 function regionStem(fn){
   const base=(fn||'').replace(/\.SEC$/i,'');
@@ -1081,24 +1219,39 @@ function destSuggestions(fromFn, fromCol, fromRow){
     out.push({filename:fn, why, png:t.png, region:t.region||''});
   };
   INTERIORS.forEach(fn=>push(fn,'interior'));
-  // nearby placed (Chebyshev distance)
   Object.entries(placed).forEach(([fn,loc])=>{
     const d=Math.max(Math.abs(loc.col-fromCol), Math.abs(loc.row-fromRow));
     if(d>0 && d<=3) push(fn,'near '+d);
   });
-  // same-region unplaced (likely interiors / missing pieces)
   (MANIFEST.area||[]).forEach(t=>{
     if(used.has(t.filename)||isInterior(t.filename)) return;
     if(regionStem(t.filename)===stem || (t.region||'').toLowerCase().includes(stem))
       push(t.filename,'same region');
   });
-  // other interiors-looking unplaced with exits of their own (teleport hubs)
   (MANIFEST.area||[]).forEach(t=>{
     if(used.has(t.filename)||isInterior(t.filename)) return;
-    const e=exitInfo(t.filename);
-    if(e&&(e.tp||[]).length) push(t.filename,'has exits');
+    if(fixedWarpCells(t.filename).length) push(t.filename,'has fixed warp');
   });
   return out.slice(0,24);
+}
+function floorReviewItems(){
+  const LC=window.LEVEL_CLUSTERS||{};
+  const out=[];
+  (LC.review_joins||[]).forEach(j=>{
+    out.push({kind:'review', below:j.below, above:j.above, matches:j.matches,
+      evidence:j.evidence||[], confidence:j.confidence});
+  });
+  (LC.proposed_stacks||[]).forEach(cl=>{
+    out.push({kind:'suggest', region:cl.region, id:cl.id, floors:cl.floors,
+      joins:cl.joins||[], confidence:cl.confidence});
+  });
+  (LC.clusters||[]).forEach(cl=>{
+    (cl.one_sided||[]).forEach(s=>{
+      out.push({kind:'one_sided', region:cl.region, block:s.block, stair:s.kind,
+        n:s.n, cells:s.cells||[]});
+    });
+  });
+  return out;
 }
 loadPortalData();
 
@@ -1114,25 +1267,50 @@ function renderPortalPanel(){
   portalPanel.style.display='block'; portalPanel.innerHTML='';
   const placed=placedByFilename();
 
-  // unresolved exit checklist
-  let needN=0, placedWithExits=0, ignoredN=0;
+  // 1) Needs floor review
+  const floors=floorReviewItems();
+  const fh=document.createElement('div'); fh.className='region';
+  fh.textContent='Needs floor review ('+floors.length+')'; portalPanel.appendChild(fh);
+  const fnote=document.createElement('div'); fnote.className='legend'; fnote.style.margin='2px 0 6px';
+  fnote.textContent='Stair joins that need a human accept in the cluster tool. Auto stacks already applied.';
+  portalPanel.appendChild(fnote);
+  floors.slice(0,20).forEach(item=>{
+    const row=document.createElement('div');
+    row.style.cssText='font-size:11px;padding:3px 0;border-bottom:1px solid var(--line);color:#c2c7d2';
+    if(item.kind==='suggest'){
+      row.textContent=item.region+'  L'+item.floors.map(f=>f.level).join('/')+'  ['+item.confidence+']';
+    } else if(item.kind==='review'){
+      row.textContent=item.below+' \u2191 '+item.above+'  n='+item.matches;
+    } else {
+      row.textContent=(item.region||'')+' '+item.block+'  '+item.stair+' x'+item.n+' (one-sided)';
+    }
+    portalPanel.appendChild(row);
+  });
+  if(floors.length>20){
+    const more=document.createElement('div'); more.className='legend';
+    more.textContent='...and '+(floors.length-20)+' more (see cluster editor)'; portalPanel.appendChild(more);
+  }
+  const clink=document.createElement('a'); clink.href='sec_cluster.html'; clink.className='legend';
+  clink.style.display='block'; clink.style.margin='4px 0 8px';
+  clink.textContent='Open cluster / floor review \u2192'; portalPanel.appendChild(clink);
+
+  // 2) Fixed warps needing destinations
+  let needN=0, ignoredN=0;
   const needRows=[];
   Object.entries(placed).forEach(([fn,loc])=>{
-    const need=unresolvedExits(fn,loc.ck);
-    const counts=exitCounts(fn);
-    if(counts.total) placedWithExits++;
-    (exitInfo(fn)?.tp||[]).forEach(t=>{ if(isIgnored(fn,t.r,t.c)) ignoredN++; });
+    const need=unresolvedFixedWarps(fn,loc.ck);
+    fixedWarpCells(fn).forEach(t=>{ if(isIgnored(fn,t.r,t.c)) ignoredN++; });
     if(!need.length) return;
     needN+=need.length;
-    needRows.push({fn,loc,need,counts});
+    needRows.push({fn,loc,need,counts:exitCounts(fn)});
   });
   needRows.sort((a,b)=>b.need.length-a.need.length||a.fn.localeCompare(b.fn));
-  const ch=document.createElement('div'); ch.className='region';
-  ch.textContent='Unresolved exits ('+needN+' on '+needRows.length+' sectors)'
+  const ch=document.createElement('div'); ch.className='region'; ch.style.marginTop='10px';
+  ch.textContent='Fixed warps needing destinations ('+needN+' on '+needRows.length+' sectors)'
     +(ignoredN?('  ·  '+ignoredN+' ignored'):'');
   portalPanel.appendChild(ch);
   const cnote=document.createElement('div'); cnote.className='legend'; cnote.style.margin='2px 0 6px';
-  cnote.textContent='Orange ?N = open teleports. Click a row to link (nearby/interior picks). Use ignore on exits you do not care about.';
+  cnote.textContent='Orange ?N = instant/invisible warps only. Click a row to link. Waypoints are not counted here.';
   portalPanel.appendChild(cnote);
   needRows.slice(0,40).forEach(({fn,loc,need,counts})=>{
     const row=document.createElement('div');
@@ -1149,9 +1327,9 @@ function renderPortalPanel(){
       if(el){ const r=el.getBoundingClientRect(); openEditor(loc.col,loc.row,{clientX:r.left,clientY:r.top}); } };
     const ign=document.createElement('span'); ign.textContent='ignore';
     ign.style.cssText='color:#9aa0ad;cursor:pointer;font-size:10px;flex:none';
-    ign.title='dismiss all open exits on this sector from the checklist';
+    ign.title='dismiss all open fixed warps on this sector';
     ign.onclick=(ev)=>{ev.stopPropagation();
-      if(!confirm('Ignore all '+need.length+' open exits on '+fn.replace('.SEC','')+'?')) return;
+      if(!confirm('Ignore all '+need.length+' open fixed warps on '+fn.replace('.SEC','')+'?')) return;
       ignoreAllOpen(fn,loc.ck); renderCell(loc.col,loc.row); renderPortalPanel(); };
     row.appendChild(a); row.appendChild(mid); row.appendChild(ign); portalPanel.appendChild(row);
   });
@@ -1167,11 +1345,34 @@ function renderPortalPanel(){
     portalPanel.appendChild(undo);
   }
 
+  // 3) Waypoints (informational)
+  let wpN=0, roomN=0;
+  const wpRows=[];
+  Object.entries(placed).forEach(([fn,loc])=>{
+    const w=waypointCells(fn), r=roomWaypointCells(fn);
+    if(!w.length&&!r.length) return;
+    wpN+=w.length; roomN+=r.length;
+    wpRows.push({fn,loc,w,r});
+  });
+  const wh=document.createElement('div'); wh.className='region'; wh.style.marginTop='10px';
+  wh.textContent='Waypoints ('+wpN+' pads'+(roomN?', '+roomN+' room':'')+' on '+wpRows.length+' sectors)';
+  portalPanel.appendChild(wh);
+  const wnote=document.createElement('div'); wnote.className='legend'; wnote.style.margin='2px 0 6px';
+  wnote.textContent='Blue TP markers. Memorize pads - no fixed destination required.';
+  portalPanel.appendChild(wnote);
+  wpRows.slice(0,15).forEach(({fn,loc,w,r})=>{
+    const row=document.createElement('div');
+    row.style.cssText='font-size:11px;padding:2px 0;color:#9aa0ad;border-bottom:1px solid var(--line)';
+    row.textContent=fn.replace('.SEC','')+' @'+loc.ck+'  TP'+(w.length+r.length)
+      +(r.length?' (incl room)':'');
+    portalPanel.appendChild(row);
+  });
+
   // interiors
   const ih=document.createElement('div'); ih.className='region'; ih.style.marginTop='12px';
   ih.textContent='Teleport-only interiors ('+INTERIORS.length+')'; portalPanel.appendChild(ih);
   const note=document.createElement('div'); note.className='legend'; note.style.margin='2px 0 6px';
-  note.textContent='Sectors reached only by portal (never on the grid).'; portalPanel.appendChild(note);
+  note.textContent='Non-surface floors and warp-only sectors (never on the Flat canvas).'; portalPanel.appendChild(note);
   if(INTERIORS.length){
     const list=document.createElement('div'); list.className='tiles';
     INTERIORS.forEach(fn=>{
@@ -1205,9 +1406,9 @@ function renderPortalPanel(){
   });
   // portal links summary
   const ph=document.createElement('div'); ph.className='region'; ph.style.marginTop='12px';
-  ph.textContent='Portal links ('+PORTALS.length+')'; portalPanel.appendChild(ph);
+  ph.textContent='Fixed-warp links ('+PORTALS.length+')'; portalPanel.appendChild(ph);
   const pnote=document.createElement('div'); pnote.className='legend'; pnote.style.margin='2px 0 6px';
-  pnote.textContent='Click a placed piece (or a checklist row) to link an exit.'; portalPanel.appendChild(pnote);
+  pnote.textContent='Click a placed piece (or a checklist row) to link a fixed warp.'; portalPanel.appendChild(pnote);
   PORTALS.forEach(p=>{
     const row=document.createElement('div');
     row.style.cssText='display:flex;align-items:center;gap:6px;font-size:11px;padding:3px 0;border-bottom:1px solid var(--line)';

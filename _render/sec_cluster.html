@@ -51,6 +51,7 @@
   <input id="cname" list="clusters" placeholder="e.g. orc" style="width:130px">
   <datalist id="clusters"></datalist>
   <span class="floors" id="floors"></span>
+  <button id="marksurf" title="Mark the current floor as the surface (Flat canvas)">Surface</button>
   <span class="legend">grid</span>
   <button id="colminus">-col</button><button id="colplus">+col</button>
   <button id="rowminus">-row</button><button id="rowplus">+row</button>
@@ -70,6 +71,7 @@
   <div class="gridpane"><div id="grid" class="grid"></div>
     <div class="legend" id="status" style="margin-top:10px"></div></div>
   <div class="palette">
+    <div id="levelpanel" style="margin-bottom:10px"></div>
     <input id="filter" placeholder="search any SEC..." style="width:100%">
     <label class="legend" style="display:block;margin-top:6px">
       <input id="coordtoggle" type="checkbox"> include coordinate/world SECs
@@ -83,14 +85,28 @@
 <script src="data.js"></script>
 <script src="seams.js"></script>
 <script src="stairs.js"></script>
+<script src="portals.js"></script>
+<script src="level_clusters.js"></script>
 <script>
-const FLOORS=['c','b','a'], FLOOR_LABEL={c:'Upper (c)',b:'Ground (b)',a:'Under (a)'};
-let layer='b', cols=6, rows=6, cell=64;
-let cname='', state={};   // state[cluster] = { 'lx,ly,layer': filename }
+// Integer levels: 0 = lowest, higher = above. Legacy a/b/c <-> 0/1/2.
+const LEGACY_TO_LV={a:0,b:1,c:2}, LV_TO_LEGACY={0:'a',1:'b',2:'c'};
+function normLevel(raw, fallback=1){
+  if(raw===0||raw==='0') return 0;
+  if(raw==null||raw==='') return fallback;
+  const s=String(raw).toLowerCase();
+  if(s in LEGACY_TO_LV) return LEGACY_TO_LV[s];
+  const n=parseInt(s,10); return Number.isFinite(n)?n:fallback;
+}
+function levelLabel(lv){
+  const leg=LV_TO_LEGACY[lv];
+  return 'L'+lv+(leg?' ('+({a:'under',b:'ground',c:'upper'}[leg])+')':'');
+}
+let level=1, cols=6, rows=6, cell=64;
+let cname='', state={}, surfaceLevel={}; // surfaceLevel[cluster]=int
 const AREA=(window.MANIFEST&&MANIFEST.area?MANIFEST.area:[]).slice().sort((a,b)=>a.filename.localeCompare(b.filename));
 const COORD=(window.MANIFEST&&MANIFEST.coordinate?MANIFEST.coordinate:[]).slice().sort((a,b)=>a.filename.localeCompare(b.filename));
 const ALL=[...AREA,...COORD];
-const TILE=({}); ALL.forEach(t=>{ if(!TILE[t.filename]) TILE[t.filename]=t; }); // prefer area art for duplicate names
+const TILE=({}); ALL.forEach(t=>{ if(!TILE[t.filename]) TILE[t.filename]=t; });
 let INCLUDE_COORD=false;
 function paletteItems(){ return INCLUDE_COORD ? ALL : AREA; }
 function currentGroups(){
@@ -99,12 +115,38 @@ function currentGroups(){
   return {groups, prefixes:Object.keys(groups).filter(k=>groups[k].length>=2).sort()};
 }
 
-function key(lx,ly){ return lx+','+ly+','+layer; }
+function key(lx,ly,lv){ return lx+','+ly+','+(lv==null?level:lv); }
 function curCells(){ return state[cname]||(state[cname]={}); }
-function saveLS(){ if(cname) localStorage.setItem('mra_cluster_'+cname, JSON.stringify(state[cname])); }
+function saveLS(){ if(cname) localStorage.setItem('mra_cluster_'+cname, JSON.stringify({cells:state[cname], surface:surfaceLevel[cname]})); }
 function loadLS(){ if(!cname) return;
-  if(typeof DB!=='undefined' && DB.ready){ state[cname]=state[cname]||{}; return; } // DB is authoritative
-  const s=localStorage.getItem('mra_cluster_'+cname); state[cname]=s?JSON.parse(s):{}; }
+  if(typeof DB!=='undefined' && DB.ready){ state[cname]=state[cname]||{}; return; }
+  const s=localStorage.getItem('mra_cluster_'+cname);
+  if(!s){ state[cname]={}; return; }
+  try{
+    const o=JSON.parse(s);
+    if(o && o.cells){ state[cname]=o.cells; if(o.surface!=null) surfaceLevel[cname]=normLevel(o.surface,1); }
+    else state[cname]=o;
+    // migrate legacy a/b/c keys to integer levels
+    Object.keys(state[cname]||{}).forEach(k=>{
+      const parts=k.split(',');
+      if(parts.length===3 && parts[2] in LEGACY_TO_LV){
+        const nk=parts[0]+','+parts[1]+','+LEGACY_TO_LV[parts[2]];
+        if(!state[cname][nk]) state[cname][nk]=state[cname][k];
+        delete state[cname][k];
+      }
+    });
+  }catch(e){ state[cname]={}; }
+}
+function clusterLevels(){
+  const lv=new Set([0,1,2]);
+  Object.keys(curCells()).forEach(k=>{ const parts=k.split(','); if(parts.length>=3) lv.add(normLevel(parts[2],1)); });
+  const LC=window.LEVEL_CLUSTERS||{};
+  [...(LC.clusters||[]),...(LC.proposed_stacks||[])].forEach(cl=>{
+    if((cl.region||'').toLowerCase()!==cname) return;
+    (cl.floors||[]).forEach(f=>lv.add(+f.level));
+  });
+  return [...lv].sort((a,b)=>a-b);
+}
 
 // ---- grid ----
 const grid=document.getElementById('grid');
@@ -137,26 +179,138 @@ function renderCell(lx,ly,c){
       s.textContent=(st.u?'\u25B2':'')+(st.d?'\u25BC':'');
       s.title='floor transition: '+(st.u?'up ':'')+(st.d?'down':''); c.appendChild(s); } }
 }
-function place(lx,ly,fn){ curCells()[key(lx,ly)]=fn; renderCell(lx,ly); saveLS(); markUsed(); status(); DB.upsert(cname,lx,ly,layer,fn); }
-function clearCell(lx,ly){ delete curCells()[key(lx,ly)]; renderCell(lx,ly); saveLS(); markUsed(); status(); DB.remove(cname,lx,ly,layer); }
+function place(lx,ly,fn){ curCells()[key(lx,ly)]=fn; renderCell(lx,ly); saveLS(); markUsed(); status(); DB.upsert(cname,lx,ly,level,fn); }
+function clearCell(lx,ly){ delete curCells()[key(lx,ly)]; renderCell(lx,ly); saveLS(); markUsed(); status(); DB.remove(cname,lx,ly,level); }
 
-// apply a remote change (id "cluster:lx,ly,layer") without re-broadcasting
 function applyRemote(id, row){
   const [clu, rest] = id.split(':'); if(!rest) return;
-  const [lx,ly,lay] = rest.split(','); const k = lx+','+ly+','+lay;
+  const [lx,ly,lay] = rest.split(','); const lv=normLevel(lay,1);
+  const k = lx+','+ly+','+lv;
   state[clu] = state[clu] || {};
   if(row) state[clu][k] = row.filename; else delete state[clu][k];
-  if(clu===cname && lay===layer){ renderCell(+lx,+ly); markUsed(); status(); }
+  if(clu===cname && lv===level){ renderCell(+lx,+ly); markUsed(); status(); }
 }
 
 // ---- floors ----
 const floorsEl=document.getElementById('floors');
-FLOORS.forEach(f=>{ const b=document.createElement('button'); b.textContent=FLOOR_LABEL[f];
-  if(f===layer) b.classList.add('on');
-  b.onclick=()=>{ layer=f; [...floorsEl.children].forEach(x=>x.classList.remove('on')); b.classList.add('on'); buildGrid(); markUsed(); status(); };
-  floorsEl.appendChild(b); });
+function rebuildFloors(){
+  floorsEl.innerHTML='';
+  clusterLevels().forEach(f=>{
+    const b=document.createElement('button'); b.textContent=levelLabel(f);
+    if(f===level) b.classList.add('on');
+    if(f===(surfaceLevel[cname]??1)) b.style.outline='1px solid #67d67d';
+    b.onclick=()=>{ level=f; rebuildFloors(); buildGrid(); markUsed(); status(); };
+    floorsEl.appendChild(b);
+  });
+  const add=document.createElement('button'); add.textContent='+L'; add.title='Add a floor above the highest';
+  add.onclick=()=>{ const next=Math.max(...clusterLevels())+1; level=next; rebuildFloors(); buildGrid(); };
+  floorsEl.appendChild(add);
+}
+document.getElementById('marksurf').onclick=()=>{
+  if(!cname){ alert('Name the cluster first.'); return; }
+  surfaceLevel[cname]=level; saveLS(); rebuildFloors(); status();
+  alert('Surface floor set to '+levelLabel(level)+'. Non-surface floors are interiors on the Flat canvas.');
+};
+rebuildFloors();
 
-// ---- palette ----
+// ---- level-cluster review panel ----
+const levelPanel=document.getElementById('levelpanel');
+function acceptedKey(id){ return 'mra_level_accepted_'+id; }
+function isAccepted(id){ return localStorage.getItem(acceptedKey(id))==='1'; }
+function setAccepted(id,v){ if(v) localStorage.setItem(acceptedKey(id),'1'); else localStorage.removeItem(acceptedKey(id)); }
+function applyStack(cl, accept){
+  if(!cname){ cname=(cl.region||'').toLowerCase(); document.getElementById('cname').value=cname; }
+  if((cl.region||'').toLowerCase()!==cname && !confirm('Switch cluster to "'+cl.region+'" and load this stack?')) return;
+  cname=(cl.region||cname).toLowerCase(); document.getElementById('cname').value=cname;
+  state[cname]=state[cname]||{};
+  const surf=+((cl.surface_level!=null)?cl.surface_level:0);
+  surfaceLevel[cname]=surf;
+  let maxX=0,maxY=0;
+  (cl.floors||[]).forEach(fl=>{
+    (fl.pieces||[]).forEach(p=>{
+      const lx=+p.dx, ly=+p.dy, lv=+fl.level;
+      state[cname][key(lx,ly,lv)]=p.filename;
+      maxX=Math.max(maxX,lx); maxY=Math.max(maxY,ly);
+      DB.upsert(cname,lx,ly,lv,p.filename);
+    });
+  });
+  cols=Math.max(cols,maxX+2); rows=Math.max(rows,maxY+2);
+  if(accept) setAccepted(cl.id,true);
+  saveLS(); level=surf; rebuildFloors(); buildGrid(); markUsed(); status(); renderLevelPanel();
+}
+function renderLevelPanel(){
+  levelPanel.innerHTML='';
+  const LC=window.LEVEL_CLUSTERS; if(!LC) return;
+  const h=document.createElement('div'); h.className='region'; h.style.cssText='font-size:11px;color:#8b93a3;margin:0 0 4px;border-bottom:1px solid var(--line)';
+  h.textContent='Floor stacks'; levelPanel.appendChild(h);
+  const note=document.createElement('div'); note.className='legend'; note.style.margin='0 0 6px';
+  note.textContent='Accept high-confidence joins, review single-stair options, mark surface.';
+  levelPanel.appendChild(note);
+
+  const auto=(LC.clusters||[]).filter(c=>(c.floors||[]).length>1);
+  const sug=LC.proposed_stacks||[];
+  const rev=LC.review_joins||[];
+
+  function addJoinCard(title, cl, kind){
+    if(isAccepted(cl.id) && kind!=='auto') return;
+    const box=document.createElement('div');
+    box.style.cssText='border:1px solid var(--line);border-radius:6px;padding:6px;margin:0 0 6px;background:#1a1c22';
+    const t=document.createElement('div'); t.style.cssText='font-size:11px;font-weight:600;margin-bottom:4px';
+    t.textContent=title; box.appendChild(t);
+    const floors=(cl.floors||[]).map(f=>'L'+f.level+':'+(f.block_id||'')+' ('+(f.pieces||[]).length+')').join(' | ');
+    const det=document.createElement('div'); det.className='legend'; det.textContent=floors; box.appendChild(det);
+    (cl.joins||[]).forEach(j=>{
+      const ev=document.createElement('div'); ev.className='legend'; ev.style.marginTop='2px';
+      ev.textContent='join n='+j.matches+' ox,oy='+j.ox+','+j.oy
+        +((j.evidence||[]).length?('  stairs: '+(j.evidence||[]).map(e=>e.up_file.replace('.SEC','')+'\u2191'+e.down_file.replace('.SEC','')).join(', ')):'');
+      box.appendChild(ev);
+    });
+    const row=document.createElement('div'); row.style.cssText='display:flex;gap:4px;margin-top:6px;flex-wrap:wrap';
+    const acc=document.createElement('button'); acc.textContent=kind==='auto'?'Load':'Accept';
+    acc.onclick=()=>applyStack(cl,true);
+    const peek=document.createElement('button'); peek.textContent='Review';
+    peek.onclick=()=>{ cname=(cl.region||'').toLowerCase(); document.getElementById('cname').value=cname;
+      document.getElementById('filter').value=cname; buildPalette(cname); alert('Region "'+cname+'" selected. Accept loads both floors onto the grid.'); };
+    row.appendChild(acc); row.appendChild(peek);
+    if(kind!=='auto'){
+      const skip=document.createElement('button'); skip.textContent='Skip';
+      skip.onclick=()=>{ setAccepted(cl.id,true); renderLevelPanel(); };
+      row.appendChild(skip);
+    }
+    box.appendChild(row); levelPanel.appendChild(box);
+  }
+  auto.filter(c=>!cname||c.region.toLowerCase()===cname||!cname).slice(0,8).forEach(cl=>{
+    addJoinCard('AUTO '+cl.region+' ['+cl.confidence+']', cl, 'auto');
+  });
+  sug.filter(c=>!cname||c.region.toLowerCase()===cname||!cname).slice(0,10).forEach(cl=>{
+    addJoinCard('SUGGEST '+cl.region, cl, 'suggest');
+  });
+  // ambiguous review joins as compact list
+  const rlist=rev.filter(j=>!cname||j.below.toLowerCase().includes(cname)||j.above.toLowerCase().includes(cname));
+  if(rlist.length){
+    const rh=document.createElement('div'); rh.className='legend'; rh.style.margin='8px 0 4px';
+    rh.textContent='Ambiguous / single-stair ('+rlist.length+')'; levelPanel.appendChild(rh);
+    rlist.slice(0,12).forEach(j=>{
+      const row=document.createElement('div'); row.style.cssText='font-size:10px;padding:3px 0;border-bottom:1px solid var(--line);color:#c2c7d2';
+      const ev=(j.evidence||[])[0];
+      row.textContent=j.below+' \u2191 '+j.above+' n='+j.matches
+        +(ev?('  '+ev.up_file.replace('.SEC','')+'@'+ev.up_r+','+ev.up_c+' -> '+ev.down_file.replace('.SEC','')):'');
+      levelPanel.appendChild(row);
+    });
+  }
+  if(cname){
+    const acceptAll=document.createElement('button');
+    acceptAll.textContent='Accept all high-confidence for '+cname;
+    acceptAll.style.cssText='width:100%;margin-top:6px;font-size:11px';
+    acceptAll.onclick=()=>{
+      const mine=[...auto,...sug].filter(c=>c.region.toLowerCase()===cname && c.confidence!=='review');
+      if(!mine.length){ alert('No auto/suggest stacks for '+cname); return; }
+      mine.forEach(cl=>applyStack(cl,true));
+    };
+    levelPanel.appendChild(acceptAll);
+  }
+}
+renderLevelPanel();
 const pbody=document.getElementById('pbody'), chipsEl=document.getElementById('chips');
 function buildChips(){
   chipsEl.innerHTML='';
@@ -183,7 +337,7 @@ const pop=document.getElementById('pop');
 function openPop(lx,ly,evt){
   const fn=curCells()[key(lx,ly)];
   pop.innerHTML='';
-  const h=document.createElement('h3'); h.innerHTML='<span class="x2">close</span>cell '+lx+','+ly+' ['+layer+']';
+  const h=document.createElement('h3'); h.innerHTML='<span class="x2">close</span>cell '+lx+','+ly+' ['+levelLabel(level)+']';
   pop.appendChild(h); h.querySelector('.x2').onclick=()=>pop.style.display='none';
   if(fn){ const b=document.createElement('button'); b.textContent='Clear ('+fn.replace('.SEC','')+')'; b.style.width='100%';
     b.onclick=()=>{clearCell(lx,ly);pop.style.display='none';}; pop.appendChild(b); }
@@ -238,8 +392,8 @@ function bucket(idx,hash,distinct){ if(!hash||!distinct) return null; const b=id
 function suggestFor(lx,ly){
   if(!Object.keys(SEAM).length) return [];
   const cells=curCells();
-  const W=SEAM[cells[(lx-1)+','+ly+','+layer]], E=SEAM[cells[(lx+1)+','+ly+','+layer]],
-        N=SEAM[cells[lx+','+(ly-1)+','+layer]], S=SEAM[cells[lx+','+(ly+1)+','+layer]];
+  const W=SEAM[cells[(lx-1)+','+ly+','+level]], E=SEAM[cells[(lx+1)+','+ly+','+level]],
+        N=SEAM[cells[lx+','+(ly-1)+','+level]], S=SEAM[cells[lx+','+(ly+1)+','+level]];
   const cons=[];
   if(W){ const b=bucket(byL,W.r,W.rd); if(b) cons.push(b); }
   if(E){ const b=bucket(byR,E.l,E.ld); if(b) cons.push(b); }
@@ -257,22 +411,29 @@ const DIRS=[['n',0,-1],['s',0,1],['e',1,0],['w',-1,0]];
 function buildLinks(){
   const links=[]; const cells=curCells();
   Object.keys(cells).forEach(k=>{ const [lx,ly,lay]=k.split(','); const F=cells[k];
-    DIRS.forEach(([d,dx,dy])=>{ const nk=(+lx+dx)+','+(+ly+dy)+','+lay; if(cells[nk])
-      links.push({from:F, to:cells[nk], dir:d, layer:lay}); }); });
+    const lv=normLevel(lay,1);
+    DIRS.forEach(([d,dx,dy])=>{ const nk=(+lx+dx)+','+(+ly+dy)+','+lv; if(cells[nk])
+      links.push({from:F, to:cells[nk], dir:d, level:lv, layer:LV_TO_LEGACY[lv]||String(lv)}); }); });
   return links;
 }
 function status(){
   const cells=curCells(); const n=Object.keys(cells).length;
+  const surf=surfaceLevel[cname];
   document.getElementById('status').textContent=
-    cname?`cluster "${cname}": ${n} sectors placed, ${buildLinks().length} edge links (this + other floors). Drag tiles in; adjacency = walkable connection.`
-         :'Type a cluster name (or pick one) to begin. Arrange the interior sectors; touching edges become walkable links.';
+    cname?`cluster "${cname}": ${n} sectors, ${buildLinks().length} edge links, viewing ${levelLabel(level)}`
+      +(surf!=null?`, surface=${levelLabel(surf)}`:'')+'.'
+         :'Type a cluster name (or pick one) to begin. Accept proposed floor stacks from the left panel, or arrange manually.';
 }
 document.getElementById('export').onclick=()=>{
   if(!cname){ alert('Name the cluster first.'); return; }
   const cells=curCells();
-  const placements=Object.entries(cells).map(([k,fn])=>{ const [lx,ly,lay]=k.split(','); return {filename:fn, lx:+lx, ly:+ly, layer:lay}; });
-  const out={ cluster:cname, cols, rows, placements, links:buildLinks(),
-    _note:'Interior stitching: links list walkable edges between adjacent sectors. dir is the edge of `from` that leads to `to`. Original MeNo stitching is unrecoverable; this is a community-defined layout.' };
+  const surf=surfaceLevel[cname]!=null?surfaceLevel[cname]:Math.min(...clusterLevels());
+  const placements=Object.entries(cells).map(([k,fn])=>{
+    const [lx,ly,lay]=k.split(','); const lv=normLevel(lay,1);
+    return {filename:fn, lx:+lx, ly:+ly, level:lv, layer:LV_TO_LEGACY[lv]||String(lv), surface:lv===surf};
+  });
+  const out={ cluster:cname, cols, rows, surface_level:surf, placements, links:buildLinks(),
+    _note:'Interior stitching with integer levels (0=lowest). surface_level belongs on the Flat canvas; other floors are interiors. up/down prefer stair evidence when compiled by build_clusters.py.' };
   const blob=new Blob([JSON.stringify(out,null,1)],{type:'application/json'});
   const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='cluster_'+cname+'.json'; a.click();
 };
@@ -282,8 +443,13 @@ document.getElementById('importfile').addEventListener('change',e=>{
   rd.onload=()=>{ try{ const o=JSON.parse(rd.result);
     cname=o.cluster||cname; document.getElementById('cname').value=cname;
     cols=o.cols||cols; rows=o.rows||rows;
-    state[cname]={}; (o.placements||[]).forEach(p=>{ state[cname][p.lx+','+p.ly+','+(p.layer||'b')]=p.filename; });
-    saveLS(); buildGrid(); markUsed(); status();
+    if(o.surface_level!=null) surfaceLevel[cname]=normLevel(o.surface_level,1);
+    state[cname]={};
+    (o.placements||[]).forEach(p=>{
+      const lv=p.level!=null?normLevel(p.level,1):normLevel(p.layer||'b',1);
+      state[cname][p.lx+','+p.ly+','+lv]=p.filename;
+    });
+    saveLS(); rebuildFloors(); buildGrid(); markUsed(); status(); renderLevelPanel();
   }catch(err){ alert('Bad JSON: '+err); } };
   rd.readAsText(f);
 });
@@ -297,7 +463,7 @@ buildClusterList();
 const cnameEl=document.getElementById('cname');
 cnameEl.addEventListener('change',()=>{ cname=cnameEl.value.trim().toLowerCase(); loadLS();
   if(cname && Object.keys(curCells()).length===0){ document.getElementById('filter').value=cname; }
-  buildPalette(document.getElementById('filter').value); buildGrid(); markUsed(); status(); });
+  rebuildFloors(); buildPalette(document.getElementById('filter').value); buildGrid(); markUsed(); status(); renderLevelPanel(); });
 document.getElementById('filter').addEventListener('input',e=>buildPalette(e.target.value));
 document.getElementById('coordtoggle').addEventListener('change',e=>{ INCLUDE_COORD=e.target.checked;
   buildClusterList(); buildChips(); buildPalette(document.getElementById('filter').value); });
@@ -335,11 +501,13 @@ const DB = {
       if(cname){ buildGrid(); markUsed(); status(); }
     }catch(e){ this.ready=false; this.st('connect failed'); console.error(e); }
   },
-  upsert(clu,lx,ly,lay,filename){ if(!this.ready||!clu) return;
+  upsert(clu,lx,ly,lv,filename){ if(!this.ready||!clu) return;
+    const lay=LV_TO_LEGACY[lv]||String(lv);
     this.client.from(TABLE).upsert({id:clu+':'+lx+','+ly+','+lay, cluster:clu, lx, ly, layer:lay,
       filename, updated_by:this.name, updated_at:new Date().toISOString()})
       .then(({error})=>{ if(error) console.error(error); }); },
-  remove(clu,lx,ly,lay){ if(!this.ready||!clu) return;
+  remove(clu,lx,ly,lv){ if(!this.ready||!clu) return;
+    const lay=LV_TO_LEGACY[lv]||String(lv);
     this.client.from(TABLE).delete().eq('id',clu+':'+lx+','+ly+','+lay)
       .then(({error})=>{ if(error) console.error(error); }); },
 };

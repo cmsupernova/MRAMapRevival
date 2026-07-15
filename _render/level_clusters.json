@@ -1,0 +1,7256 @@
+{
+ "clusters": [
+  {
+   "id": "DTN and DTS#1@0",
+   "region": "DTN and DTS",
+   "surface_level": 0,
+   "confidence": "flat",
+   "floors": [
+    {
+     "level": 0,
+     "block_id": "DTN and DTS#1",
+     "dx": 0,
+     "dy": 0,
+     "pieces": [
+      {
+       "filename": "dtneast.SEC",
+       "dx": 1,
+       "dy": 0,
+       "dz": 0
+      },
+      {
+       "filename": "dtseast.SEC",
+       "dx": 1,
+       "dy": 1,
+       "dz": 0
+      },
+      {
+       "filename": "dtssoutheast.SEC",
+       "dx": 1,
+       "dy": 2,
+       "dz": 0
+      },
+      {
+       "filename": "dtswest.SEC",
+       "dx": 0,
+       "dy": 1,
+       "dz": 0
+      },
+      {
+       "filename": "dtwb2.SEC",
+       "dx": 0,
+       "dy": 2,
+       "dz": 0
+      }
+     ]
+    }
+   ],
+   "joins": [],
+   "one_sided": [
+    {
+     "block": "DTN and DTS#1",
+     "kind": "up",
+     "n": 1,
+     "cells": [
+      {
+       "file": "dtswest.SEC",
+       "r": 17,
+       "c": 27
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "GobCavE#1@0",
+   "region": "GobCavE",
+   "surface_level": 0,
+   "confidence": "flat",
+   "floors": [
+    {
+     "level": 0,
+     "block_id": "GobCavE#1",
+     "dx": 0,
+     "dy": 0,
+     "pieces": [
+      {
+       "filename": "gobcavemiddle.SEC",
+       "dx": 1,
+       "dy": 1,
+       "dz": 0
+      },
+      {
+       "filename": "gobcavenorth.SEC",
+       "dx": 1,
+       "dy": 0,
+       "dz": 0
+      },
+      {
+       "filename": "gobcavesouth.SEC",
+       "dx": 1,
+       "dy": 2,
+       "dz": 0
+      },
+      {
+       "filename": "gobcavesw.SEC",
+       "dx": 0,
+       "dy": 2,
+       "dz": 0
+      }
+     ]
+    }
+   ],
+   "joins": [],
+   "one_sided": [
+    {
+     "block": "GobCavE#1",
+     "kind": "down",
+     "n": 2,
+     "cells": [
+      {
+       "file": "gobcavesouth.SEC",
+       "r": 18,
+       "c": 0
+      },
+      {
+       "file": "gobcavesw.SEC",
+       "r": 18,
+       "c": 31
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "GobCavE/solo#1@0",
+   "region": "GobCavE",
+   "surface_level": 0,
+   "confidence": "flat",
+   "floors": [
+    {
+     "level": 0,
+     "block_id": "GobCavE/solo#1",
+     "dx": 0,
+     "dy": 0,
+     "pieces": [
+      {
+       "filename": "gobasn.SEC",
+       "dx": 0,
+       "dy": 0,
+       "dz": 0
+      }
+     ]
+    }
+   ],
+   "joins": [],
+   "one_sided": [
+    {
+     "block": "GobCavE/solo#1",
+     "kind": "up",
+     "n": 1,
+     "cells": [
+      {
+       "file": "gobasn.SEC",
+       "r": 27,
+       "c": 5
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "GobTun#1@0",
+   "region": "GobTun",
+   "surface_level": 0,
+   "confidence": "flat",
+   "floors": [
+    {
+     "level": 0,
+     "block_id": "GobTun#1",
+     "dx": 0,
+     "dy": 0,
+     "pieces": [
+      {
+       "filename": "gobtun4.SEC",
+       "dx": 0,
+       "dy": 0,
+       "dz": 0
+      },
+      {
+       "filename": "gobtun5.SEC",
+       "dx": 0,
+       "dy": 1,
+       "dz": 0
+      },
+      {
+       "filename": "gobtun6.SEC",
+       "dx": 1,
+       "dy": 1,
+       "dz": 0
+      },
+      {
+       "filename": "gobtun7.SEC",
+       "dx": 1,
+       "dy": 0,
+       "dz": 0
+      }
+     ]
+    }
+   ],
+   "joins": [],
+   "one_sided": []
+  },
+  {
+   "id": "GobTun#2@0",
+   "region": "GobTun",
+   "surface_level": 0,
+   "confidence": "flat",
+   "floors": [
+    {
+     "level": 0,
+     "block_id": "GobTun#2",
+     "dx": 0,
+     "dy": 0,
+     "pieces": [
+      {
+       "filename": "gobtun1.SEC",
+       "dx": 0,
+       "dy": 2,
+       "dz": 0
+      },
+      {
+       "filename": "gobtun2.SEC",
+       "dx": 0,
+       "dy": 1,
+       "dz": 0
+      },
+      {
+       "filename": "gobtun3.SEC",
+       "dx": 0,
+       "dy": 0,
+       "dz": 0
+      }
+     ]
+    }
+   ],
+   "joins": [],
+   "one_sided": []
+  },
+  {
+   "id": "Hobs#1@0",
+   "region": "Hobs",
+   "surface_level": 0,
+   "confidence": "flat",
+   "floors": [
+    {
+     "level": 0,
+     "block_id": "Hobs#1",
+     "dx": 0,
+     "dy": 0,
+     "pieces": [
+      {
+       "filename": "thf1.SEC",
+       "dx": 2,
+       "dy": 3,
+       "dz": 0
+      },
+      {
+       "filename": "thf1north.SEC",
+       "dx": 2,
+       "dy": 2,
+       "dz": 0
+      },
+      {
+       "filename": "thf2.SEC",
+       "dx": 1,
+       "dy": 3,
+       "dz": 0
+      },
+      {
+       "filename": "thf2west.SEC",
+       "dx": 0,
+       "dy": 3,
+       "dz": 0
+      },
+      {
+       "filename": "thf3.SEC",
+       "dx": 1,
+       "dy": 2,
+       "dz": 0
+      },
+      {
+       "filename": "thf3west.SEC",
+       "dx": 0,
+       "dy": 2,
+       "dz": 0
+      },
+      {
+       "filename": "thfac.SEC",
+       "dx": 1,
+       "dy": 1,
+       "dz": 0
+      },
+      {
+       "filename": "thfac1.SEC",
+       "dx": 2,
+       "dy": 1,
+       "dz": 0
+      },
+      {
+       "filename": "thfac1east.SEC",
+       "dx": 3,
+       "dy": 1,
+       "dz": 0
+      },
+      {
+       "filename": "thfac1ne.SEC",
+       "dx": 3,
+       "dy": 0,
+       "dz": 0
+      },
+      {
+       "filename": "thfac1north.SEC",
+       "dx": 2,
+       "dy": 0,
+       "dz": 0
+      },
+      {
+       "filename": "thfacnorth.SEC",
+       "dx": 1,
+       "dy": 0,
+       "dz": 0
+      },
+      {
+       "filename": "thfacnw.SEC",
+       "dx": 0,
+       "dy": 0,
+       "dz": 0
+      },
+      {
+       "filename": "thfacwest.SEC",
+       "dx": 0,
+       "dy": 1,
+       "dz": 0
+      }
+     ]
+    }
+   ],
+   "joins": [],
+   "one_sided": [
+    {
+     "block": "Hobs#1",
+     "kind": "up",
+     "n": 7,
+     "cells": [
+      {
+       "file": "thf3.SEC",
+       "r": 8,
+       "c": 6
+      },
+      {
+       "file": "thf3.SEC",
+       "r": 8,
+       "c": 21
+      },
+      {
+       "file": "thf3.SEC",
+       "r": 17,
+       "c": 6
+      },
+      {
+       "file": "thf3.SEC",
+       "r": 17,
+       "c": 21
+      },
+      {
+       "file": "thfac.SEC",
+       "r": 26,
+       "c": 11
+      },
+      {
+       "file": "thfac1.SEC",
+       "r": 28,
+       "c": 31
+      },
+      {
+       "file": "thfac1east.SEC",
+       "r": 28,
+       "c": 0
+      }
+     ]
+    },
+    {
+     "block": "Hobs#1",
+     "kind": "down",
+     "n": 1,
+     "cells": [
+      {
+       "file": "thfac1.SEC",
+       "r": 28,
+       "c": 24
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "Kokas#1@0",
+   "region": "Kokas",
+   "surface_level": 0,
+   "confidence": "flat",
+   "floors": [
+    {
+     "level": 0,
+     "block_id": "Kokas#1",
+     "dx": 0,
+     "dy": 0,
+     "pieces": [
+      {
+       "filename": "kofor.SEC",
+       "dx": 1,
+       "dy": 0,
+       "dz": 0
+      },
+      {
+       "filename": "kokas1.SEC",
+       "dx": 0,
+       "dy": 0,
+       "dz": 0
+      }
+     ]
+    }
+   ],
+   "joins": [],
+   "one_sided": []
+  },
+  {
+   "id": "Krell#1@0",
+   "region": "Krell",
+   "surface_level": 0,
+   "confidence": "flat",
+   "floors": [
+    {
+     "level": 0,
+     "block_id": "Krell#1",
+     "dx": 0,
+     "dy": 0,
+     "pieces": [
+      {
+       "filename": "krell1.SEC",
+       "dx": 1,
+       "dy": 3,
+       "dz": 0
+      },
+      {
+       "filename": "krell10.SEC",
+       "dx": 3,
+       "dy": 0,
+       "dz": 0
+      },
+      {
+       "filename": "krell13.SEC",
+       "dx": 2,
+       "dy": 0,
+       "dz": 0
+      },
+      {
+       "filename": "krell14.SEC",
+       "dx": 1,
+       "dy": 0,
+       "dz": 0
+      },
+      {
+       "filename": "krell15.SEC",
+       "dx": 0,
+       "dy": 1,
+       "dz": 0
+      },
+      {
+       "filename": "krell16.SEC",
+       "dx": 0,
+       "dy": 2,
+       "dz": 0
+      },
+      {
+       "filename": "krell17.SEC",
+       "dx": 0,
+       "dy": 3,
+       "dz": 0
+      },
+      {
+       "filename": "krell2.SEC",
+       "dx": 2,
+       "dy": 3,
+       "dz": 0
+      },
+      {
+       "filename": "krell3.SEC",
+       "dx": 3,
+       "dy": 3,
+       "dz": 0
+      },
+      {
+       "filename": "krell4.SEC",
+       "dx": 3,
+       "dy": 2,
+       "dz": 0
+      },
+      {
+       "filename": "krell5.SEC",
+       "dx": 2,
+       "dy": 2,
+       "dz": 0
+      },
+      {
+       "filename": "krell6.SEC",
+       "dx": 1,
+       "dy": 2,
+       "dz": 0
+      },
+      {
+       "filename": "krell7.SEC",
+       "dx": 3,
+       "dy": 1,
+       "dz": 0
+      },
+      {
+       "filename": "krell8.SEC",
+       "dx": 2,
+       "dy": 1,
+       "dz": 0
+      },
+      {
+       "filename": "krell9.SEC",
+       "dx": 1,
+       "dy": 1,
+       "dz": 0
+      }
+     ]
+    }
+   ],
+   "joins": [],
+   "one_sided": [
+    {
+     "block": "Krell#1",
+     "kind": "up",
+     "n": 14,
+     "cells": [
+      {
+       "file": "krell1.SEC",
+       "r": 1,
+       "c": 27
+      },
+      {
+       "file": "krell1.SEC",
+       "r": 7,
+       "c": 27
+      },
+      {
+       "file": "krell1.SEC",
+       "r": 13,
+       "c": 27
+      },
+      {
+       "file": "krell1.SEC",
+       "r": 19,
+       "c": 27
+      },
+      {
+       "file": "krell1.SEC",
+       "r": 24,
+       "c": 3
+      },
+      {
+       "file": "krell1.SEC",
+       "r": 24,
+       "c": 20
+      },
+      {
+       "file": "krell16.SEC",
+       "r": 26,
+       "c": 27
+      },
+      {
+       "file": "krell17.SEC",
+       "r": 1,
+       "c": 27
+      },
+      {
+       "file": "krell17.SEC",
+       "r": 7,
+       "c": 27
+      },
+      {
+       "file": "krell17.SEC",
+       "r": 13,
+       "c": 27
+      },
+      {
+       "file": "krell17.SEC",
+       "r": 19,
+       "c": 27
+      },
+      {
+       "file": "krell6.SEC",
+       "r": 26,
+       "c": 9
+      },
+      {
+       "file": "krell6.SEC",
+       "r": 26,
+       "c": 14
+      },
+      {
+       "file": "krell6.SEC",
+       "r": 26,
+       "c": 27
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "Krell#2@0",
+   "region": "Krell",
+   "surface_level": 0,
+   "confidence": "flat",
+   "floors": [
+    {
+     "level": 0,
+     "block_id": "Krell#2",
+     "dx": 0,
+     "dy": 0,
+     "pieces": [
+      {
+       "filename": "krellgraveyard1.SEC",
+       "dx": 0,
+       "dy": 0,
+       "dz": 0
+      },
+      {
+       "filename": "krellgraveyard2.SEC",
+       "dx": 0,
+       "dy": 1,
+       "dz": 0
+      },
+      {
+       "filename": "krellgraveyard3.SEC",
+       "dx": 1,
+       "dy": 0,
+       "dz": 0
+      },
+      {
+       "filename": "krellgraveyard4.SEC",
+       "dx": 1,
+       "dy": 1,
+       "dz": 0
+      }
+     ]
+    }
+   ],
+   "joins": [],
+   "one_sided": []
+  },
+  {
+   "id": "Krell#3@0",
+   "region": "Krell",
+   "surface_level": 0,
+   "confidence": "flat",
+   "floors": [
+    {
+     "level": 0,
+     "block_id": "Krell#3",
+     "dx": 0,
+     "dy": 0,
+     "pieces": [
+      {
+       "filename": "krellclericsnorth.SEC",
+       "dx": 0,
+       "dy": 0,
+       "dz": 0
+      },
+      {
+       "filename": "krellclericssouth.SEC",
+       "dx": 0,
+       "dy": 1,
+       "dz": 0
+      }
+     ]
+    }
+   ],
+   "joins": [],
+   "one_sided": []
+  },
+  {
+   "id": "Krell#4@0",
+   "region": "Krell",
+   "surface_level": 0,
+   "confidence": "flat",
+   "floors": [
+    {
+     "level": 0,
+     "block_id": "Krell#4",
+     "dx": 0,
+     "dy": 0,
+     "pieces": [
+      {
+       "filename": "krellmagesnorth.SEC",
+       "dx": 0,
+       "dy": 0,
+       "dz": 0
+      },
+      {
+       "filename": "krellmagessouth.SEC",
+       "dx": 0,
+       "dy": 1,
+       "dz": 0
+      }
+     ]
+    }
+   ],
+   "joins": [],
+   "one_sided": []
+  },
+  {
+   "id": "Towns/Baralza/solo#2@0",
+   "region": "Towns/Baralza",
+   "surface_level": 0,
+   "confidence": "flat",
+   "floors": [
+    {
+     "level": 0,
+     "block_id": "Towns/Baralza/solo#2",
+     "dx": 0,
+     "dy": 0,
+     "pieces": [
+      {
+       "filename": "baralzasouth.SEC",
+       "dx": 0,
+       "dy": 0,
+       "dz": 0
+      }
+     ]
+    }
+   ],
+   "joins": [],
+   "one_sided": [
+    {
+     "block": "Towns/Baralza/solo#2",
+     "kind": "up",
+     "n": 2,
+     "cells": [
+      {
+       "file": "baralzasouth.SEC",
+       "r": 14,
+       "c": 28
+      },
+      {
+       "file": "baralzasouth.SEC",
+       "r": 30,
+       "c": 28
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "Towns/Clysmort#1@0",
+   "region": "Towns/Clysmort",
+   "surface_level": 0,
+   "confidence": "flat",
+   "floors": [
+    {
+     "level": 0,
+     "block_id": "Towns/Clysmort#1",
+     "dx": 0,
+     "dy": 0,
+     "pieces": [
+      {
+       "filename": "clysmort1.SEC",
+       "dx": 0,
+       "dy": 0,
+       "dz": 0
+      },
+      {
+       "filename": "clysmort2.SEC",
+       "dx": 1,
+       "dy": 0,
+       "dz": 0
+      },
+      {
+       "filename": "clysmort3.SEC",
+       "dx": 2,
+       "dy": 0,
+       "dz": 0
+      },
+      {
+       "filename": "clysmort4.SEC",
+       "dx": 0,
+       "dy": 1,
+       "dz": 0
+      },
+      {
+       "filename": "clysmort5.SEC",
+       "dx": 1,
+       "dy": 1,
+       "dz": 0
+      },
+      {
+       "filename": "clysmort6.SEC",
+       "dx": 2,
+       "dy": 1,
+       "dz": 0
+      },
+      {
+       "filename": "clysmort7.SEC",
+       "dx": 0,
+       "dy": 2,
+       "dz": 0
+      },
+      {
+       "filename": "clysmort8.SEC",
+       "dx": 1,
+       "dy": 2,
+       "dz": 0
+      }
+     ]
+    }
+   ],
+   "joins": [],
+   "one_sided": []
+  },
+  {
+   "id": "Towns/Haven#1@0",
+   "region": "Towns/Haven",
+   "surface_level": 0,
+   "confidence": "flat",
+   "floors": [
+    {
+     "level": 0,
+     "block_id": "Towns/Haven#1",
+     "dx": 0,
+     "dy": 0,
+     "pieces": [
+      {
+       "filename": "haven1.SEC",
+       "dx": 0,
+       "dy": 2,
+       "dz": 0
+      },
+      {
+       "filename": "haven2.SEC",
+       "dx": 1,
+       "dy": 2,
+       "dz": 0
+      },
+      {
+       "filename": "haven3.SEC",
+       "dx": 2,
+       "dy": 2,
+       "dz": 0
+      },
+      {
+       "filename": "haven4.SEC",
+       "dx": 3,
+       "dy": 2,
+       "dz": 0
+      },
+      {
+       "filename": "haven5.SEC",
+       "dx": 0,
+       "dy": 1,
+       "dz": 0
+      },
+      {
+       "filename": "haven6.SEC",
+       "dx": 1,
+       "dy": 1,
+       "dz": 0
+      },
+      {
+       "filename": "haven7.SEC",
+       "dx": 2,
+       "dy": 1,
+       "dz": 0
+      },
+      {
+       "filename": "haven8.SEC",
+       "dx": 3,
+       "dy": 1,
+       "dz": 0
+      },
+      {
+       "filename": "haven9.SEC",
+       "dx": 0,
+       "dy": 0,
+       "dz": 0
+      }
+     ]
+    }
+   ],
+   "joins": [],
+   "one_sided": [
+    {
+     "block": "Towns/Haven#1",
+     "kind": "up",
+     "n": 2,
+     "cells": [
+      {
+       "file": "haven1.SEC",
+       "r": 5,
+       "c": 25
+      },
+      {
+       "file": "haven5.SEC",
+       "r": 29,
+       "c": 6
+      }
+     ]
+    },
+    {
+     "block": "Towns/Haven#1",
+     "kind": "down",
+     "n": 1,
+     "cells": [
+      {
+       "file": "haven5.SEC",
+       "r": 28,
+       "c": 2
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "Towns/Salazad#1@0",
+   "region": "Towns/Salazad",
+   "surface_level": 0,
+   "confidence": "flat",
+   "floors": [
+    {
+     "level": 0,
+     "block_id": "Towns/Salazad#1",
+     "dx": 0,
+     "dy": 0,
+     "pieces": [
+      {
+       "filename": "sal1.SEC",
+       "dx": 0,
+       "dy": 2,
+       "dz": 0
+      },
+      {
+       "filename": "sal10.SEC",
+       "dx": 4,
+       "dy": 1,
+       "dz": 0
+      },
+      {
+       "filename": "sal11.SEC",
+       "dx": 5,
+       "dy": 1,
+       "dz": 0
+      },
+      {
+       "filename": "sal12.SEC",
+       "dx": 2,
+       "dy": 0,
+       "dz": 0
+      },
+      {
+       "filename": "sal13.SEC",
+       "dx": 3,
+       "dy": 0,
+       "dz": 0
+      },
+      {
+       "filename": "sal14.SEC",
+       "dx": 4,
+       "dy": 0,
+       "dz": 0
+      },
+      {
+       "filename": "sal15.SEC",
+       "dx": 5,
+       "dy": 0,
+       "dz": 0
+      },
+      {
+       "filename": "sal16.SEC",
+       "dx": 2,
+       "dy": 3,
+       "dz": 0
+      },
+      {
+       "filename": "sal17.SEC",
+       "dx": 3,
+       "dy": 3,
+       "dz": 0
+      },
+      {
+       "filename": "sal18.SEC",
+       "dx": 4,
+       "dy": 3,
+       "dz": 0
+      },
+      {
+       "filename": "sal19.SEC",
+       "dx": 5,
+       "dy": 3,
+       "dz": 0
+      },
+      {
+       "filename": "sal2.SEC",
+       "dx": 1,
+       "dy": 2,
+       "dz": 0
+      },
+      {
+       "filename": "sal3.SEC",
+       "dx": 2,
+       "dy": 2,
+       "dz": 0
+      },
+      {
+       "filename": "sal4.SEC",
+       "dx": 3,
+       "dy": 2,
+       "dz": 0
+      },
+      {
+       "filename": "sal5.SEC",
+       "dx": 4,
+       "dy": 2,
+       "dz": 0
+      },
+      {
+       "filename": "sal6.SEC",
+       "dx": 5,
+       "dy": 2,
+       "dz": 0
+      },
+      {
+       "filename": "sal8.SEC",
+       "dx": 2,
+       "dy": 1,
+       "dz": 0
+      },
+      {
+       "filename": "sal9.SEC",
+       "dx": 3,
+       "dy": 1,
+       "dz": 0
+      }
+     ]
+    }
+   ],
+   "joins": [],
+   "one_sided": [
+    {
+     "block": "Towns/Salazad#1",
+     "kind": "up",
+     "n": 8,
+     "cells": [
+      {
+       "file": "sal10.SEC",
+       "r": 30,
+       "c": 16
+      },
+      {
+       "file": "sal4.SEC",
+       "r": 3,
+       "c": 13
+      },
+      {
+       "file": "sal4.SEC",
+       "r": 11,
+       "c": 13
+      },
+      {
+       "file": "sal4.SEC",
+       "r": 21,
+       "c": 13
+      },
+      {
+       "file": "sal4.SEC",
+       "r": 22,
+       "c": 18
+      },
+      {
+       "file": "sal4.SEC",
+       "r": 22,
+       "c": 25
+      },
+      {
+       "file": "sal5.SEC",
+       "r": 1,
+       "c": 22
+      },
+      {
+       "file": "sal5.SEC",
+       "r": 24,
+       "c": 25
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "Towns/Sanctuary#1@0",
+   "region": "Towns/Sanctuary",
+   "surface_level": 0,
+   "confidence": "flat",
+   "floors": [
+    {
+     "level": 0,
+     "block_id": "Towns/Sanctuary#1",
+     "dx": 0,
+     "dy": 0,
+     "pieces": [
+      {
+       "filename": "sanctuary1.SEC",
+       "dx": 0,
+       "dy": 0,
+       "dz": 0
+      },
+      {
+       "filename": "sanctuary2.SEC",
+       "dx": 1,
+       "dy": 0,
+       "dz": 0
+      },
+      {
+       "filename": "sanctuary3.SEC",
+       "dx": 0,
+       "dy": 1,
+       "dz": 0
+      },
+      {
+       "filename": "sanctuary4.SEC",
+       "dx": 1,
+       "dy": 1,
+       "dz": 0
+      }
+     ]
+    }
+   ],
+   "joins": [],
+   "one_sided": [
+    {
+     "block": "Towns/Sanctuary#1",
+     "kind": "down",
+     "n": 2,
+     "cells": [
+      {
+       "file": "sanctuary1.SEC",
+       "r": 31,
+       "c": 7
+      },
+      {
+       "file": "sanctuary3.SEC",
+       "r": 0,
+       "c": 7
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "Towns/Uswick#1@0",
+   "region": "Towns/Uswick",
+   "surface_level": 0,
+   "confidence": "flat",
+   "floors": [
+    {
+     "level": 0,
+     "block_id": "Towns/Uswick#1",
+     "dx": 0,
+     "dy": 0,
+     "pieces": [
+      {
+       "filename": "uswick1.SEC",
+       "dx": 0,
+       "dy": 0,
+       "dz": 0
+      },
+      {
+       "filename": "uswick10.SEC",
+       "dx": 1,
+       "dy": 2,
+       "dz": 0
+      },
+      {
+       "filename": "uswick11.SEC",
+       "dx": 2,
+       "dy": 2,
+       "dz": 0
+      },
+      {
+       "filename": "uswick13.SEC",
+       "dx": 0,
+       "dy": 3,
+       "dz": 0
+      },
+      {
+       "filename": "uswick14.SEC",
+       "dx": 1,
+       "dy": 3,
+       "dz": 0
+      },
+      {
+       "filename": "uswick2.SEC",
+       "dx": 1,
+       "dy": 0,
+       "dz": 0
+      },
+      {
+       "filename": "uswick5.SEC",
+       "dx": 0,
+       "dy": 1,
+       "dz": 0
+      },
+      {
+       "filename": "uswick6.SEC",
+       "dx": 1,
+       "dy": 1,
+       "dz": 0
+      },
+      {
+       "filename": "uswick7.SEC",
+       "dx": 2,
+       "dy": 1,
+       "dz": 0
+      },
+      {
+       "filename": "uswick9.SEC",
+       "dx": 0,
+       "dy": 2,
+       "dz": 0
+      }
+     ]
+    }
+   ],
+   "joins": [],
+   "one_sided": []
+  },
+  {
+   "id": "Towns/Verbonic#1@0",
+   "region": "Towns/Verbonic",
+   "surface_level": 0,
+   "confidence": "flat",
+   "floors": [
+    {
+     "level": 0,
+     "block_id": "Towns/Verbonic#1",
+     "dx": 0,
+     "dy": 0,
+     "pieces": [
+      {
+       "filename": "verbonic1.SEC",
+       "dx": 0,
+       "dy": 0,
+       "dz": 0
+      },
+      {
+       "filename": "verbonic2.SEC",
+       "dx": 1,
+       "dy": 0,
+       "dz": 0
+      },
+      {
+       "filename": "verbonic3.SEC",
+       "dx": 2,
+       "dy": 0,
+       "dz": 0
+      },
+      {
+       "filename": "verbonic5.SEC",
+       "dx": 0,
+       "dy": 1,
+       "dz": 0
+      },
+      {
+       "filename": "verbonic6.SEC",
+       "dx": 1,
+       "dy": 1,
+       "dz": 0
+      },
+      {
+       "filename": "verbonic7.SEC",
+       "dx": 2,
+       "dy": 1,
+       "dz": 0
+      }
+     ]
+    }
+   ],
+   "joins": [],
+   "one_sided": []
+  },
+  {
+   "id": "aph#1@0",
+   "region": "aph",
+   "surface_level": 0,
+   "confidence": "flat",
+   "floors": [
+    {
+     "level": 0,
+     "block_id": "aph#1",
+     "dx": 0,
+     "dy": 0,
+     "pieces": [
+      {
+       "filename": "aph2.SEC",
+       "dx": 0,
+       "dy": 1,
+       "dz": 0
+      },
+      {
+       "filename": "aph3.SEC",
+       "dx": 1,
+       "dy": 1,
+       "dz": 0
+      },
+      {
+       "filename": "aph5.SEC",
+       "dx": 0,
+       "dy": 0,
+       "dz": 0
+      },
+      {
+       "filename": "aph6.SEC",
+       "dx": 1,
+       "dy": 0,
+       "dz": 0
+      }
+     ]
+    }
+   ],
+   "joins": [],
+   "one_sided": [
+    {
+     "block": "aph#1",
+     "kind": "up",
+     "n": 2,
+     "cells": [
+      {
+       "file": "aph2.SEC",
+       "r": 1,
+       "c": 28
+      },
+      {
+       "file": "aph2.SEC",
+       "r": 28,
+       "c": 28
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "aph#2@0",
+   "region": "aph",
+   "surface_level": 0,
+   "confidence": "flat",
+   "floors": [
+    {
+     "level": 0,
+     "block_id": "aph#2",
+     "dx": 0,
+     "dy": 0,
+     "pieces": [
+      {
+       "filename": "aph1.SEC",
+       "dx": 0,
+       "dy": 1,
+       "dz": 0
+      },
+      {
+       "filename": "aph4.SEC",
+       "dx": 0,
+       "dy": 0,
+       "dz": 0
+      }
+     ]
+    }
+   ],
+   "joins": [],
+   "one_sided": [
+    {
+     "block": "aph#2",
+     "kind": "up",
+     "n": 1,
+     "cells": [
+      {
+       "file": "aph1.SEC",
+       "r": 29,
+       "c": 2
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "bredery#1@0",
+   "region": "bredery",
+   "surface_level": 0,
+   "confidence": "flat",
+   "floors": [
+    {
+     "level": 0,
+     "block_id": "bredery#1",
+     "dx": 0,
+     "dy": 0,
+     "pieces": [
+      {
+       "filename": "breedery.SEC",
+       "dx": 0,
+       "dy": 1,
+       "dz": 0
+      },
+      {
+       "filename": "breederyeast.SEC",
+       "dx": 1,
+       "dy": 1,
+       "dz": 0
+      },
+      {
+       "filename": "breederyne.SEC",
+       "dx": 1,
+       "dy": 0,
+       "dz": 0
+      },
+      {
+       "filename": "breederynorth.SEC",
+       "dx": 0,
+       "dy": 0,
+       "dz": 0
+      }
+     ]
+    }
+   ],
+   "joins": [],
+   "one_sided": [
+    {
+     "block": "bredery#1",
+     "kind": "up",
+     "n": 1,
+     "cells": [
+      {
+       "file": "breedery.SEC",
+       "r": 27,
+       "c": 1
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "bredery#2@0",
+   "region": "bredery",
+   "surface_level": 0,
+   "confidence": "flat",
+   "floors": [
+    {
+     "level": 0,
+     "block_id": "bredery#2",
+     "dx": 0,
+     "dy": 0,
+     "pieces": [
+      {
+       "filename": "breedery2.SEC",
+       "dx": 0,
+       "dy": 1,
+       "dz": 0
+      },
+      {
+       "filename": "breedery2east.SEC",
+       "dx": 1,
+       "dy": 1,
+       "dz": 0
+      },
+      {
+       "filename": "breedery2north.SEC",
+       "dx": 0,
+       "dy": 0,
+       "dz": 0
+      },
+      {
+       "filename": "breedery2northeast.SEC",
+       "dx": 1,
+       "dy": 0,
+       "dz": 0
+      }
+     ]
+    }
+   ],
+   "joins": [],
+   "one_sided": []
+  },
+  {
+   "id": "dhaza#1@0",
+   "region": "dhaza",
+   "surface_level": 0,
+   "confidence": "flat",
+   "floors": [
+    {
+     "level": 0,
+     "block_id": "dhaza#1",
+     "dx": 0,
+     "dy": 0,
+     "pieces": [
+      {
+       "filename": "dz1ne.SEC",
+       "dx": 4,
+       "dy": 0,
+       "dz": 0
+      },
+      {
+       "filename": "dz1nw.SEC",
+       "dx": 3,
+       "dy": 0,
+       "dz": 0
+      },
+      {
+       "filename": "dz1se.SEC",
+       "dx": 4,
+       "dy": 1,
+       "dz": 0
+      },
+      {
+       "filename": "dz1sw.SEC",
+       "dx": 3,
+       "dy": 1,
+       "dz": 0
+      },
+      {
+       "filename": "dz2n.SEC",
+       "dx": 2,
+       "dy": 0,
+       "dz": 0
+      },
+      {
+       "filename": "dz2s.SEC",
+       "dx": 2,
+       "dy": 1,
+       "dz": 0
+      },
+      {
+       "filename": "dz3n.SEC",
+       "dx": 1,
+       "dy": 0,
+       "dz": 0
+      },
+      {
+       "filename": "dz3nw.SEC",
+       "dx": 0,
+       "dy": 0,
+       "dz": 0
+      },
+      {
+       "filename": "dz3s.SEC",
+       "dx": 1,
+       "dy": 1,
+       "dz": 0
+      },
+      {
+       "filename": "dz3sw.SEC",
+       "dx": 0,
+       "dy": 1,
+       "dz": 0
+      }
+     ]
+    }
+   ],
+   "joins": [],
+   "one_sided": [
+    {
+     "block": "dhaza#1",
+     "kind": "up",
+     "n": 5,
+     "cells": [
+      {
+       "file": "dz3n.SEC",
+       "r": 17,
+       "c": 16
+      },
+      {
+       "file": "dz3nw.SEC",
+       "r": 7,
+       "c": 10
+      },
+      {
+       "file": "dz3nw.SEC",
+       "r": 25,
+       "c": 16
+      },
+      {
+       "file": "dz3s.SEC",
+       "r": 14,
+       "c": 1
+      },
+      {
+       "file": "dz3sw.SEC",
+       "r": 1,
+       "c": 1
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "gom#1@0",
+   "region": "gom",
+   "surface_level": 0,
+   "confidence": "flat",
+   "floors": [
+    {
+     "level": 0,
+     "block_id": "gom#1",
+     "dx": 0,
+     "dy": 0,
+     "pieces": [
+      {
+       "filename": "gom2a.SEC",
+       "dx": 2,
+       "dy": 1,
+       "dz": 0
+      },
+      {
+       "filename": "gom2anorth.SEC",
+       "dx": 2,
+       "dy": 0,
+       "dz": 0
+      },
+      {
+       "filename": "gom2awest.SEC",
+       "dx": 1,
+       "dy": 1,
+       "dz": 0
+      },
+      {
+       "filename": "gom2bnorth.SEC",
+       "dx": 1,
+       "dy": 0,
+       "dz": 0
+      },
+      {
+       "filename": "gom2c.SEC",
+       "dx": 0,
+       "dy": 1,
+       "dz": 0
+      },
+      {
+       "filename": "gom2cnorth.SEC",
+       "dx": 0,
+       "dy": 0,
+       "dz": 0
+      }
+     ]
+    }
+   ],
+   "joins": [],
+   "one_sided": [
+    {
+     "block": "gom#1",
+     "kind": "up",
+     "n": 1,
+     "cells": [
+      {
+       "file": "gom2a.SEC",
+       "r": 12,
+       "c": 2
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "gom#2@0",
+   "region": "gom",
+   "surface_level": 0,
+   "confidence": "flat",
+   "floors": [
+    {
+     "level": 0,
+     "block_id": "gom#2",
+     "dx": 0,
+     "dy": 0,
+     "pieces": [
+      {
+       "filename": "btse.SEC",
+       "dx": 1,
+       "dy": 0,
+       "dz": 0
+      },
+      {
+       "filename": "btsw.SEC",
+       "dx": 0,
+       "dy": 0,
+       "dz": 0
+      },
+      {
+       "filename": "gom3ne.SEC",
+       "dx": 2,
+       "dy": 0,
+       "dz": 0
+      }
+     ]
+    }
+   ],
+   "joins": [],
+   "one_sided": [
+    {
+     "block": "gom#2",
+     "kind": "up",
+     "n": 13,
+     "cells": [
+      {
+       "file": "btse.SEC",
+       "r": 10,
+       "c": 1
+      },
+      {
+       "file": "btse.SEC",
+       "r": 11,
+       "c": 1
+      },
+      {
+       "file": "btse.SEC",
+       "r": 20,
+       "c": 1
+      },
+      {
+       "file": "btse.SEC",
+       "r": 21,
+       "c": 0
+      },
+      {
+       "file": "btsw.SEC",
+       "r": 0,
+       "c": 17
+      },
+      {
+       "file": "btsw.SEC",
+       "r": 0,
+       "c": 18
+      },
+      {
+       "file": "btsw.SEC",
+       "r": 9,
+       "c": 3
+      },
+      {
+       "file": "btsw.SEC",
+       "r": 10,
+       "c": 2
+      },
+      {
+       "file": "btsw.SEC",
+       "r": 19,
+       "c": 2
+      },
+      {
+       "file": "btsw.SEC",
+       "r": 20,
+       "c": 2
+      },
+      {
+       "file": "btsw.SEC",
+       "r": 21,
+       "c": 31
+      },
+      {
+       "file": "btsw.SEC",
+       "r": 30,
+       "c": 16
+      },
+      {
+       "file": "btsw.SEC",
+       "r": 30,
+       "c": 17
+      }
+     ]
+    },
+    {
+     "block": "gom#2",
+     "kind": "down",
+     "n": 5,
+     "cells": [
+      {
+       "file": "btsw.SEC",
+       "r": 14,
+       "c": 14
+      },
+      {
+       "file": "btsw.SEC",
+       "r": 14,
+       "c": 20
+      },
+      {
+       "file": "btsw.SEC",
+       "r": 16,
+       "c": 14
+      },
+      {
+       "file": "btsw.SEC",
+       "r": 16,
+       "c": 20
+      },
+      {
+       "file": "gom3ne.SEC",
+       "r": 14,
+       "c": 20
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "gom#3@0",
+   "region": "gom",
+   "surface_level": 0,
+   "confidence": "flat",
+   "floors": [
+    {
+     "level": 0,
+     "block_id": "gom#3",
+     "dx": 0,
+     "dy": 0,
+     "pieces": [
+      {
+       "filename": "gom1e.SEC",
+       "dx": 1,
+       "dy": 0,
+       "dz": 0
+      },
+      {
+       "filename": "gom1w.SEC",
+       "dx": 0,
+       "dy": 0,
+       "dz": 0
+      }
+     ]
+    }
+   ],
+   "joins": [],
+   "one_sided": [
+    {
+     "block": "gom#3",
+     "kind": "down",
+     "n": 1,
+     "cells": [
+      {
+       "file": "gom1w.SEC",
+       "r": 13,
+       "c": 14
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "greenwood#1@0",
+   "region": "greenwood",
+   "surface_level": 0,
+   "confidence": "flat",
+   "floors": [
+    {
+     "level": 0,
+     "block_id": "greenwood#1",
+     "dx": 0,
+     "dy": 0,
+     "pieces": [
+      {
+       "filename": "greenwood1.SEC",
+       "dx": 3,
+       "dy": 0,
+       "dz": 0
+      },
+      {
+       "filename": "greenwood10.SEC",
+       "dx": 3,
+       "dy": 3,
+       "dz": 0
+      },
+      {
+       "filename": "greenwood11.SEC",
+       "dx": 2,
+       "dy": 3,
+       "dz": 0
+      },
+      {
+       "filename": "greenwood12.SEC",
+       "dx": 1,
+       "dy": 3,
+       "dz": 0
+      },
+      {
+       "filename": "greenwood13.SEC",
+       "dx": 0,
+       "dy": 3,
+       "dz": 0
+      },
+      {
+       "filename": "greenwood14.SEC",
+       "dx": 3,
+       "dy": 4,
+       "dz": 0
+      },
+      {
+       "filename": "greenwood15.SEC",
+       "dx": 2,
+       "dy": 4,
+       "dz": 0
+      },
+      {
+       "filename": "greenwood16.SEC",
+       "dx": 1,
+       "dy": 4,
+       "dz": 0
+      },
+      {
+       "filename": "greenwood2.SEC",
+       "dx": 2,
+       "dy": 0,
+       "dz": 0
+      },
+      {
+       "filename": "greenwood3.SEC",
+       "dx": 1,
+       "dy": 0,
+       "dz": 0
+      },
+      {
+       "filename": "greenwood4.SEC",
+       "dx": 3,
+       "dy": 1,
+       "dz": 0
+      },
+      {
+       "filename": "greenwood5.SEC",
+       "dx": 2,
+       "dy": 1,
+       "dz": 0
+      },
+      {
+       "filename": "greenwood6.SEC",
+       "dx": 1,
+       "dy": 1,
+       "dz": 0
+      },
+      {
+       "filename": "greenwood7.SEC",
+       "dx": 3,
+       "dy": 2,
+       "dz": 0
+      },
+      {
+       "filename": "greenwood8.SEC",
+       "dx": 2,
+       "dy": 2,
+       "dz": 0
+      },
+      {
+       "filename": "greenwood9.SEC",
+       "dx": 1,
+       "dy": 2,
+       "dz": 0
+      }
+     ]
+    }
+   ],
+   "joins": [],
+   "one_sided": [
+    {
+     "block": "greenwood#1",
+     "kind": "up",
+     "n": 4,
+     "cells": [
+      {
+       "file": "greenwood5.SEC",
+       "r": 4,
+       "c": 8
+      },
+      {
+       "file": "greenwood5.SEC",
+       "r": 15,
+       "c": 14
+      },
+      {
+       "file": "greenwood6.SEC",
+       "r": 30,
+       "c": 19
+      },
+      {
+       "file": "greenwood9.SEC",
+       "r": 0,
+       "c": 19
+      }
+     ]
+    },
+    {
+     "block": "greenwood#1",
+     "kind": "down",
+     "n": 2,
+     "cells": [
+      {
+       "file": "greenwood6.SEC",
+       "r": 30,
+       "c": 27
+      },
+      {
+       "file": "greenwood9.SEC",
+       "r": 0,
+       "c": 27
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "iun#1@0",
+   "region": "iun",
+   "surface_level": 0,
+   "confidence": "flat",
+   "floors": [
+    {
+     "level": 0,
+     "block_id": "iun#1",
+     "dx": 0,
+     "dy": 0,
+     "pieces": [
+      {
+       "filename": "Iun1west.SEC",
+       "dx": 0,
+       "dy": 0,
+       "dz": 0
+      },
+      {
+       "filename": "iun1.SEC",
+       "dx": 1,
+       "dy": 0,
+       "dz": 0
+      },
+      {
+       "filename": "iun1south.SEC",
+       "dx": 1,
+       "dy": 1,
+       "dz": 0
+      }
+     ]
+    }
+   ],
+   "joins": [],
+   "one_sided": [
+    {
+     "block": "iun#1",
+     "kind": "down",
+     "n": 2,
+     "cells": [
+      {
+       "file": "Iun1west.SEC",
+       "r": 17,
+       "c": 31
+      },
+      {
+       "file": "iun1.SEC",
+       "r": 17,
+       "c": 0
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "iun#2@0",
+   "region": "iun",
+   "surface_level": 0,
+   "confidence": "flat",
+   "floors": [
+    {
+     "level": 0,
+     "block_id": "iun#2",
+     "dx": 0,
+     "dy": 0,
+     "pieces": [
+      {
+       "filename": "iun2.SEC",
+       "dx": 0,
+       "dy": 0,
+       "dz": 0
+      },
+      {
+       "filename": "iun2south.SEC",
+       "dx": 0,
+       "dy": 1,
+       "dz": 0
+      }
+     ]
+    }
+   ],
+   "joins": [],
+   "one_sided": []
+  },
+  {
+   "id": "iun#3@0",
+   "region": "iun",
+   "surface_level": 0,
+   "confidence": "flat",
+   "floors": [
+    {
+     "level": 0,
+     "block_id": "iun#3",
+     "dx": 0,
+     "dy": 0,
+     "pieces": [
+      {
+       "filename": "iun3.SEC",
+       "dx": 0,
+       "dy": 0,
+       "dz": 0
+      },
+      {
+       "filename": "iun3south.SEC",
+       "dx": 0,
+       "dy": 1,
+       "dz": 0
+      }
+     ]
+    }
+   ],
+   "joins": [],
+   "one_sided": []
+  },
+  {
+   "id": "iun#4@0",
+   "region": "iun",
+   "surface_level": 0,
+   "confidence": "flat",
+   "floors": [
+    {
+     "level": 0,
+     "block_id": "iun#4",
+     "dx": 0,
+     "dy": 0,
+     "pieces": [
+      {
+       "filename": "iun4.SEC",
+       "dx": 0,
+       "dy": 0,
+       "dz": 0
+      },
+      {
+       "filename": "iun4south.SEC",
+       "dx": 0,
+       "dy": 1,
+       "dz": 0
+      }
+     ]
+    }
+   ],
+   "joins": [],
+   "one_sided": []
+  },
+  {
+   "id": "iun#5@0",
+   "region": "iun",
+   "surface_level": 0,
+   "confidence": "flat",
+   "floors": [
+    {
+     "level": 0,
+     "block_id": "iun#5",
+     "dx": 0,
+     "dy": 0,
+     "pieces": [
+      {
+       "filename": "iun5.SEC",
+       "dx": 1,
+       "dy": 0,
+       "dz": 0
+      },
+      {
+       "filename": "iun5south.SEC",
+       "dx": 1,
+       "dy": 1,
+       "dz": 0
+      },
+      {
+       "filename": "iun5west.SEC",
+       "dx": 0,
+       "dy": 0,
+       "dz": 0
+      }
+     ]
+    }
+   ],
+   "joins": [],
+   "one_sided": []
+  },
+  {
+   "id": "jal#1@0",
+   "region": "jal",
+   "surface_level": 0,
+   "confidence": "flat",
+   "floors": [
+    {
+     "level": 0,
+     "block_id": "jal#1",
+     "dx": 0,
+     "dy": 0,
+     "pieces": [
+      {
+       "filename": "jalbunsw.SEC",
+       "dx": 2,
+       "dy": 2,
+       "dz": 0
+      },
+      {
+       "filename": "jalbunwest.SEC",
+       "dx": 2,
+       "dy": 1,
+       "dz": 0
+      },
+      {
+       "filename": "jalefwest.SEC",
+       "dx": 0,
+       "dy": 1,
+       "dz": 0
+      },
+      {
+       "filename": "jalem.SEC",
+       "dx": 1,
+       "dy": 2,
+       "dz": 0
+      },
+      {
+       "filename": "jalemwest.SEC",
+       "dx": 0,
+       "dy": 2,
+       "dz": 0
+      },
+      {
+       "filename": "jalfene.SEC",
+       "dx": 4,
+       "dy": 0,
+       "dz": 0
+      },
+      {
+       "filename": "jalfenw.SEC",
+       "dx": 3,
+       "dy": 0,
+       "dz": 0
+      },
+      {
+       "filename": "jalfese.SEC",
+       "dx": 4,
+       "dy": 1,
+       "dz": 0
+      },
+      {
+       "filename": "jalfesw.SEC",
+       "dx": 3,
+       "dy": 1,
+       "dz": 0
+      },
+      {
+       "filename": "jalkf2.SEC",
+       "dx": 1,
+       "dy": 1,
+       "dz": 0
+      },
+      {
+       "filename": "jalpal.SEC",
+       "dx": 1,
+       "dy": 3,
+       "dz": 0
+      },
+      {
+       "filename": "jalpalnw.SEC",
+       "dx": 0,
+       "dy": 3,
+       "dz": 0
+      },
+      {
+       "filename": "jaltfwest.SEC",
+       "dx": 2,
+       "dy": 0,
+       "dz": 0
+      }
+     ]
+    }
+   ],
+   "joins": [],
+   "one_sided": []
+  },
+  {
+   "id": "jal/solo#2@0",
+   "region": "jal",
+   "surface_level": 0,
+   "confidence": "flat",
+   "floors": [
+    {
+     "level": 0,
+     "block_id": "jal/solo#2",
+     "dx": 0,
+     "dy": 0,
+     "pieces": [
+      {
+       "filename": "jalpalcenter.SEC",
+       "dx": 0,
+       "dy": 0,
+       "dz": 0
+      }
+     ]
+    }
+   ],
+   "joins": [],
+   "one_sided": [
+    {
+     "block": "jal/solo#2",
+     "kind": "up",
+     "n": 1,
+     "cells": [
+      {
+       "file": "jalpalcenter.SEC",
+       "r": 30,
+       "c": 19
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "maranda#1@0",
+   "region": "maranda",
+   "surface_level": 0,
+   "confidence": "flat",
+   "floors": [
+    {
+     "level": 0,
+     "block_id": "maranda#1",
+     "dx": 0,
+     "dy": 0,
+     "pieces": [
+      {
+       "filename": "marmaan.SEC",
+       "dx": 1,
+       "dy": 0,
+       "dz": 0
+      },
+      {
+       "filename": "marmaas.SEC",
+       "dx": 1,
+       "dy": 1,
+       "dz": 0
+      },
+      {
+       "filename": "marmcs.SEC",
+       "dx": 0,
+       "dy": 2,
+       "dz": 0
+      },
+      {
+       "filename": "marwestn.SEC",
+       "dx": 0,
+       "dy": 0,
+       "dz": 0
+      },
+      {
+       "filename": "marwests.SEC",
+       "dx": 0,
+       "dy": 1,
+       "dz": 0
+      }
+     ]
+    }
+   ],
+   "joins": [],
+   "one_sided": [
+    {
+     "block": "maranda#1",
+     "kind": "up",
+     "n": 5,
+     "cells": [
+      {
+       "file": "marmcs.SEC",
+       "r": 23,
+       "c": 8
+      },
+      {
+       "file": "marmcs.SEC",
+       "r": 23,
+       "c": 19
+      },
+      {
+       "file": "marwests.SEC",
+       "r": 25,
+       "c": 0
+      },
+      {
+       "file": "marwests.SEC",
+       "r": 25,
+       "c": 11
+      },
+      {
+       "file": "marwests.SEC",
+       "r": 25,
+       "c": 22
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "maranda#2@0",
+   "region": "maranda",
+   "surface_level": 0,
+   "confidence": "flat",
+   "floors": [
+    {
+     "level": 0,
+     "block_id": "maranda#2",
+     "dx": 0,
+     "dy": 0,
+     "pieces": [
+      {
+       "filename": "marbars.SEC",
+       "dx": 1,
+       "dy": 0,
+       "dz": 0
+      },
+      {
+       "filename": "marsavs.SEC",
+       "dx": 0,
+       "dy": 0,
+       "dz": 0
+      }
+     ]
+    }
+   ],
+   "joins": [],
+   "one_sided": []
+  },
+  {
+   "id": "maranda#3@0",
+   "region": "maranda",
+   "surface_level": 0,
+   "confidence": "flat",
+   "floors": [
+    {
+     "level": 0,
+     "block_id": "maranda#3",
+     "dx": 0,
+     "dy": 0,
+     "pieces": [
+      {
+       "filename": "marmcnw.SEC",
+       "dx": 0,
+       "dy": 1,
+       "dz": 0
+      },
+      {
+       "filename": "marwestw.SEC",
+       "dx": 0,
+       "dy": 0,
+       "dz": 0
+      }
+     ]
+    }
+   ],
+   "joins": [],
+   "one_sided": [
+    {
+     "block": "maranda#3",
+     "kind": "up",
+     "n": 2,
+     "cells": [
+      {
+       "file": "marmcnw.SEC",
+       "r": 6,
+       "c": 20
+      },
+      {
+       "file": "marmcnw.SEC",
+       "r": 6,
+       "c": 31
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "maranda/solo#5@0",
+   "region": "maranda",
+   "surface_level": 0,
+   "confidence": "flat",
+   "floors": [
+    {
+     "level": 0,
+     "block_id": "maranda/solo#5",
+     "dx": 0,
+     "dy": 0,
+     "pieces": [
+      {
+       "filename": "marmcsw.SEC",
+       "dx": 0,
+       "dy": 0,
+       "dz": 0
+      }
+     ]
+    }
+   ],
+   "joins": [],
+   "one_sided": [
+    {
+     "block": "maranda/solo#5",
+     "kind": "up",
+     "n": 1,
+     "cells": [
+      {
+       "file": "marmcsw.SEC",
+       "r": 4,
+       "c": 14
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "misc/solo#1@0",
+   "region": "misc",
+   "surface_level": 0,
+   "confidence": "flat",
+   "floors": [
+    {
+     "level": 0,
+     "block_id": "misc/solo#1",
+     "dx": 0,
+     "dy": 0,
+     "pieces": [
+      {
+       "filename": "Dunsmore.SEC",
+       "dx": 0,
+       "dy": 0,
+       "dz": 0
+      }
+     ]
+    }
+   ],
+   "joins": [],
+   "one_sided": [
+    {
+     "block": "misc/solo#1",
+     "kind": "up",
+     "n": 1,
+     "cells": [
+      {
+       "file": "Dunsmore.SEC",
+       "r": 12,
+       "c": 8
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "mound#4@auto",
+   "region": "mound",
+   "surface_level": 0,
+   "confidence": "auto",
+   "floors": [
+    {
+     "level": 0,
+     "block_id": "mound/solo#5",
+     "dx": 0,
+     "dy": 0,
+     "cell_ox": 0,
+     "cell_oy": 0,
+     "pieces": [
+      {
+       "filename": "mound3se.SEC",
+       "dx": 0,
+       "dy": 0,
+       "dz": 0
+      }
+     ]
+    },
+    {
+     "level": 1,
+     "block_id": "mound/solo#4",
+     "dx": 0,
+     "dy": 0,
+     "cell_ox": 0,
+     "cell_oy": 0,
+     "pieces": [
+      {
+       "filename": "mound2se.SEC",
+       "dx": 0,
+       "dy": 0,
+       "dz": 1
+      }
+     ]
+    }
+   ],
+   "joins": [
+    {
+     "below": "mound/solo#5",
+     "above": "mound/solo#4",
+     "ox": 0,
+     "oy": 0,
+     "matches": 4,
+     "runner": 2,
+     "exact": 4,
+     "confidence": "auto",
+     "coord_hint": false,
+     "name_hint": false,
+     "evidence": [
+      {
+       "up_file": "mound3se.SEC",
+       "up_r": 11,
+       "up_c": 14,
+       "down_file": "mound2se.SEC",
+       "down_r": 11,
+       "down_c": 14,
+       "dist": 0
+      },
+      {
+       "up_file": "mound3se.SEC",
+       "up_r": 11,
+       "up_c": 16,
+       "down_file": "mound2se.SEC",
+       "down_r": 11,
+       "down_c": 16,
+       "dist": 0
+      },
+      {
+       "up_file": "mound3se.SEC",
+       "up_r": 19,
+       "up_c": 14,
+       "down_file": "mound2se.SEC",
+       "down_r": 19,
+       "down_c": 14,
+       "dist": 0
+      },
+      {
+       "up_file": "mound3se.SEC",
+       "up_r": 19,
+       "up_c": 16,
+       "down_file": "mound2se.SEC",
+       "down_r": 19,
+       "down_c": 16,
+       "dist": 0
+      }
+     ]
+    }
+   ],
+   "one_sided": [
+    {
+     "block": "mound/solo#4",
+     "kind": "up",
+     "n": 4,
+     "cells": [
+      {
+       "file": "mound2se.SEC",
+       "r": 13,
+       "c": 14
+      },
+      {
+       "file": "mound2se.SEC",
+       "r": 13,
+       "c": 16
+      },
+      {
+       "file": "mound2se.SEC",
+       "r": 17,
+       "c": 14
+      },
+      {
+       "file": "mound2se.SEC",
+       "r": 17,
+       "c": 16
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "omr#1@0",
+   "region": "omr",
+   "surface_level": 0,
+   "confidence": "flat",
+   "floors": [
+    {
+     "level": 0,
+     "block_id": "omr#1",
+     "dx": 0,
+     "dy": 0,
+     "pieces": [
+      {
+       "filename": "Omr6.SEC",
+       "dx": 2,
+       "dy": 1,
+       "dz": 0
+      },
+      {
+       "filename": "omr1.SEC",
+       "dx": 2,
+       "dy": 0,
+       "dz": 0
+      },
+      {
+       "filename": "omr2.SEC",
+       "dx": 1,
+       "dy": 0,
+       "dz": 0
+      },
+      {
+       "filename": "omr3.SEC",
+       "dx": 0,
+       "dy": 0,
+       "dz": 0
+      },
+      {
+       "filename": "omr5.SEC",
+       "dx": 1,
+       "dy": 1,
+       "dz": 0
+      }
+     ]
+    }
+   ],
+   "joins": [],
+   "one_sided": [
+    {
+     "block": "omr#1",
+     "kind": "up",
+     "n": 29,
+     "cells": [
+      {
+       "file": "Omr6.SEC",
+       "r": 1,
+       "c": 1
+      },
+      {
+       "file": "Omr6.SEC",
+       "r": 1,
+       "c": 6
+      },
+      {
+       "file": "Omr6.SEC",
+       "r": 1,
+       "c": 11
+      },
+      {
+       "file": "Omr6.SEC",
+       "r": 1,
+       "c": 16
+      },
+      {
+       "file": "Omr6.SEC",
+       "r": 1,
+       "c": 28
+      },
+      {
+       "file": "omr1.SEC",
+       "r": 1,
+       "c": 1
+      },
+      {
+       "file": "omr1.SEC",
+       "r": 1,
+       "c": 6
+      },
+      {
+       "file": "omr1.SEC",
+       "r": 1,
+       "c": 11
+      },
+      {
+       "file": "omr1.SEC",
+       "r": 1,
+       "c": 16
+      },
+      {
+       "file": "omr1.SEC",
+       "r": 1,
+       "c": 21
+      },
+      {
+       "file": "omr1.SEC",
+       "r": 1,
+       "c": 28
+      },
+      {
+       "file": "omr1.SEC",
+       "r": 7,
+       "c": 28
+      },
+      {
+       "file": "omr1.SEC",
+       "r": 12,
+       "c": 28
+      },
+      {
+       "file": "omr1.SEC",
+       "r": 16,
+       "c": 3
+      },
+      {
+       "file": "omr1.SEC",
+       "r": 16,
+       "c": 8
+      },
+      {
+       "file": "omr1.SEC",
+       "r": 16,
+       "c": 13
+      },
+      {
+       "file": "omr1.SEC",
+       "r": 16,
+       "c": 18
+      },
+      {
+       "file": "omr1.SEC",
+       "r": 17,
+       "c": 3
+      },
+      {
+       "file": "omr1.SEC",
+       "r": 17,
+       "c": 8
+      },
+      {
+       "file": "omr1.SEC",
+       "r": 17,
+       "c": 13
+      },
+      {
+       "file": "omr1.SEC",
+       "r": 17,
+       "c": 18
+      },
+      {
+       "file": "omr1.SEC",
+       "r": 21,
+       "c": 28
+      },
+      {
+       "file": "omr1.SEC",
+       "r": 26,
+       "c": 28
+      },
+      {
+       "file": "omr2.SEC",
+       "r": 3,
+       "c": 2
+      },
+      {
+       "file": "omr2.SEC",
+       "r": 6,
+       "c": 25
+      },
+      {
+       "file": "omr2.SEC",
+       "r": 21,
+       "c": 2
+      },
+      {
+       "file": "omr2.SEC",
+       "r": 21,
+       "c": 25
+      },
+      {
+       "file": "omr2.SEC",
+       "r": 22,
+       "c": 4
+      },
+      {
+       "file": "omr2.SEC",
+       "r": 22,
+       "c": 25
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "orcs#1@0",
+   "region": "orcs",
+   "surface_level": 0,
+   "confidence": "flat",
+   "floors": [
+    {
+     "level": 0,
+     "block_id": "orcs#1",
+     "dx": 0,
+     "dy": 0,
+     "pieces": [
+      {
+       "filename": "orc3.SEC",
+       "dx": 2,
+       "dy": 1,
+       "dz": 0
+      },
+      {
+       "filename": "orc3farwest.SEC",
+       "dx": 0,
+       "dy": 1,
+       "dz": 0
+      },
+      {
+       "filename": "orc3n.SEC",
+       "dx": 2,
+       "dy": 0,
+       "dz": 0
+      },
+      {
+       "filename": "orc3w.SEC",
+       "dx": 1,
+       "dy": 1,
+       "dz": 0
+      }
+     ]
+    }
+   ],
+   "joins": [],
+   "one_sided": []
+  },
+  {
+   "id": "orcs#2@0",
+   "region": "orcs",
+   "surface_level": 0,
+   "confidence": "flat",
+   "floors": [
+    {
+     "level": 0,
+     "block_id": "orcs#2",
+     "dx": 0,
+     "dy": 0,
+     "pieces": [
+      {
+       "filename": "orc2.SEC",
+       "dx": 0,
+       "dy": 0,
+       "dz": 0
+      },
+      {
+       "filename": "orc2e.SEC",
+       "dx": 1,
+       "dy": 0,
+       "dz": 0
+      }
+     ]
+    }
+   ],
+   "joins": [],
+   "one_sided": []
+  },
+  {
+   "id": "orcs#3@0",
+   "region": "orcs",
+   "surface_level": 0,
+   "confidence": "flat",
+   "floors": [
+    {
+     "level": 0,
+     "block_id": "orcs#3",
+     "dx": 0,
+     "dy": 0,
+     "pieces": [
+      {
+       "filename": "orc1.SEC",
+       "dx": 0,
+       "dy": 0,
+       "dz": 0
+      },
+      {
+       "filename": "orc1e.SEC",
+       "dx": 1,
+       "dy": 0,
+       "dz": 0
+      }
+     ]
+    }
+   ],
+   "joins": [],
+   "one_sided": []
+  },
+  {
+   "id": "per#1@0",
+   "region": "per",
+   "surface_level": 0,
+   "confidence": "flat",
+   "floors": [
+    {
+     "level": 0,
+     "block_id": "per#1",
+     "dx": 0,
+     "dy": 0,
+     "pieces": [
+      {
+       "filename": "pere.SEC",
+       "dx": 3,
+       "dy": 0,
+       "dz": 0
+      },
+      {
+       "filename": "pereastsouth.SEC",
+       "dx": 3,
+       "dy": 1,
+       "dz": 0
+      },
+      {
+       "filename": "perks.SEC",
+       "dx": 2,
+       "dy": 1,
+       "dz": 0
+      },
+      {
+       "filename": "perkswest.SEC",
+       "dx": 1,
+       "dy": 1,
+       "dz": 0
+      },
+      {
+       "filename": "permiddleeast.SEC",
+       "dx": 4,
+       "dy": 1,
+       "dz": 0
+      },
+      {
+       "filename": "persw.SEC",
+       "dx": 2,
+       "dy": 3,
+       "dz": 0
+      },
+      {
+       "filename": "pervkeast.SEC",
+       "dx": 3,
+       "dy": 2,
+       "dz": 0
+      },
+      {
+       "filename": "pervw2.SEC",
+       "dx": 1,
+       "dy": 3,
+       "dz": 0
+      },
+      {
+       "filename": "pervwm.SEC",
+       "dx": 2,
+       "dy": 2,
+       "dz": 0
+      },
+      {
+       "filename": "pervwmmiddle.SEC",
+       "dx": 1,
+       "dy": 2,
+       "dz": 0
+      },
+      {
+       "filename": "pervwmmiddlewest.SEC",
+       "dx": 0,
+       "dy": 2,
+       "dz": 0
+      },
+      {
+       "filename": "pervwmwest.SEC",
+       "dx": 0,
+       "dy": 1,
+       "dz": 0
+      },
+      {
+       "filename": "prg3b.SEC",
+       "dx": 3,
+       "dy": 3,
+       "dz": 0
+      },
+      {
+       "filename": "prg3beast.SEC",
+       "dx": 4,
+       "dy": 3,
+       "dz": 0
+      }
+     ]
+    }
+   ],
+   "joins": [],
+   "one_sided": []
+  },
+  {
+   "id": "per#2@0",
+   "region": "per",
+   "surface_level": 0,
+   "confidence": "flat",
+   "floors": [
+    {
+     "level": 0,
+     "block_id": "per#2",
+     "dx": 0,
+     "dy": 0,
+     "pieces": [
+      {
+       "filename": "pern.SEC",
+       "dx": 1,
+       "dy": 1,
+       "dz": 0
+      },
+      {
+       "filename": "perne.SEC",
+       "dx": 2,
+       "dy": 1,
+       "dz": 0
+      },
+      {
+       "filename": "perw.SEC",
+       "dx": 0,
+       "dy": 1,
+       "dz": 0
+      },
+      {
+       "filename": "prg1c.SEC",
+       "dx": 0,
+       "dy": 0,
+       "dz": 0
+      },
+      {
+       "filename": "prg3c.SEC",
+       "dx": 1,
+       "dy": 0,
+       "dz": 0
+      },
+      {
+       "filename": "prg3se.SEC",
+       "dx": 2,
+       "dy": 0,
+       "dz": 0
+      }
+     ]
+    }
+   ],
+   "joins": [],
+   "one_sided": []
+  },
+  {
+   "id": "per#3@0",
+   "region": "per",
+   "surface_level": 0,
+   "confidence": "flat",
+   "floors": [
+    {
+     "level": 0,
+     "block_id": "per#3",
+     "dx": 0,
+     "dy": 0,
+     "pieces": [
+      {
+       "filename": "pervk.SEC",
+       "dx": 1,
+       "dy": 0,
+       "dz": 0
+      },
+      {
+       "filename": "prg1b.SEC",
+       "dx": 0,
+       "dy": 1,
+       "dz": 0
+      },
+      {
+       "filename": "prg2b.SEC",
+       "dx": 1,
+       "dy": 1,
+       "dz": 0
+      }
+     ]
+    }
+   ],
+   "joins": [],
+   "one_sided": []
+  },
+  {
+   "id": "per#4@0",
+   "region": "per",
+   "surface_level": 0,
+   "confidence": "flat",
+   "floors": [
+    {
+     "level": 0,
+     "block_id": "per#4",
+     "dx": 0,
+     "dy": 0,
+     "pieces": [
+      {
+       "filename": "perm.SEC",
+       "dx": 0,
+       "dy": 0,
+       "dz": 0
+      },
+      {
+       "filename": "permk2.SEC",
+       "dx": 0,
+       "dy": 1,
+       "dz": 0
+      }
+     ]
+    }
+   ],
+   "joins": [],
+   "one_sided": []
+  },
+  {
+   "id": "rem#1@0",
+   "region": "rem",
+   "surface_level": 0,
+   "confidence": "flat",
+   "floors": [
+    {
+     "level": 0,
+     "block_id": "rem#1",
+     "dx": 0,
+     "dy": 0,
+     "pieces": [
+      {
+       "filename": "rem1.SEC",
+       "dx": 0,
+       "dy": 1,
+       "dz": 0
+      },
+      {
+       "filename": "rem1north.SEC",
+       "dx": 0,
+       "dy": 0,
+       "dz": 0
+      }
+     ]
+    }
+   ],
+   "joins": [],
+   "one_sided": []
+  },
+  {
+   "id": "rem#2@0",
+   "region": "rem",
+   "surface_level": 0,
+   "confidence": "flat",
+   "floors": [
+    {
+     "level": 0,
+     "block_id": "rem#2",
+     "dx": 0,
+     "dy": 0,
+     "pieces": [
+      {
+       "filename": "rem2.SEC",
+       "dx": 0,
+       "dy": 1,
+       "dz": 0
+      },
+      {
+       "filename": "rem2north.SEC",
+       "dx": 0,
+       "dy": 0,
+       "dz": 0
+      }
+     ]
+    }
+   ],
+   "joins": [],
+   "one_sided": []
+  },
+  {
+   "id": "thfif#1@0",
+   "region": "thfif",
+   "surface_level": 0,
+   "confidence": "flat",
+   "floors": [
+    {
+     "level": 0,
+     "block_id": "thfif#1",
+     "dx": 0,
+     "dy": 0,
+     "pieces": [
+      {
+       "filename": "thfif1.SEC",
+       "dx": 1,
+       "dy": 1,
+       "dz": 0
+      },
+      {
+       "filename": "thfif1north.SEC",
+       "dx": 1,
+       "dy": 0,
+       "dz": 0
+      },
+      {
+       "filename": "thfif1northwest.SEC",
+       "dx": 0,
+       "dy": 0,
+       "dz": 0
+      },
+      {
+       "filename": "thfif1west.SEC",
+       "dx": 0,
+       "dy": 1,
+       "dz": 0
+      }
+     ]
+    }
+   ],
+   "joins": [],
+   "one_sided": [
+    {
+     "block": "thfif#1",
+     "kind": "down",
+     "n": 4,
+     "cells": [
+      {
+       "file": "thfif1north.SEC",
+       "r": 2,
+       "c": 8
+      },
+      {
+       "file": "thfif1north.SEC",
+       "r": 2,
+       "c": 19
+      },
+      {
+       "file": "thfif1north.SEC",
+       "r": 2,
+       "c": 29
+      },
+      {
+       "file": "thfif1northwest.SEC",
+       "r": 2,
+       "c": 29
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "thfif#2@0",
+   "region": "thfif",
+   "surface_level": 0,
+   "confidence": "flat",
+   "floors": [
+    {
+     "level": 0,
+     "block_id": "thfif#2",
+     "dx": 0,
+     "dy": 0,
+     "pieces": [
+      {
+       "filename": "thfif.SEC",
+       "dx": 1,
+       "dy": 1,
+       "dz": 0
+      },
+      {
+       "filename": "thfifnorth.SEC",
+       "dx": 1,
+       "dy": 0,
+       "dz": 0
+      },
+      {
+       "filename": "thfifnorthwest.SEC",
+       "dx": 0,
+       "dy": 0,
+       "dz": 0
+      },
+      {
+       "filename": "thfifwest.SEC",
+       "dx": 0,
+       "dy": 1,
+       "dz": 0
+      }
+     ]
+    }
+   ],
+   "joins": [],
+   "one_sided": [
+    {
+     "block": "thfif#2",
+     "kind": "up",
+     "n": 2,
+     "cells": [
+      {
+       "file": "thfifnorth.SEC",
+       "r": 29,
+       "c": 1
+      },
+      {
+       "file": "thfifnorth.SEC",
+       "r": 29,
+       "c": 26
+      }
+     ]
+    },
+    {
+     "block": "thfif#2",
+     "kind": "down",
+     "n": 1,
+     "cells": [
+      {
+       "file": "thfif.SEC",
+       "r": 29,
+       "c": 17
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "ucg#1@0",
+   "region": "ucg",
+   "surface_level": 0,
+   "confidence": "flat",
+   "floors": [
+    {
+     "level": 0,
+     "block_id": "ucg#1",
+     "dx": 0,
+     "dy": 0,
+     "pieces": [
+      {
+       "filename": "ucg1.SEC",
+       "dx": 0,
+       "dy": 1,
+       "dz": 0
+      },
+      {
+       "filename": "ucg2.SEC",
+       "dx": 0,
+       "dy": 0,
+       "dz": 0
+      }
+     ]
+    }
+   ],
+   "joins": [],
+   "one_sided": [
+    {
+     "block": "ucg#1",
+     "kind": "up",
+     "n": 4,
+     "cells": [
+      {
+       "file": "ucg1.SEC",
+       "r": 3,
+       "c": 20
+      },
+      {
+       "file": "ucg1.SEC",
+       "r": 21,
+       "c": 20
+      },
+      {
+       "file": "ucg2.SEC",
+       "r": 5,
+       "c": 0
+      },
+      {
+       "file": "ucg2.SEC",
+       "r": 5,
+       "c": 7
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "ucm/solo#19@0",
+   "region": "ucm",
+   "surface_level": 0,
+   "confidence": "flat",
+   "floors": [
+    {
+     "level": 0,
+     "block_id": "ucm/solo#19",
+     "dx": 0,
+     "dy": 0,
+     "pieces": [
+      {
+       "filename": "ucm4.SEC",
+       "dx": 0,
+       "dy": 0,
+       "dz": 0
+      }
+     ]
+    }
+   ],
+   "joins": [],
+   "one_sided": [
+    {
+     "block": "ucm/solo#19",
+     "kind": "down",
+     "n": 1,
+     "cells": [
+      {
+       "file": "ucm4.SEC",
+       "r": 15,
+       "c": 5
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "ucv#1@0",
+   "region": "ucv",
+   "surface_level": 0,
+   "confidence": "flat",
+   "floors": [
+    {
+     "level": 0,
+     "block_id": "ucv#1",
+     "dx": 0,
+     "dy": 0,
+     "pieces": [
+      {
+       "filename": "ucv1.SEC",
+       "dx": 1,
+       "dy": 2,
+       "dz": 0
+      },
+      {
+       "filename": "ucv10.SEC",
+       "dx": 3,
+       "dy": 1,
+       "dz": 0
+      },
+      {
+       "filename": "ucv11.SEC",
+       "dx": 3,
+       "dy": 0,
+       "dz": 0
+      },
+      {
+       "filename": "ucv2.SEC",
+       "dx": 2,
+       "dy": 2,
+       "dz": 0
+      },
+      {
+       "filename": "ucv3.SEC",
+       "dx": 1,
+       "dy": 1,
+       "dz": 0
+      },
+      {
+       "filename": "ucv4.SEC",
+       "dx": 0,
+       "dy": 1,
+       "dz": 0
+      },
+      {
+       "filename": "ucv5.SEC",
+       "dx": 2,
+       "dy": 1,
+       "dz": 0
+      },
+      {
+       "filename": "ucv6.SEC",
+       "dx": 3,
+       "dy": 2,
+       "dz": 0
+      },
+      {
+       "filename": "ucv7.SEC",
+       "dx": 0,
+       "dy": 0,
+       "dz": 0
+      },
+      {
+       "filename": "ucv8.SEC",
+       "dx": 1,
+       "dy": 0,
+       "dz": 0
+      },
+      {
+       "filename": "ucv9.SEC",
+       "dx": 2,
+       "dy": 0,
+       "dz": 0
+      }
+     ]
+    }
+   ],
+   "joins": [],
+   "one_sided": [
+    {
+     "block": "ucv#1",
+     "kind": "up",
+     "n": 7,
+     "cells": [
+      {
+       "file": "ucv10.SEC",
+       "r": 31,
+       "c": 3
+      },
+      {
+       "file": "ucv11.SEC",
+       "r": 5,
+       "c": 11
+      },
+      {
+       "file": "ucv11.SEC",
+       "r": 5,
+       "c": 18
+      },
+      {
+       "file": "ucv11.SEC",
+       "r": 25,
+       "c": 1
+      },
+      {
+       "file": "ucv2.SEC",
+       "r": 23,
+       "c": 20
+      },
+      {
+       "file": "ucv6.SEC",
+       "r": 0,
+       "c": 3
+      },
+      {
+       "file": "ucv8.SEC",
+       "r": 31,
+       "c": 13
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "unvil#1@auto",
+   "region": "unvil",
+   "surface_level": 0,
+   "confidence": "auto",
+   "floors": [
+    {
+     "level": 0,
+     "block_id": "unvil#2",
+     "dx": 0,
+     "dy": 0,
+     "cell_ox": 0,
+     "cell_oy": 0,
+     "pieces": [
+      {
+       "filename": "unvil.SEC",
+       "dx": 0,
+       "dy": 0,
+       "dz": 0
+      },
+      {
+       "filename": "unvilne.SEC",
+       "dx": 1,
+       "dy": 0,
+       "dz": 0
+      }
+     ]
+    },
+    {
+     "level": 1,
+     "block_id": "unvil#1",
+     "dx": 0,
+     "dy": 0,
+     "cell_ox": 0,
+     "cell_oy": 0,
+     "pieces": [
+      {
+       "filename": "unvil2.SEC",
+       "dx": 0,
+       "dy": 0,
+       "dz": 1
+      },
+      {
+       "filename": "unvil2e.SEC",
+       "dx": 1,
+       "dy": 0,
+       "dz": 1
+      }
+     ]
+    }
+   ],
+   "joins": [
+    {
+     "below": "unvil#2",
+     "above": "unvil#1",
+     "ox": 0,
+     "oy": 0,
+     "matches": 16,
+     "runner": 11,
+     "exact": 0,
+     "confidence": "auto",
+     "coord_hint": false,
+     "name_hint": false,
+     "evidence": [
+      {
+       "up_file": "unvil.SEC",
+       "up_r": 2,
+       "up_c": 2,
+       "down_file": "unvil2.SEC",
+       "down_r": 2,
+       "down_c": 3,
+       "dist": 1
+      },
+      {
+       "up_file": "unvil.SEC",
+       "up_r": 2,
+       "up_c": 11,
+       "down_file": "unvil2.SEC",
+       "down_r": 2,
+       "down_c": 10,
+       "dist": 1
+      },
+      {
+       "up_file": "unvil.SEC",
+       "up_r": 2,
+       "up_c": 12,
+       "down_file": "unvil2.SEC",
+       "down_r": 2,
+       "down_c": 13,
+       "dist": 1
+      },
+      {
+       "up_file": "unvil.SEC",
+       "up_r": 2,
+       "up_c": 21,
+       "down_file": "unvil2.SEC",
+       "down_r": 2,
+       "down_c": 20,
+       "dist": 1
+      },
+      {
+       "up_file": "unvil.SEC",
+       "up_r": 2,
+       "up_c": 22,
+       "down_file": "unvil2.SEC",
+       "down_r": 2,
+       "down_c": 23,
+       "dist": 1
+      },
+      {
+       "up_file": "unvil.SEC",
+       "up_r": 2,
+       "up_c": 31,
+       "down_file": "unvil2.SEC",
+       "down_r": 2,
+       "down_c": 30,
+       "dist": 1
+      },
+      {
+       "up_file": "unvil.SEC",
+       "up_r": 8,
+       "up_c": 4,
+       "down_file": "unvil2.SEC",
+       "down_r": 8,
+       "down_c": 3,
+       "dist": 1
+      },
+      {
+       "up_file": "unvil.SEC",
+       "up_r": 17,
+       "up_c": 4,
+       "down_file": "unvil2.SEC",
+       "down_r": 17,
+       "down_c": 3,
+       "dist": 1
+      },
+      {
+       "up_file": "unvil.SEC",
+       "up_r": 18,
+       "up_c": 4,
+       "down_file": "unvil2.SEC",
+       "down_r": 18,
+       "down_c": 3,
+       "dist": 1
+      },
+      {
+       "up_file": "unvil.SEC",
+       "up_r": 27,
+       "up_c": 4,
+       "down_file": "unvil2.SEC",
+       "down_r": 27,
+       "down_c": 3,
+       "dist": 1
+      },
+      {
+       "up_file": "unvil.SEC",
+       "up_r": 30,
+       "up_c": 9,
+       "down_file": "unvil2.SEC",
+       "down_r": 30,
+       "down_c": 10,
+       "dist": 1
+      },
+      {
+       "up_file": "unvil.SEC",
+       "up_r": 30,
+       "up_c": 18,
+       "down_file": "unvil2.SEC",
+       "down_r": 30,
+       "down_c": 17,
+       "dist": 1
+      },
+      {
+       "up_file": "unvil.SEC",
+       "up_r": 30,
+       "up_c": 19,
+       "down_file": "unvil2.SEC",
+       "down_r": 30,
+       "down_c": 20,
+       "dist": 1
+      },
+      {
+       "up_file": "unvil.SEC",
+       "up_r": 30,
+       "up_c": 28,
+       "down_file": "unvil2.SEC",
+       "down_r": 30,
+       "down_c": 27,
+       "dist": 1
+      },
+      {
+       "up_file": "unvilne.SEC",
+       "up_r": 7,
+       "up_c": 1,
+       "down_file": "unvil2e.SEC",
+       "down_r": 7,
+       "down_c": 0,
+       "dist": 1
+      },
+      {
+       "up_file": "unvilne.SEC",
+       "up_r": 16,
+       "up_c": 1,
+       "down_file": "unvil2e.SEC",
+       "down_r": 16,
+       "down_c": 0,
+       "dist": 1
+      }
+     ]
+    }
+   ],
+   "one_sided": [
+    {
+     "block": "unvil#1",
+     "kind": "down",
+     "n": 4,
+     "cells": [
+      {
+       "file": "unvil2.SEC",
+       "r": 7,
+       "c": 31
+      },
+      {
+       "file": "unvil2.SEC",
+       "r": 9,
+       "c": 13
+      },
+      {
+       "file": "unvil2.SEC",
+       "r": 16,
+       "c": 31
+      },
+      {
+       "file": "unvil2.SEC",
+       "r": 23,
+       "c": 13
+      }
+     ]
+    },
+    {
+     "block": "unvil#2",
+     "kind": "up",
+     "n": 3,
+     "cells": [
+      {
+       "file": "unvil.SEC",
+       "r": 9,
+       "c": 11
+      },
+      {
+       "file": "unvil.SEC",
+       "r": 23,
+       "c": 11
+      },
+      {
+       "file": "unvilne.SEC",
+       "r": 2,
+       "c": 0
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "val#1@0",
+   "region": "val",
+   "surface_level": 0,
+   "confidence": "flat",
+   "floors": [
+    {
+     "level": 0,
+     "block_id": "val#1",
+     "dx": 0,
+     "dy": 0,
+     "pieces": [
+      {
+       "filename": "val1.SEC",
+       "dx": 2,
+       "dy": 0,
+       "dz": 0
+      },
+      {
+       "filename": "val2.SEC",
+       "dx": 3,
+       "dy": 0,
+       "dz": 0
+      },
+      {
+       "filename": "val2farsouth.SEC",
+       "dx": 3,
+       "dy": 2,
+       "dz": 0
+      },
+      {
+       "filename": "val2s.SEC",
+       "dx": 3,
+       "dy": 1,
+       "dz": 0
+      },
+      {
+       "filename": "val3.SEC",
+       "dx": 4,
+       "dy": 0,
+       "dz": 0
+      },
+      {
+       "filename": "val3farsouth.SEC",
+       "dx": 4,
+       "dy": 2,
+       "dz": 0
+      },
+      {
+       "filename": "val3s.SEC",
+       "dx": 4,
+       "dy": 1,
+       "dz": 0
+      },
+      {
+       "filename": "valassn1.SEC",
+       "dx": 0,
+       "dy": 1,
+       "dz": 0
+      },
+      {
+       "filename": "valassn2.SEC",
+       "dx": 0,
+       "dy": 2,
+       "dz": 0
+      },
+      {
+       "filename": "valassn4.SEC",
+       "dx": 1,
+       "dy": 3,
+       "dz": 0
+      },
+      {
+       "filename": "valassn5.SEC",
+       "dx": 2,
+       "dy": 3,
+       "dz": 0
+      },
+      {
+       "filename": "valassn6.SEC",
+       "dx": 3,
+       "dy": 3,
+       "dz": 0
+      },
+      {
+       "filename": "valmc.SEC",
+       "dx": 2,
+       "dy": 1,
+       "dz": 0
+      },
+      {
+       "filename": "valmcsouth.SEC",
+       "dx": 2,
+       "dy": 2,
+       "dz": 0
+      },
+      {
+       "filename": "valmcsw.SEC",
+       "dx": 1,
+       "dy": 2,
+       "dz": 0
+      },
+      {
+       "filename": "valrgn.SEC",
+       "dx": 5,
+       "dy": 1,
+       "dz": 0
+      },
+      {
+       "filename": "valrgs.SEC",
+       "dx": 5,
+       "dy": 2,
+       "dz": 0
+      },
+      {
+       "filename": "valrgssouth.SEC",
+       "dx": 5,
+       "dy": 3,
+       "dz": 0
+      },
+      {
+       "filename": "valrgssw.SEC",
+       "dx": 4,
+       "dy": 3,
+       "dz": 0
+      },
+      {
+       "filename": "vpnorth.SEC",
+       "dx": 6,
+       "dy": 1,
+       "dz": 0
+      },
+      {
+       "filename": "vpsouth.SEC",
+       "dx": 6,
+       "dy": 2,
+       "dz": 0
+      },
+      {
+       "filename": "vpsouthsouth.SEC",
+       "dx": 6,
+       "dy": 3,
+       "dz": 0
+      }
+     ]
+    }
+   ],
+   "joins": [],
+   "one_sided": [
+    {
+     "block": "val#1",
+     "kind": "up",
+     "n": 6,
+     "cells": [
+      {
+       "file": "val2farsouth.SEC",
+       "r": 30,
+       "c": 26
+      },
+      {
+       "file": "valassn6.SEC",
+       "r": 1,
+       "c": 26
+      },
+      {
+       "file": "valmc.SEC",
+       "r": 14,
+       "c": 23
+      },
+      {
+       "file": "valmc.SEC",
+       "r": 30,
+       "c": 23
+      },
+      {
+       "file": "valrgn.SEC",
+       "r": 22,
+       "c": 18
+      },
+      {
+       "file": "valrgs.SEC",
+       "r": 23,
+       "c": 18
+      }
+     ]
+    }
+   ]
+  }
+ ],
+ "proposed_stacks": [
+  {
+   "id": "GobTun#2@suggest",
+   "region": "GobTun",
+   "surface_level": 0,
+   "confidence": "suggest",
+   "floors": [
+    {
+     "level": 0,
+     "block_id": "GobTun#2",
+     "dx": 0,
+     "dy": 0,
+     "cell_ox": 0,
+     "cell_oy": 0,
+     "pieces": [
+      {
+       "filename": "gobtun1.SEC",
+       "dx": 0,
+       "dy": 2,
+       "dz": 0
+      },
+      {
+       "filename": "gobtun2.SEC",
+       "dx": 0,
+       "dy": 1,
+       "dz": 0
+      },
+      {
+       "filename": "gobtun3.SEC",
+       "dx": 0,
+       "dy": 0,
+       "dz": 0
+      }
+     ]
+    },
+    {
+     "level": 1,
+     "block_id": "GobTun#1",
+     "dx": 0,
+     "dy": -1,
+     "cell_ox": 0,
+     "cell_oy": -23,
+     "pieces": [
+      {
+       "filename": "gobtun4.SEC",
+       "dx": 0,
+       "dy": -1,
+       "dz": 1
+      },
+      {
+       "filename": "gobtun5.SEC",
+       "dx": 0,
+       "dy": 0,
+       "dz": 1
+      },
+      {
+       "filename": "gobtun6.SEC",
+       "dx": 1,
+       "dy": 0,
+       "dz": 1
+      },
+      {
+       "filename": "gobtun7.SEC",
+       "dx": 1,
+       "dy": -1,
+       "dz": 1
+      }
+     ]
+    }
+   ],
+   "joins": [
+    {
+     "below": "GobTun#2",
+     "above": "GobTun#1",
+     "ox": 0,
+     "oy": -23,
+     "matches": 5,
+     "runner": 4,
+     "exact": 5,
+     "confidence": "suggest",
+     "coord_hint": false,
+     "name_hint": true,
+     "evidence": [
+      {
+       "up_file": "gobtun3.SEC",
+       "up_r": 28,
+       "up_c": 21,
+       "down_file": "gobtun4.SEC",
+       "down_r": 5,
+       "down_c": 21,
+       "dist": 0
+      },
+      {
+       "up_file": "gobtun3.SEC",
+       "up_r": 28,
+       "up_c": 22,
+       "down_file": "gobtun4.SEC",
+       "down_r": 5,
+       "down_c": 22,
+       "dist": 0
+      },
+      {
+       "up_file": "gobtun3.SEC",
+       "up_r": 28,
+       "up_c": 23,
+       "down_file": "gobtun4.SEC",
+       "down_r": 5,
+       "down_c": 23,
+       "dist": 0
+      },
+      {
+       "up_file": "gobtun3.SEC",
+       "up_r": 28,
+       "up_c": 24,
+       "down_file": "gobtun4.SEC",
+       "down_r": 5,
+       "down_c": 24,
+       "dist": 0
+      },
+      {
+       "up_file": "gobtun3.SEC",
+       "up_r": 28,
+       "up_c": 25,
+       "down_file": "gobtun4.SEC",
+       "down_r": 5,
+       "down_c": 25,
+       "dist": 0
+      }
+     ]
+    }
+   ],
+   "one_sided": []
+  },
+  {
+   "id": "Kokas#1@suggest",
+   "region": "Kokas",
+   "surface_level": 0,
+   "confidence": "suggest",
+   "floors": [
+    {
+     "level": 0,
+     "block_id": "Kokas#1",
+     "dx": 0,
+     "dy": 0,
+     "cell_ox": 0,
+     "cell_oy": 0,
+     "pieces": [
+      {
+       "filename": "kofor.SEC",
+       "dx": 1,
+       "dy": 0,
+       "dz": 0
+      },
+      {
+       "filename": "kokas1.SEC",
+       "dx": 0,
+       "dy": 0,
+       "dz": 0
+      }
+     ]
+    },
+    {
+     "level": 1,
+     "block_id": "Kokas/solo#2",
+     "dx": 0,
+     "dy": 0,
+     "cell_ox": 3,
+     "cell_oy": 0,
+     "pieces": [
+      {
+       "filename": "kokas2.SEC",
+       "dx": 0,
+       "dy": 0,
+       "dz": 1
+      }
+     ]
+    }
+   ],
+   "joins": [
+    {
+     "below": "Kokas#1",
+     "above": "Kokas/solo#2",
+     "ox": 3,
+     "oy": 0,
+     "matches": 2,
+     "runner": 1,
+     "exact": 2,
+     "confidence": "suggest",
+     "coord_hint": false,
+     "name_hint": true,
+     "evidence": [
+      {
+       "up_file": "kokas1.SEC",
+       "up_r": 3,
+       "up_c": 1,
+       "down_file": "kokas2.SEC",
+       "down_r": 3,
+       "down_c": 4,
+       "dist": 0
+      },
+      {
+       "up_file": "kokas1.SEC",
+       "up_r": 30,
+       "up_c": 1,
+       "down_file": "kokas2.SEC",
+       "down_r": 30,
+       "down_c": 4,
+       "dist": 0
+      }
+     ]
+    }
+   ],
+   "one_sided": []
+  },
+  {
+   "id": "Kokas#2@suggest",
+   "region": "Kokas",
+   "surface_level": 0,
+   "confidence": "suggest",
+   "floors": [
+    {
+     "level": 0,
+     "block_id": "Kokas/solo#2",
+     "dx": 0,
+     "dy": 0,
+     "cell_ox": 0,
+     "cell_oy": 0,
+     "pieces": [
+      {
+       "filename": "kokas2.SEC",
+       "dx": 0,
+       "dy": 0,
+       "dz": 0
+      }
+     ]
+    },
+    {
+     "level": 1,
+     "block_id": "Kokas/solo#4",
+     "dx": 0,
+     "dy": -1,
+     "cell_ox": 0,
+     "cell_oy": -1,
+     "pieces": [
+      {
+       "filename": "kokastop.SEC",
+       "dx": 0,
+       "dy": -1,
+       "dz": 1
+      }
+     ]
+    }
+   ],
+   "joins": [
+    {
+     "below": "Kokas/solo#2",
+     "above": "Kokas/solo#4",
+     "ox": 0,
+     "oy": -1,
+     "matches": 1,
+     "runner": 0,
+     "exact": 1,
+     "confidence": "suggest",
+     "coord_hint": false,
+     "name_hint": true,
+     "evidence": [
+      {
+       "up_file": "kokas2.SEC",
+       "up_r": 5,
+       "up_c": 31,
+       "down_file": "kokastop.SEC",
+       "down_r": 4,
+       "down_c": 31,
+       "dist": 0
+      }
+     ]
+    }
+   ],
+   "one_sided": []
+  },
+  {
+   "id": "Kokas#3@suggest",
+   "region": "Kokas",
+   "surface_level": 0,
+   "confidence": "suggest",
+   "floors": [
+    {
+     "level": 0,
+     "block_id": "Kokas/solo#3",
+     "dx": 0,
+     "dy": 0,
+     "cell_ox": 0,
+     "cell_oy": 0,
+     "pieces": [
+      {
+       "filename": "kokasmore.SEC",
+       "dx": 0,
+       "dy": 0,
+       "dz": 0
+      }
+     ]
+    },
+    {
+     "level": 1,
+     "block_id": "Kokas/solo#4",
+     "dx": 0,
+     "dy": -1,
+     "cell_ox": 19,
+     "cell_oy": -3,
+     "pieces": [
+      {
+       "filename": "kokastop.SEC",
+       "dx": 0,
+       "dy": -1,
+       "dz": 1
+      }
+     ]
+    }
+   ],
+   "joins": [
+    {
+     "below": "Kokas/solo#3",
+     "above": "Kokas/solo#4",
+     "ox": 19,
+     "oy": -3,
+     "matches": 1,
+     "runner": 0,
+     "exact": 1,
+     "confidence": "suggest",
+     "coord_hint": false,
+     "name_hint": true,
+     "evidence": [
+      {
+       "up_file": "kokasmore.SEC",
+       "up_r": 7,
+       "up_c": 12,
+       "down_file": "kokastop.SEC",
+       "down_r": 4,
+       "down_c": 31,
+       "dist": 0
+      }
+     ]
+    }
+   ],
+   "one_sided": []
+  },
+  {
+   "id": "gom#1@suggest",
+   "region": "gom",
+   "surface_level": 0,
+   "confidence": "suggest",
+   "floors": [
+    {
+     "level": 0,
+     "block_id": "gom#1",
+     "dx": 0,
+     "dy": 0,
+     "cell_ox": 0,
+     "cell_oy": 0,
+     "pieces": [
+      {
+       "filename": "gom2a.SEC",
+       "dx": 2,
+       "dy": 1,
+       "dz": 0
+      },
+      {
+       "filename": "gom2anorth.SEC",
+       "dx": 2,
+       "dy": 0,
+       "dz": 0
+      },
+      {
+       "filename": "gom2awest.SEC",
+       "dx": 1,
+       "dy": 1,
+       "dz": 0
+      },
+      {
+       "filename": "gom2bnorth.SEC",
+       "dx": 1,
+       "dy": 0,
+       "dz": 0
+      },
+      {
+       "filename": "gom2c.SEC",
+       "dx": 0,
+       "dy": 1,
+       "dz": 0
+      },
+      {
+       "filename": "gom2cnorth.SEC",
+       "dx": 0,
+       "dy": 0,
+       "dz": 0
+      }
+     ]
+    },
+    {
+     "level": 1,
+     "block_id": "gom#2",
+     "dx": 0,
+     "dy": -1,
+     "cell_ox": 17,
+     "cell_oy": -31,
+     "pieces": [
+      {
+       "filename": "btse.SEC",
+       "dx": 1,
+       "dy": -1,
+       "dz": 1
+      },
+      {
+       "filename": "btsw.SEC",
+       "dx": 0,
+       "dy": -1,
+       "dz": 1
+      },
+      {
+       "filename": "gom3ne.SEC",
+       "dx": 2,
+       "dy": -1,
+       "dz": 1
+      }
+     ]
+    }
+   ],
+   "joins": [
+    {
+     "below": "gom#1",
+     "above": "gom#2",
+     "ox": 17,
+     "oy": -31,
+     "matches": 4,
+     "runner": 3,
+     "exact": 0,
+     "confidence": "suggest",
+     "coord_hint": false,
+     "name_hint": true,
+     "evidence": [
+      {
+       "up_file": "gom2awest.SEC",
+       "up_r": 13,
+       "up_c": 15,
+       "down_file": "gom3ne.SEC",
+       "down_r": 14,
+       "down_c": 1,
+       "dist": 1
+      },
+      {
+       "up_file": "gom2awest.SEC",
+       "up_r": 13,
+       "up_c": 20,
+       "down_file": "gom3ne.SEC",
+       "down_r": 14,
+       "down_c": 4,
+       "dist": 1
+      },
+      {
+       "up_file": "gom2awest.SEC",
+       "up_r": 16,
+       "up_c": 15,
+       "down_file": "gom3ne.SEC",
+       "down_r": 17,
+       "down_c": 1,
+       "dist": 1
+      },
+      {
+       "up_file": "gom2awest.SEC",
+       "up_r": 16,
+       "up_c": 20,
+       "down_file": "gom3ne.SEC",
+       "down_r": 17,
+       "down_c": 4,
+       "dist": 1
+      }
+     ]
+    }
+   ],
+   "one_sided": [
+    {
+     "block": "gom#1",
+     "kind": "up",
+     "n": 1,
+     "cells": [
+      {
+       "file": "gom2a.SEC",
+       "r": 12,
+       "c": 2
+      }
+     ]
+    },
+    {
+     "block": "gom#2",
+     "kind": "up",
+     "n": 13,
+     "cells": [
+      {
+       "file": "btse.SEC",
+       "r": 10,
+       "c": 1
+      },
+      {
+       "file": "btse.SEC",
+       "r": 11,
+       "c": 1
+      },
+      {
+       "file": "btse.SEC",
+       "r": 20,
+       "c": 1
+      },
+      {
+       "file": "btse.SEC",
+       "r": 21,
+       "c": 0
+      },
+      {
+       "file": "btsw.SEC",
+       "r": 0,
+       "c": 17
+      },
+      {
+       "file": "btsw.SEC",
+       "r": 0,
+       "c": 18
+      },
+      {
+       "file": "btsw.SEC",
+       "r": 9,
+       "c": 3
+      },
+      {
+       "file": "btsw.SEC",
+       "r": 10,
+       "c": 2
+      },
+      {
+       "file": "btsw.SEC",
+       "r": 19,
+       "c": 2
+      },
+      {
+       "file": "btsw.SEC",
+       "r": 20,
+       "c": 2
+      },
+      {
+       "file": "btsw.SEC",
+       "r": 21,
+       "c": 31
+      },
+      {
+       "file": "btsw.SEC",
+       "r": 30,
+       "c": 16
+      },
+      {
+       "file": "btsw.SEC",
+       "r": 30,
+       "c": 17
+      }
+     ]
+    },
+    {
+     "block": "gom#2",
+     "kind": "down",
+     "n": 5,
+     "cells": [
+      {
+       "file": "btsw.SEC",
+       "r": 14,
+       "c": 14
+      },
+      {
+       "file": "btsw.SEC",
+       "r": 14,
+       "c": 20
+      },
+      {
+       "file": "btsw.SEC",
+       "r": 16,
+       "c": 14
+      },
+      {
+       "file": "btsw.SEC",
+       "r": 16,
+       "c": 20
+      },
+      {
+       "file": "gom3ne.SEC",
+       "r": 14,
+       "c": 20
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "iun#1@suggest",
+   "region": "iun",
+   "surface_level": 0,
+   "confidence": "suggest",
+   "floors": [
+    {
+     "level": 0,
+     "block_id": "iun#1",
+     "dx": 0,
+     "dy": 0,
+     "cell_ox": 0,
+     "cell_oy": 0,
+     "pieces": [
+      {
+       "filename": "Iun1west.SEC",
+       "dx": 0,
+       "dy": 0,
+       "dz": 0
+      },
+      {
+       "filename": "iun1.SEC",
+       "dx": 1,
+       "dy": 0,
+       "dz": 0
+      },
+      {
+       "filename": "iun1south.SEC",
+       "dx": 1,
+       "dy": 1,
+       "dz": 0
+      }
+     ]
+    },
+    {
+     "level": 1,
+     "block_id": "iun#2",
+     "dx": -1,
+     "dy": -1,
+     "cell_ox": -19,
+     "cell_oy": -1,
+     "pieces": [
+      {
+       "filename": "iun2.SEC",
+       "dx": -1,
+       "dy": -1,
+       "dz": 1
+      },
+      {
+       "filename": "iun2south.SEC",
+       "dx": -1,
+       "dy": 0,
+       "dz": 1
+      }
+     ]
+    }
+   ],
+   "joins": [
+    {
+     "below": "iun#1",
+     "above": "iun#2",
+     "ox": -19,
+     "oy": -1,
+     "matches": 1,
+     "runner": 0,
+     "exact": 1,
+     "confidence": "suggest",
+     "coord_hint": false,
+     "name_hint": true,
+     "evidence": [
+      {
+       "up_file": "iun1.SEC",
+       "up_r": 17,
+       "up_c": 16,
+       "down_file": "iun2.SEC",
+       "down_r": 16,
+       "down_c": 29,
+       "dist": 0
+      }
+     ]
+    }
+   ],
+   "one_sided": [
+    {
+     "block": "iun#1",
+     "kind": "down",
+     "n": 2,
+     "cells": [
+      {
+       "file": "Iun1west.SEC",
+       "r": 17,
+       "c": 31
+      },
+      {
+       "file": "iun1.SEC",
+       "r": 17,
+       "c": 0
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "iun#1@suggest",
+   "region": "iun",
+   "surface_level": 0,
+   "confidence": "suggest",
+   "floors": [
+    {
+     "level": 0,
+     "block_id": "iun#1",
+     "dx": 0,
+     "dy": 0,
+     "cell_ox": 0,
+     "cell_oy": 0,
+     "pieces": [
+      {
+       "filename": "Iun1west.SEC",
+       "dx": 0,
+       "dy": 0,
+       "dz": 0
+      },
+      {
+       "filename": "iun1.SEC",
+       "dx": 1,
+       "dy": 0,
+       "dz": 0
+      },
+      {
+       "filename": "iun1south.SEC",
+       "dx": 1,
+       "dy": 1,
+       "dz": 0
+      }
+     ]
+    },
+    {
+     "level": 1,
+     "block_id": "iun/solo#1",
+     "dx": -2,
+     "dy": -1,
+     "cell_ox": -33,
+     "cell_oy": -5,
+     "pieces": [
+      {
+       "filename": "iuntop.SEC",
+       "dx": -2,
+       "dy": -1,
+       "dz": 1
+      }
+     ]
+    }
+   ],
+   "joins": [
+    {
+     "below": "iun#1",
+     "above": "iun/solo#1",
+     "ox": -33,
+     "oy": -5,
+     "matches": 1,
+     "runner": 0,
+     "exact": 1,
+     "confidence": "suggest",
+     "coord_hint": false,
+     "name_hint": true,
+     "evidence": [
+      {
+       "up_file": "iun1.SEC",
+       "up_r": 17,
+       "up_c": 16,
+       "down_file": "iuntop.SEC",
+       "down_r": 12,
+       "down_c": 15,
+       "dist": 0
+      }
+     ]
+    }
+   ],
+   "one_sided": [
+    {
+     "block": "iun#1",
+     "kind": "down",
+     "n": 2,
+     "cells": [
+      {
+       "file": "Iun1west.SEC",
+       "r": 17,
+       "c": 31
+      },
+      {
+       "file": "iun1.SEC",
+       "r": 17,
+       "c": 0
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "iun#2@suggest",
+   "region": "iun",
+   "surface_level": 0,
+   "confidence": "suggest",
+   "floors": [
+    {
+     "level": 0,
+     "block_id": "iun#2",
+     "dx": 0,
+     "dy": 0,
+     "cell_ox": 0,
+     "cell_oy": 0,
+     "pieces": [
+      {
+       "filename": "iun2.SEC",
+       "dx": 0,
+       "dy": 0,
+       "dz": 0
+      },
+      {
+       "filename": "iun2south.SEC",
+       "dx": 0,
+       "dy": 1,
+       "dz": 0
+      }
+     ]
+    },
+    {
+     "level": 1,
+     "block_id": "iun#3",
+     "dx": 0,
+     "dy": 0,
+     "cell_ox": 0,
+     "cell_oy": 1,
+     "pieces": [
+      {
+       "filename": "iun3.SEC",
+       "dx": 0,
+       "dy": 0,
+       "dz": 1
+      },
+      {
+       "filename": "iun3south.SEC",
+       "dx": 0,
+       "dy": 1,
+       "dz": 1
+      }
+     ]
+    }
+   ],
+   "joins": [
+    {
+     "below": "iun#2",
+     "above": "iun#3",
+     "ox": 0,
+     "oy": 1,
+     "matches": 1,
+     "runner": 0,
+     "exact": 1,
+     "confidence": "suggest",
+     "coord_hint": false,
+     "name_hint": true,
+     "evidence": [
+      {
+       "up_file": "iun2.SEC",
+       "up_r": 16,
+       "up_c": 0,
+       "down_file": "iun3.SEC",
+       "down_r": 17,
+       "down_c": 0,
+       "dist": 0
+      }
+     ]
+    }
+   ],
+   "one_sided": []
+  },
+  {
+   "id": "iun#2@suggest",
+   "region": "iun",
+   "surface_level": 0,
+   "confidence": "suggest",
+   "floors": [
+    {
+     "level": 0,
+     "block_id": "iun#2",
+     "dx": 0,
+     "dy": 0,
+     "cell_ox": 0,
+     "cell_oy": 0,
+     "pieces": [
+      {
+       "filename": "iun2.SEC",
+       "dx": 0,
+       "dy": 0,
+       "dz": 0
+      },
+      {
+       "filename": "iun2south.SEC",
+       "dx": 0,
+       "dy": 1,
+       "dz": 0
+      }
+     ]
+    },
+    {
+     "level": 1,
+     "block_id": "iun/solo#1",
+     "dx": 0,
+     "dy": -1,
+     "cell_ox": 15,
+     "cell_oy": -4,
+     "pieces": [
+      {
+       "filename": "iuntop.SEC",
+       "dx": 0,
+       "dy": -1,
+       "dz": 1
+      }
+     ]
+    }
+   ],
+   "joins": [
+    {
+     "below": "iun#2",
+     "above": "iun/solo#1",
+     "ox": 15,
+     "oy": -4,
+     "matches": 1,
+     "runner": 0,
+     "exact": 1,
+     "confidence": "suggest",
+     "coord_hint": false,
+     "name_hint": true,
+     "evidence": [
+      {
+       "up_file": "iun2.SEC",
+       "up_r": 16,
+       "up_c": 0,
+       "down_file": "iuntop.SEC",
+       "down_r": 12,
+       "down_c": 15,
+       "dist": 0
+      }
+     ]
+    }
+   ],
+   "one_sided": []
+  },
+  {
+   "id": "iun#3@suggest",
+   "region": "iun",
+   "surface_level": 0,
+   "confidence": "suggest",
+   "floors": [
+    {
+     "level": 0,
+     "block_id": "iun#3",
+     "dx": 0,
+     "dy": 0,
+     "cell_ox": 0,
+     "cell_oy": 0,
+     "pieces": [
+      {
+       "filename": "iun3.SEC",
+       "dx": 0,
+       "dy": 0,
+       "dz": 0
+      },
+      {
+       "filename": "iun3south.SEC",
+       "dx": 0,
+       "dy": 1,
+       "dz": 0
+      }
+     ]
+    },
+    {
+     "level": 1,
+     "block_id": "iun#4",
+     "dx": 0,
+     "dy": -1,
+     "cell_ox": 0,
+     "cell_oy": -1,
+     "pieces": [
+      {
+       "filename": "iun4.SEC",
+       "dx": 0,
+       "dy": -1,
+       "dz": 1
+      },
+      {
+       "filename": "iun4south.SEC",
+       "dx": 0,
+       "dy": 0,
+       "dz": 1
+      }
+     ]
+    }
+   ],
+   "joins": [
+    {
+     "below": "iun#3",
+     "above": "iun#4",
+     "ox": 0,
+     "oy": -1,
+     "matches": 1,
+     "runner": 0,
+     "exact": 1,
+     "confidence": "suggest",
+     "coord_hint": false,
+     "name_hint": true,
+     "evidence": [
+      {
+       "up_file": "iun3.SEC",
+       "up_r": 17,
+       "up_c": 29,
+       "down_file": "iun4.SEC",
+       "down_r": 16,
+       "down_c": 29,
+       "dist": 0
+      }
+     ]
+    }
+   ],
+   "one_sided": []
+  },
+  {
+   "id": "iun#3@suggest",
+   "region": "iun",
+   "surface_level": 0,
+   "confidence": "suggest",
+   "floors": [
+    {
+     "level": 0,
+     "block_id": "iun#3",
+     "dx": 0,
+     "dy": 0,
+     "cell_ox": 0,
+     "cell_oy": 0,
+     "pieces": [
+      {
+       "filename": "iun3.SEC",
+       "dx": 0,
+       "dy": 0,
+       "dz": 0
+      },
+      {
+       "filename": "iun3south.SEC",
+       "dx": 0,
+       "dy": 1,
+       "dz": 0
+      }
+     ]
+    },
+    {
+     "level": 1,
+     "block_id": "iun/solo#1",
+     "dx": -1,
+     "dy": -1,
+     "cell_ox": -14,
+     "cell_oy": -5,
+     "pieces": [
+      {
+       "filename": "iuntop.SEC",
+       "dx": -1,
+       "dy": -1,
+       "dz": 1
+      }
+     ]
+    }
+   ],
+   "joins": [
+    {
+     "below": "iun#3",
+     "above": "iun/solo#1",
+     "ox": -14,
+     "oy": -5,
+     "matches": 1,
+     "runner": 0,
+     "exact": 1,
+     "confidence": "suggest",
+     "coord_hint": false,
+     "name_hint": true,
+     "evidence": [
+      {
+       "up_file": "iun3.SEC",
+       "up_r": 17,
+       "up_c": 29,
+       "down_file": "iuntop.SEC",
+       "down_r": 12,
+       "down_c": 15,
+       "dist": 0
+      }
+     ]
+    }
+   ],
+   "one_sided": []
+  },
+  {
+   "id": "iun#4@suggest",
+   "region": "iun",
+   "surface_level": 0,
+   "confidence": "suggest",
+   "floors": [
+    {
+     "level": 0,
+     "block_id": "iun#4",
+     "dx": 0,
+     "dy": 0,
+     "cell_ox": 0,
+     "cell_oy": 0,
+     "pieces": [
+      {
+       "filename": "iun4.SEC",
+       "dx": 0,
+       "dy": 0,
+       "dz": 0
+      },
+      {
+       "filename": "iun4south.SEC",
+       "dx": 0,
+       "dy": 1,
+       "dz": 0
+      }
+     ]
+    },
+    {
+     "level": 1,
+     "block_id": "iun/solo#1",
+     "dx": 0,
+     "dy": -1,
+     "cell_ox": 15,
+     "cell_oy": -4,
+     "pieces": [
+      {
+       "filename": "iuntop.SEC",
+       "dx": 0,
+       "dy": -1,
+       "dz": 1
+      }
+     ]
+    }
+   ],
+   "joins": [
+    {
+     "below": "iun#4",
+     "above": "iun/solo#1",
+     "ox": 15,
+     "oy": -4,
+     "matches": 1,
+     "runner": 0,
+     "exact": 1,
+     "confidence": "suggest",
+     "coord_hint": false,
+     "name_hint": true,
+     "evidence": [
+      {
+       "up_file": "iun4.SEC",
+       "up_r": 16,
+       "up_c": 0,
+       "down_file": "iuntop.SEC",
+       "down_r": 12,
+       "down_c": 15,
+       "dist": 0
+      }
+     ]
+    }
+   ],
+   "one_sided": []
+  },
+  {
+   "id": "iun#5@suggest",
+   "region": "iun",
+   "surface_level": 0,
+   "confidence": "suggest",
+   "floors": [
+    {
+     "level": 0,
+     "block_id": "iun#5",
+     "dx": 0,
+     "dy": 0,
+     "cell_ox": 0,
+     "cell_oy": 0,
+     "pieces": [
+      {
+       "filename": "iun5.SEC",
+       "dx": 1,
+       "dy": 0,
+       "dz": 0
+      },
+      {
+       "filename": "iun5south.SEC",
+       "dx": 1,
+       "dy": 1,
+       "dz": 0
+      },
+      {
+       "filename": "iun5west.SEC",
+       "dx": 0,
+       "dy": 0,
+       "dz": 0
+      }
+     ]
+    },
+    {
+     "level": 1,
+     "block_id": "iun/solo#1",
+     "dx": -2,
+     "dy": -1,
+     "cell_ox": -46,
+     "cell_oy": -5,
+     "pieces": [
+      {
+       "filename": "iuntop.SEC",
+       "dx": -2,
+       "dy": -1,
+       "dz": 1
+      }
+     ]
+    }
+   ],
+   "joins": [
+    {
+     "below": "iun#5",
+     "above": "iun/solo#1",
+     "ox": -46,
+     "oy": -5,
+     "matches": 1,
+     "runner": 0,
+     "exact": 1,
+     "confidence": "suggest",
+     "coord_hint": false,
+     "name_hint": true,
+     "evidence": [
+      {
+       "up_file": "iun5.SEC",
+       "up_r": 17,
+       "up_c": 29,
+       "down_file": "iuntop.SEC",
+       "down_r": 12,
+       "down_c": 15,
+       "dist": 0
+      }
+     ]
+    }
+   ],
+   "one_sided": []
+  },
+  {
+   "id": "rem#1@suggest",
+   "region": "rem",
+   "surface_level": 0,
+   "confidence": "suggest",
+   "floors": [
+    {
+     "level": 0,
+     "block_id": "rem#1",
+     "dx": 0,
+     "dy": 0,
+     "cell_ox": 0,
+     "cell_oy": 0,
+     "pieces": [
+      {
+       "filename": "rem1.SEC",
+       "dx": 0,
+       "dy": 1,
+       "dz": 0
+      },
+      {
+       "filename": "rem1north.SEC",
+       "dx": 0,
+       "dy": 0,
+       "dz": 0
+      }
+     ]
+    },
+    {
+     "level": 1,
+     "block_id": "rem#2",
+     "dx": 0,
+     "dy": 0,
+     "cell_ox": 2,
+     "cell_oy": 0,
+     "pieces": [
+      {
+       "filename": "rem2.SEC",
+       "dx": 0,
+       "dy": 1,
+       "dz": 1
+      },
+      {
+       "filename": "rem2north.SEC",
+       "dx": 0,
+       "dy": 0,
+       "dz": 1
+      }
+     ]
+    }
+   ],
+   "joins": [
+    {
+     "below": "rem#1",
+     "above": "rem#2",
+     "ox": 2,
+     "oy": 0,
+     "matches": 1,
+     "runner": 0,
+     "exact": 1,
+     "confidence": "suggest",
+     "coord_hint": false,
+     "name_hint": true,
+     "evidence": [
+      {
+       "up_file": "rem1.SEC",
+       "up_r": 18,
+       "up_c": 2,
+       "down_file": "rem2.SEC",
+       "down_r": 18,
+       "down_c": 4,
+       "dist": 0
+      }
+     ]
+    }
+   ],
+   "one_sided": []
+  },
+  {
+   "id": "mound#6@suggest",
+   "region": "mound",
+   "surface_level": 0,
+   "confidence": "suggest",
+   "floors": [
+    {
+     "level": 0,
+     "block_id": "mound/solo#6",
+     "dx": 0,
+     "dy": 0,
+     "cell_ox": 0,
+     "cell_oy": 0,
+     "pieces": [
+      {
+       "filename": "mound4.SEC",
+       "dx": 0,
+       "dy": 0,
+       "dz": 0
+      }
+     ]
+    },
+    {
+     "level": 1,
+     "block_id": "mound/solo#7",
+     "dx": -1,
+     "dy": 0,
+     "cell_ox": -2,
+     "cell_oy": 1,
+     "pieces": [
+      {
+       "filename": "mound5.SEC",
+       "dx": -1,
+       "dy": 0,
+       "dz": 1
+      }
+     ]
+    }
+   ],
+   "joins": [
+    {
+     "below": "mound/solo#6",
+     "above": "mound/solo#7",
+     "ox": -2,
+     "oy": 1,
+     "matches": 1,
+     "runner": 0,
+     "exact": 1,
+     "confidence": "suggest",
+     "coord_hint": false,
+     "name_hint": true,
+     "evidence": [
+      {
+       "up_file": "mound4.SEC",
+       "up_r": 15,
+       "up_c": 16,
+       "down_file": "mound5.SEC",
+       "down_r": 16,
+       "down_c": 14,
+       "dist": 0
+      }
+     ]
+    }
+   ],
+   "one_sided": []
+  },
+  {
+   "id": "mound#7@suggest",
+   "region": "mound",
+   "surface_level": 0,
+   "confidence": "suggest",
+   "floors": [
+    {
+     "level": 0,
+     "block_id": "mound/solo#7",
+     "dx": 0,
+     "dy": 0,
+     "cell_ox": 0,
+     "cell_oy": 0,
+     "pieces": [
+      {
+       "filename": "mound5.SEC",
+       "dx": 0,
+       "dy": 0,
+       "dz": 0
+      }
+     ]
+    },
+    {
+     "level": 1,
+     "block_id": "mound/solo#8",
+     "dx": -1,
+     "dy": 0,
+     "cell_ox": -6,
+     "cell_oy": 0,
+     "pieces": [
+      {
+       "filename": "mound6.SEC",
+       "dx": -1,
+       "dy": 0,
+       "dz": 1
+      }
+     ]
+    }
+   ],
+   "joins": [
+    {
+     "below": "mound/solo#7",
+     "above": "mound/solo#8",
+     "ox": -6,
+     "oy": 0,
+     "matches": 1,
+     "runner": 0,
+     "exact": 1,
+     "confidence": "suggest",
+     "coord_hint": false,
+     "name_hint": true,
+     "evidence": [
+      {
+       "up_file": "mound5.SEC",
+       "up_r": 15,
+       "up_c": 19,
+       "down_file": "mound6.SEC",
+       "down_r": 15,
+       "down_c": 13,
+       "dist": 0
+      }
+     ]
+    }
+   ],
+   "one_sided": []
+  },
+  {
+   "id": "mound#8@suggest",
+   "region": "mound",
+   "surface_level": 0,
+   "confidence": "suggest",
+   "floors": [
+    {
+     "level": 0,
+     "block_id": "mound/solo#8",
+     "dx": 0,
+     "dy": 0,
+     "cell_ox": 0,
+     "cell_oy": 0,
+     "pieces": [
+      {
+       "filename": "mound6.SEC",
+       "dx": 0,
+       "dy": 0,
+       "dz": 0
+      }
+     ]
+    },
+    {
+     "level": 1,
+     "block_id": "mound/solo#9",
+     "dx": -1,
+     "dy": -1,
+     "cell_ox": -3,
+     "cell_oy": -1,
+     "pieces": [
+      {
+       "filename": "mound7.SEC",
+       "dx": -1,
+       "dy": -1,
+       "dz": 1
+      }
+     ]
+    }
+   ],
+   "joins": [
+    {
+     "below": "mound/solo#8",
+     "above": "mound/solo#9",
+     "ox": -3,
+     "oy": -1,
+     "matches": 1,
+     "runner": 0,
+     "exact": 1,
+     "confidence": "suggest",
+     "coord_hint": false,
+     "name_hint": true,
+     "evidence": [
+      {
+       "up_file": "mound6.SEC",
+       "up_r": 16,
+       "up_c": 18,
+       "down_file": "mound7.SEC",
+       "down_r": 15,
+       "down_c": 15,
+       "dist": 0
+      }
+     ]
+    }
+   ],
+   "one_sided": []
+  },
+  {
+   "id": "mound#9@suggest",
+   "region": "mound",
+   "surface_level": 0,
+   "confidence": "suggest",
+   "floors": [
+    {
+     "level": 0,
+     "block_id": "mound/solo#9",
+     "dx": 0,
+     "dy": 0,
+     "cell_ox": 0,
+     "cell_oy": 0,
+     "pieces": [
+      {
+       "filename": "mound7.SEC",
+       "dx": 0,
+       "dy": 0,
+       "dz": 0
+      }
+     ]
+    },
+    {
+     "level": 1,
+     "block_id": "mound/solo#10",
+     "dx": 0,
+     "dy": -1,
+     "cell_ox": 5,
+     "cell_oy": -1,
+     "pieces": [
+      {
+       "filename": "mound8.SEC",
+       "dx": 0,
+       "dy": -1,
+       "dz": 1
+      }
+     ]
+    }
+   ],
+   "joins": [
+    {
+     "below": "mound/solo#9",
+     "above": "mound/solo#10",
+     "ox": 5,
+     "oy": -1,
+     "matches": 1,
+     "runner": 0,
+     "exact": 1,
+     "confidence": "suggest",
+     "coord_hint": false,
+     "name_hint": true,
+     "evidence": [
+      {
+       "up_file": "mound7.SEC",
+       "up_r": 15,
+       "up_c": 14,
+       "down_file": "mound8.SEC",
+       "down_r": 14,
+       "down_c": 19,
+       "dist": 0
+      }
+     ]
+    }
+   ],
+   "one_sided": []
+  }
+ ],
+ "suggested_joins": [
+  {
+   "below": "GobTun#2",
+   "above": "GobTun#1",
+   "ox": 0,
+   "oy": -23,
+   "matches": 5,
+   "runner": 4,
+   "exact": 5,
+   "confidence": "suggest",
+   "coord_hint": false,
+   "name_hint": true,
+   "evidence": [
+    {
+     "up_file": "gobtun3.SEC",
+     "up_r": 28,
+     "up_c": 21,
+     "down_file": "gobtun4.SEC",
+     "down_r": 5,
+     "down_c": 21,
+     "dist": 0
+    },
+    {
+     "up_file": "gobtun3.SEC",
+     "up_r": 28,
+     "up_c": 22,
+     "down_file": "gobtun4.SEC",
+     "down_r": 5,
+     "down_c": 22,
+     "dist": 0
+    },
+    {
+     "up_file": "gobtun3.SEC",
+     "up_r": 28,
+     "up_c": 23,
+     "down_file": "gobtun4.SEC",
+     "down_r": 5,
+     "down_c": 23,
+     "dist": 0
+    },
+    {
+     "up_file": "gobtun3.SEC",
+     "up_r": 28,
+     "up_c": 24,
+     "down_file": "gobtun4.SEC",
+     "down_r": 5,
+     "down_c": 24,
+     "dist": 0
+    },
+    {
+     "up_file": "gobtun3.SEC",
+     "up_r": 28,
+     "up_c": 25,
+     "down_file": "gobtun4.SEC",
+     "down_r": 5,
+     "down_c": 25,
+     "dist": 0
+    }
+   ]
+  },
+  {
+   "below": "Kokas#1",
+   "above": "Kokas/solo#2",
+   "ox": 3,
+   "oy": 0,
+   "matches": 2,
+   "runner": 1,
+   "exact": 2,
+   "confidence": "suggest",
+   "coord_hint": false,
+   "name_hint": true,
+   "evidence": [
+    {
+     "up_file": "kokas1.SEC",
+     "up_r": 3,
+     "up_c": 1,
+     "down_file": "kokas2.SEC",
+     "down_r": 3,
+     "down_c": 4,
+     "dist": 0
+    },
+    {
+     "up_file": "kokas1.SEC",
+     "up_r": 30,
+     "up_c": 1,
+     "down_file": "kokas2.SEC",
+     "down_r": 30,
+     "down_c": 4,
+     "dist": 0
+    }
+   ]
+  },
+  {
+   "below": "Kokas/solo#2",
+   "above": "Kokas/solo#4",
+   "ox": 0,
+   "oy": -1,
+   "matches": 1,
+   "runner": 0,
+   "exact": 1,
+   "confidence": "suggest",
+   "coord_hint": false,
+   "name_hint": true,
+   "evidence": [
+    {
+     "up_file": "kokas2.SEC",
+     "up_r": 5,
+     "up_c": 31,
+     "down_file": "kokastop.SEC",
+     "down_r": 4,
+     "down_c": 31,
+     "dist": 0
+    }
+   ]
+  },
+  {
+   "below": "Kokas/solo#3",
+   "above": "Kokas/solo#4",
+   "ox": 19,
+   "oy": -3,
+   "matches": 1,
+   "runner": 0,
+   "exact": 1,
+   "confidence": "suggest",
+   "coord_hint": false,
+   "name_hint": true,
+   "evidence": [
+    {
+     "up_file": "kokasmore.SEC",
+     "up_r": 7,
+     "up_c": 12,
+     "down_file": "kokastop.SEC",
+     "down_r": 4,
+     "down_c": 31,
+     "dist": 0
+    }
+   ]
+  },
+  {
+   "below": "gom#1",
+   "above": "gom#2",
+   "ox": 17,
+   "oy": -31,
+   "matches": 4,
+   "runner": 3,
+   "exact": 0,
+   "confidence": "suggest",
+   "coord_hint": false,
+   "name_hint": true,
+   "evidence": [
+    {
+     "up_file": "gom2awest.SEC",
+     "up_r": 13,
+     "up_c": 15,
+     "down_file": "gom3ne.SEC",
+     "down_r": 14,
+     "down_c": 1,
+     "dist": 1
+    },
+    {
+     "up_file": "gom2awest.SEC",
+     "up_r": 13,
+     "up_c": 20,
+     "down_file": "gom3ne.SEC",
+     "down_r": 14,
+     "down_c": 4,
+     "dist": 1
+    },
+    {
+     "up_file": "gom2awest.SEC",
+     "up_r": 16,
+     "up_c": 15,
+     "down_file": "gom3ne.SEC",
+     "down_r": 17,
+     "down_c": 1,
+     "dist": 1
+    },
+    {
+     "up_file": "gom2awest.SEC",
+     "up_r": 16,
+     "up_c": 20,
+     "down_file": "gom3ne.SEC",
+     "down_r": 17,
+     "down_c": 4,
+     "dist": 1
+    }
+   ]
+  },
+  {
+   "below": "iun#1",
+   "above": "iun#2",
+   "ox": -19,
+   "oy": -1,
+   "matches": 1,
+   "runner": 0,
+   "exact": 1,
+   "confidence": "suggest",
+   "coord_hint": false,
+   "name_hint": true,
+   "evidence": [
+    {
+     "up_file": "iun1.SEC",
+     "up_r": 17,
+     "up_c": 16,
+     "down_file": "iun2.SEC",
+     "down_r": 16,
+     "down_c": 29,
+     "dist": 0
+    }
+   ]
+  },
+  {
+   "below": "iun#1",
+   "above": "iun/solo#1",
+   "ox": -33,
+   "oy": -5,
+   "matches": 1,
+   "runner": 0,
+   "exact": 1,
+   "confidence": "suggest",
+   "coord_hint": false,
+   "name_hint": true,
+   "evidence": [
+    {
+     "up_file": "iun1.SEC",
+     "up_r": 17,
+     "up_c": 16,
+     "down_file": "iuntop.SEC",
+     "down_r": 12,
+     "down_c": 15,
+     "dist": 0
+    }
+   ]
+  },
+  {
+   "below": "iun#2",
+   "above": "iun#3",
+   "ox": 0,
+   "oy": 1,
+   "matches": 1,
+   "runner": 0,
+   "exact": 1,
+   "confidence": "suggest",
+   "coord_hint": false,
+   "name_hint": true,
+   "evidence": [
+    {
+     "up_file": "iun2.SEC",
+     "up_r": 16,
+     "up_c": 0,
+     "down_file": "iun3.SEC",
+     "down_r": 17,
+     "down_c": 0,
+     "dist": 0
+    }
+   ]
+  },
+  {
+   "below": "iun#2",
+   "above": "iun/solo#1",
+   "ox": 15,
+   "oy": -4,
+   "matches": 1,
+   "runner": 0,
+   "exact": 1,
+   "confidence": "suggest",
+   "coord_hint": false,
+   "name_hint": true,
+   "evidence": [
+    {
+     "up_file": "iun2.SEC",
+     "up_r": 16,
+     "up_c": 0,
+     "down_file": "iuntop.SEC",
+     "down_r": 12,
+     "down_c": 15,
+     "dist": 0
+    }
+   ]
+  },
+  {
+   "below": "iun#3",
+   "above": "iun#4",
+   "ox": 0,
+   "oy": -1,
+   "matches": 1,
+   "runner": 0,
+   "exact": 1,
+   "confidence": "suggest",
+   "coord_hint": false,
+   "name_hint": true,
+   "evidence": [
+    {
+     "up_file": "iun3.SEC",
+     "up_r": 17,
+     "up_c": 29,
+     "down_file": "iun4.SEC",
+     "down_r": 16,
+     "down_c": 29,
+     "dist": 0
+    }
+   ]
+  },
+  {
+   "below": "iun#3",
+   "above": "iun/solo#1",
+   "ox": -14,
+   "oy": -5,
+   "matches": 1,
+   "runner": 0,
+   "exact": 1,
+   "confidence": "suggest",
+   "coord_hint": false,
+   "name_hint": true,
+   "evidence": [
+    {
+     "up_file": "iun3.SEC",
+     "up_r": 17,
+     "up_c": 29,
+     "down_file": "iuntop.SEC",
+     "down_r": 12,
+     "down_c": 15,
+     "dist": 0
+    }
+   ]
+  },
+  {
+   "below": "iun#4",
+   "above": "iun/solo#1",
+   "ox": 15,
+   "oy": -4,
+   "matches": 1,
+   "runner": 0,
+   "exact": 1,
+   "confidence": "suggest",
+   "coord_hint": false,
+   "name_hint": true,
+   "evidence": [
+    {
+     "up_file": "iun4.SEC",
+     "up_r": 16,
+     "up_c": 0,
+     "down_file": "iuntop.SEC",
+     "down_r": 12,
+     "down_c": 15,
+     "dist": 0
+    }
+   ]
+  },
+  {
+   "below": "iun#5",
+   "above": "iun/solo#1",
+   "ox": -46,
+   "oy": -5,
+   "matches": 1,
+   "runner": 0,
+   "exact": 1,
+   "confidence": "suggest",
+   "coord_hint": false,
+   "name_hint": true,
+   "evidence": [
+    {
+     "up_file": "iun5.SEC",
+     "up_r": 17,
+     "up_c": 29,
+     "down_file": "iuntop.SEC",
+     "down_r": 12,
+     "down_c": 15,
+     "dist": 0
+    }
+   ]
+  },
+  {
+   "below": "rem#1",
+   "above": "rem#2",
+   "ox": 2,
+   "oy": 0,
+   "matches": 1,
+   "runner": 0,
+   "exact": 1,
+   "confidence": "suggest",
+   "coord_hint": false,
+   "name_hint": true,
+   "evidence": [
+    {
+     "up_file": "rem1.SEC",
+     "up_r": 18,
+     "up_c": 2,
+     "down_file": "rem2.SEC",
+     "down_r": 18,
+     "down_c": 4,
+     "dist": 0
+    }
+   ]
+  },
+  {
+   "below": "mound/solo#6",
+   "above": "mound/solo#7",
+   "ox": -2,
+   "oy": 1,
+   "matches": 1,
+   "runner": 0,
+   "exact": 1,
+   "confidence": "suggest",
+   "coord_hint": false,
+   "name_hint": true,
+   "evidence": [
+    {
+     "up_file": "mound4.SEC",
+     "up_r": 15,
+     "up_c": 16,
+     "down_file": "mound5.SEC",
+     "down_r": 16,
+     "down_c": 14,
+     "dist": 0
+    }
+   ]
+  },
+  {
+   "below": "mound/solo#7",
+   "above": "mound/solo#8",
+   "ox": -6,
+   "oy": 0,
+   "matches": 1,
+   "runner": 0,
+   "exact": 1,
+   "confidence": "suggest",
+   "coord_hint": false,
+   "name_hint": true,
+   "evidence": [
+    {
+     "up_file": "mound5.SEC",
+     "up_r": 15,
+     "up_c": 19,
+     "down_file": "mound6.SEC",
+     "down_r": 15,
+     "down_c": 13,
+     "dist": 0
+    }
+   ]
+  },
+  {
+   "below": "mound/solo#8",
+   "above": "mound/solo#9",
+   "ox": -3,
+   "oy": -1,
+   "matches": 1,
+   "runner": 0,
+   "exact": 1,
+   "confidence": "suggest",
+   "coord_hint": false,
+   "name_hint": true,
+   "evidence": [
+    {
+     "up_file": "mound6.SEC",
+     "up_r": 16,
+     "up_c": 18,
+     "down_file": "mound7.SEC",
+     "down_r": 15,
+     "down_c": 15,
+     "dist": 0
+    }
+   ]
+  },
+  {
+   "below": "mound/solo#9",
+   "above": "mound/solo#10",
+   "ox": 5,
+   "oy": -1,
+   "matches": 1,
+   "runner": 0,
+   "exact": 1,
+   "confidence": "suggest",
+   "coord_hint": false,
+   "name_hint": true,
+   "evidence": [
+    {
+     "up_file": "mound7.SEC",
+     "up_r": 15,
+     "up_c": 14,
+     "down_file": "mound8.SEC",
+     "down_r": 14,
+     "down_c": 19,
+     "dist": 0
+    }
+   ]
+  }
+ ],
+ "review_joins": [
+  {
+   "below": "Kokas/solo#2",
+   "above": "Kokas/solo#3",
+   "ox": -18,
+   "oy": 13,
+   "matches": 1,
+   "runner": 0,
+   "exact": 1,
+   "confidence": "review",
+   "coord_hint": false,
+   "name_hint": false,
+   "evidence": [
+    {
+     "up_file": "kokas2.SEC",
+     "up_r": 5,
+     "up_c": 31,
+     "down_file": "kokasmore.SEC",
+     "down_r": 18,
+     "down_c": 13,
+     "dist": 0
+    }
+   ]
+  },
+  {
+   "below": "Krell#1",
+   "above": "Krell#2",
+   "ox": -59,
+   "oy": -121,
+   "matches": 2,
+   "runner": 1,
+   "exact": 2,
+   "confidence": "review",
+   "coord_hint": false,
+   "name_hint": false,
+   "evidence": [
+    {
+     "up_file": "krell2.SEC",
+     "up_r": 26,
+     "up_c": 0,
+     "down_file": "krellgraveyard1.SEC",
+     "down_r": 1,
+     "down_c": 5,
+     "dist": 0
+    },
+    {
+     "up_file": "krell2.SEC",
+     "up_r": 27,
+     "up_c": 0,
+     "down_file": "krellgraveyard1.SEC",
+     "down_r": 2,
+     "down_c": 5,
+     "dist": 0
+    }
+   ]
+  },
+  {
+   "below": "Krell#1",
+   "above": "Krell#4",
+   "ox": -62,
+   "oy": -54,
+   "matches": 2,
+   "runner": 1,
+   "exact": 1,
+   "confidence": "review",
+   "coord_hint": false,
+   "name_hint": false,
+   "evidence": [
+    {
+     "up_file": "krell8.SEC",
+     "up_r": 27,
+     "up_c": 1,
+     "down_file": "krellmagesnorth.SEC",
+     "down_r": 5,
+     "down_c": 3,
+     "dist": 0
+    },
+    {
+     "up_file": "krell5.SEC",
+     "up_r": 18,
+     "up_c": 1,
+     "down_file": "krellmagesnorth.SEC",
+     "down_r": 27,
+     "down_c": 3,
+     "dist": 1
+    }
+   ]
+  },
+  {
+   "below": "Krell#3",
+   "above": "Krell#1",
+   "ox": 62,
+   "oy": 54,
+   "matches": 2,
+   "runner": 1,
+   "exact": 1,
+   "confidence": "review",
+   "coord_hint": false,
+   "name_hint": false,
+   "evidence": [
+    {
+     "up_file": "krellclericsnorth.SEC",
+     "up_r": 7,
+     "up_c": 3,
+     "down_file": "krell8.SEC",
+     "down_r": 29,
+     "down_c": 1,
+     "dist": 0
+    },
+    {
+     "up_file": "krellclericsnorth.SEC",
+     "up_r": 25,
+     "up_c": 3,
+     "down_file": "krell5.SEC",
+     "down_r": 16,
+     "down_c": 1,
+     "dist": 1
+    }
+   ]
+  },
+  {
+   "below": "bredery#2",
+   "above": "bredery#1",
+   "ox": -2,
+   "oy": -1,
+   "matches": 1,
+   "runner": 0,
+   "exact": 1,
+   "confidence": "review",
+   "coord_hint": false,
+   "name_hint": false,
+   "evidence": [
+    {
+     "up_file": "breedery2.SEC",
+     "up_r": 30,
+     "up_c": 3,
+     "down_file": "breedery.SEC",
+     "down_r": 29,
+     "down_c": 1,
+     "dist": 0
+    }
+   ]
+  },
+  {
+   "below": "gom/solo#1",
+   "above": "gom#2",
+   "ox": 40,
+   "oy": 0,
+   "matches": 4,
+   "runner": 3,
+   "exact": 0,
+   "confidence": "review",
+   "coord_hint": false,
+   "name_hint": false,
+   "evidence": [
+    {
+     "up_file": "gomlord.SEC",
+     "up_r": 14,
+     "up_c": 24,
+     "down_file": "gom3ne.SEC",
+     "down_r": 14,
+     "down_c": 1,
+     "dist": 1
+    },
+    {
+     "up_file": "gomlord.SEC",
+     "up_r": 14,
+     "up_c": 29,
+     "down_file": "gom3ne.SEC",
+     "down_r": 14,
+     "down_c": 4,
+     "dist": 1
+    },
+    {
+     "up_file": "gomlord.SEC",
+     "up_r": 17,
+     "up_c": 24,
+     "down_file": "gom3ne.SEC",
+     "down_r": 17,
+     "down_c": 1,
+     "dist": 1
+    },
+    {
+     "up_file": "gomlord.SEC",
+     "up_r": 17,
+     "up_c": 29,
+     "down_file": "gom3ne.SEC",
+     "down_r": 17,
+     "down_c": 4,
+     "dist": 1
+    }
+   ]
+  },
+  {
+   "below": "iun#1",
+   "above": "iun#3",
+   "ox": -48,
+   "oy": 0,
+   "matches": 1,
+   "runner": 0,
+   "exact": 1,
+   "confidence": "review",
+   "coord_hint": false,
+   "name_hint": false,
+   "evidence": [
+    {
+     "up_file": "iun1.SEC",
+     "up_r": 17,
+     "up_c": 16,
+     "down_file": "iun3.SEC",
+     "down_r": 17,
+     "down_c": 0,
+     "dist": 0
+    }
+   ]
+  },
+  {
+   "below": "iun#1",
+   "above": "iun#4",
+   "ox": -19,
+   "oy": -1,
+   "matches": 1,
+   "runner": 0,
+   "exact": 1,
+   "confidence": "review",
+   "coord_hint": false,
+   "name_hint": false,
+   "evidence": [
+    {
+     "up_file": "iun1.SEC",
+     "up_r": 17,
+     "up_c": 16,
+     "down_file": "iun4.SEC",
+     "down_r": 16,
+     "down_c": 29,
+     "dist": 0
+    }
+   ]
+  },
+  {
+   "below": "iun#2",
+   "above": "iun#4",
+   "ox": 29,
+   "oy": 0,
+   "matches": 1,
+   "runner": 0,
+   "exact": 1,
+   "confidence": "review",
+   "coord_hint": false,
+   "name_hint": false,
+   "evidence": [
+    {
+     "up_file": "iun2.SEC",
+     "up_r": 16,
+     "up_c": 0,
+     "down_file": "iun4.SEC",
+     "down_r": 16,
+     "down_c": 29,
+     "dist": 0
+    }
+   ]
+  },
+  {
+   "below": "iun#3",
+   "above": "iun#2",
+   "ox": 0,
+   "oy": -1,
+   "matches": 1,
+   "runner": 0,
+   "exact": 1,
+   "confidence": "review",
+   "coord_hint": false,
+   "name_hint": false,
+   "evidence": [
+    {
+     "up_file": "iun3.SEC",
+     "up_r": 17,
+     "up_c": 29,
+     "down_file": "iun2.SEC",
+     "down_r": 16,
+     "down_c": 29,
+     "dist": 0
+    }
+   ]
+  },
+  {
+   "below": "iun#4",
+   "above": "iun#2",
+   "ox": 29,
+   "oy": 0,
+   "matches": 1,
+   "runner": 0,
+   "exact": 1,
+   "confidence": "review",
+   "coord_hint": false,
+   "name_hint": false,
+   "evidence": [
+    {
+     "up_file": "iun4.SEC",
+     "up_r": 16,
+     "up_c": 0,
+     "down_file": "iun2.SEC",
+     "down_r": 16,
+     "down_c": 29,
+     "dist": 0
+    }
+   ]
+  },
+  {
+   "below": "iun#4",
+   "above": "iun#3",
+   "ox": 0,
+   "oy": 1,
+   "matches": 1,
+   "runner": 0,
+   "exact": 1,
+   "confidence": "review",
+   "coord_hint": false,
+   "name_hint": false,
+   "evidence": [
+    {
+     "up_file": "iun4.SEC",
+     "up_r": 16,
+     "up_c": 0,
+     "down_file": "iun3.SEC",
+     "down_r": 17,
+     "down_c": 0,
+     "dist": 0
+    }
+   ]
+  },
+  {
+   "below": "iun#5",
+   "above": "iun#2",
+   "ox": -32,
+   "oy": -1,
+   "matches": 1,
+   "runner": 0,
+   "exact": 1,
+   "confidence": "review",
+   "coord_hint": false,
+   "name_hint": false,
+   "evidence": [
+    {
+     "up_file": "iun5.SEC",
+     "up_r": 17,
+     "up_c": 29,
+     "down_file": "iun2.SEC",
+     "down_r": 16,
+     "down_c": 29,
+     "dist": 0
+    }
+   ]
+  },
+  {
+   "below": "iun#5",
+   "above": "iun#3",
+   "ox": -61,
+   "oy": 0,
+   "matches": 1,
+   "runner": 0,
+   "exact": 1,
+   "confidence": "review",
+   "coord_hint": false,
+   "name_hint": false,
+   "evidence": [
+    {
+     "up_file": "iun5.SEC",
+     "up_r": 17,
+     "up_c": 29,
+     "down_file": "iun3.SEC",
+     "down_r": 17,
+     "down_c": 0,
+     "dist": 0
+    }
+   ]
+  },
+  {
+   "below": "iun#5",
+   "above": "iun#4",
+   "ox": -32,
+   "oy": -1,
+   "matches": 1,
+   "runner": 0,
+   "exact": 1,
+   "confidence": "review",
+   "coord_hint": false,
+   "name_hint": false,
+   "evidence": [
+    {
+     "up_file": "iun5.SEC",
+     "up_r": 17,
+     "up_c": 29,
+     "down_file": "iun4.SEC",
+     "down_r": 16,
+     "down_c": 29,
+     "dist": 0
+    }
+   ]
+  },
+  {
+   "below": "orcs#1",
+   "above": "orcs#3",
+   "ox": -84,
+   "oy": -32,
+   "matches": 1,
+   "runner": 0,
+   "exact": 1,
+   "confidence": "review",
+   "coord_hint": false,
+   "name_hint": false,
+   "evidence": [
+    {
+     "up_file": "orc3.SEC",
+     "up_r": 2,
+     "up_c": 30,
+     "down_file": "orc1.SEC",
+     "down_r": 2,
+     "down_c": 10,
+     "dist": 0
+    }
+   ]
+  },
+  {
+   "below": "orcs#1",
+   "above": "orcs/solo#4",
+   "ox": -84,
+   "oy": -20,
+   "matches": 1,
+   "runner": 0,
+   "exact": 1,
+   "confidence": "review",
+   "coord_hint": false,
+   "name_hint": false,
+   "evidence": [
+    {
+     "up_file": "orc3.SEC",
+     "up_r": 2,
+     "up_c": 30,
+     "down_file": "orclord.SEC",
+     "down_r": 14,
+     "down_c": 10,
+     "dist": 0
+    }
+   ]
+  },
+  {
+   "below": "orcs#1",
+   "above": "orcs/solo#5",
+   "ox": -84,
+   "oy": -20,
+   "matches": 1,
+   "runner": 0,
+   "exact": 1,
+   "confidence": "review",
+   "coord_hint": false,
+   "name_hint": false,
+   "evidence": [
+    {
+     "up_file": "orc3.SEC",
+     "up_r": 2,
+     "up_c": 30,
+     "down_file": "orclordwalk.SEC",
+     "down_r": 14,
+     "down_c": 10,
+     "dist": 0
+    }
+   ]
+  },
+  {
+   "below": "orcs#2",
+   "above": "orcs#3",
+   "ox": 9,
+   "oy": -2,
+   "matches": 1,
+   "runner": 0,
+   "exact": 1,
+   "confidence": "review",
+   "coord_hint": false,
+   "name_hint": false,
+   "evidence": [
+    {
+     "up_file": "orc2.SEC",
+     "up_r": 4,
+     "up_c": 1,
+     "down_file": "orc1.SEC",
+     "down_r": 2,
+     "down_c": 10,
+     "dist": 0
+    }
+   ]
+  },
+  {
+   "below": "orcs#2",
+   "above": "orcs/solo#4",
+   "ox": 9,
+   "oy": 10,
+   "matches": 1,
+   "runner": 0,
+   "exact": 1,
+   "confidence": "review",
+   "coord_hint": false,
+   "name_hint": false,
+   "evidence": [
+    {
+     "up_file": "orc2.SEC",
+     "up_r": 4,
+     "up_c": 1,
+     "down_file": "orclord.SEC",
+     "down_r": 14,
+     "down_c": 10,
+     "dist": 0
+    }
+   ]
+  },
+  {
+   "below": "orcs#2",
+   "above": "orcs/solo#5",
+   "ox": 9,
+   "oy": 10,
+   "matches": 1,
+   "runner": 0,
+   "exact": 1,
+   "confidence": "review",
+   "coord_hint": false,
+   "name_hint": false,
+   "evidence": [
+    {
+     "up_file": "orc2.SEC",
+     "up_r": 4,
+     "up_c": 1,
+     "down_file": "orclordwalk.SEC",
+     "down_r": 14,
+     "down_c": 10,
+     "dist": 0
+    }
+   ]
+  },
+  {
+   "below": "mound/solo#2",
+   "above": "mound/solo#3",
+   "ox": 28,
+   "oy": 3,
+   "matches": 2,
+   "runner": 1,
+   "exact": 0,
+   "confidence": "review",
+   "coord_hint": false,
+   "name_hint": false,
+   "evidence": [
+    {
+     "up_file": "mound1se.SEC",
+     "up_r": 11,
+     "up_c": 2,
+     "down_file": "mound1sw.SEC",
+     "down_r": 13,
+     "down_c": 30,
+     "dist": 1
+    },
+    {
+     "up_file": "mound1se.SEC",
+     "up_r": 13,
+     "up_c": 2,
+     "down_file": "mound1sw.SEC",
+     "down_r": 17,
+     "down_c": 30,
+     "dist": 1
+    }
+   ]
+  },
+  {
+   "below": "mound/solo#3",
+   "above": "mound/solo#2",
+   "ox": -28,
+   "oy": -3,
+   "matches": 2,
+   "runner": 1,
+   "exact": 0,
+   "confidence": "review",
+   "coord_hint": false,
+   "name_hint": false,
+   "evidence": [
+    {
+     "up_file": "mound1sw.SEC",
+     "up_r": 14,
+     "up_c": 29,
+     "down_file": "mound1se.SEC",
+     "down_r": 10,
+     "down_c": 1,
+     "dist": 1
+    },
+    {
+     "up_file": "mound1sw.SEC",
+     "up_r": 16,
+     "up_c": 29,
+     "down_file": "mound1se.SEC",
+     "down_r": 14,
+     "down_c": 1,
+     "dist": 1
+    }
+   ]
+  },
+  {
+   "below": "mound/solo#6",
+   "above": "mound/solo#5",
+   "ox": -3,
+   "oy": 0,
+   "matches": 1,
+   "runner": 0,
+   "exact": 1,
+   "confidence": "review",
+   "coord_hint": false,
+   "name_hint": false,
+   "evidence": [
+    {
+     "up_file": "mound4.SEC",
+     "up_r": 15,
+     "up_c": 16,
+     "down_file": "mound3se.SEC",
+     "down_r": 15,
+     "down_c": 13,
+     "dist": 0
+    }
+   ]
+  },
+  {
+   "below": "mound/solo#6",
+   "above": "mound/solo#8",
+   "ox": -3,
+   "oy": 0,
+   "matches": 1,
+   "runner": 0,
+   "exact": 1,
+   "confidence": "review",
+   "coord_hint": false,
+   "name_hint": false,
+   "evidence": [
+    {
+     "up_file": "mound4.SEC",
+     "up_r": 15,
+     "up_c": 16,
+     "down_file": "mound6.SEC",
+     "down_r": 15,
+     "down_c": 13,
+     "dist": 0
+    }
+   ]
+  },
+  {
+   "below": "mound/solo#6",
+   "above": "mound/solo#9",
+   "ox": -1,
+   "oy": 0,
+   "matches": 1,
+   "runner": 0,
+   "exact": 1,
+   "confidence": "review",
+   "coord_hint": false,
+   "name_hint": false,
+   "evidence": [
+    {
+     "up_file": "mound4.SEC",
+     "up_r": 15,
+     "up_c": 16,
+     "down_file": "mound7.SEC",
+     "down_r": 15,
+     "down_c": 15,
+     "dist": 0
+    }
+   ]
+  },
+  {
+   "below": "mound/solo#6",
+   "above": "mound/solo#10",
+   "ox": 3,
+   "oy": -1,
+   "matches": 1,
+   "runner": 0,
+   "exact": 1,
+   "confidence": "review",
+   "coord_hint": false,
+   "name_hint": false,
+   "evidence": [
+    {
+     "up_file": "mound4.SEC",
+     "up_r": 15,
+     "up_c": 16,
+     "down_file": "mound8.SEC",
+     "down_r": 14,
+     "down_c": 19,
+     "dist": 0
+    }
+   ]
+  },
+  {
+   "below": "mound/solo#7",
+   "above": "mound/solo#5",
+   "ox": -6,
+   "oy": 0,
+   "matches": 1,
+   "runner": 0,
+   "exact": 1,
+   "confidence": "review",
+   "coord_hint": false,
+   "name_hint": false,
+   "evidence": [
+    {
+     "up_file": "mound5.SEC",
+     "up_r": 15,
+     "up_c": 19,
+     "down_file": "mound3se.SEC",
+     "down_r": 15,
+     "down_c": 13,
+     "dist": 0
+    }
+   ]
+  },
+  {
+   "below": "mound/solo#7",
+   "above": "mound/solo#6",
+   "ox": -2,
+   "oy": 0,
+   "matches": 1,
+   "runner": 0,
+   "exact": 1,
+   "confidence": "review",
+   "coord_hint": false,
+   "name_hint": false,
+   "evidence": [
+    {
+     "up_file": "mound5.SEC",
+     "up_r": 15,
+     "up_c": 19,
+     "down_file": "mound4.SEC",
+     "down_r": 15,
+     "down_c": 17,
+     "dist": 0
+    }
+   ]
+  },
+  {
+   "below": "mound/solo#7",
+   "above": "mound/solo#9",
+   "ox": -4,
+   "oy": 0,
+   "matches": 1,
+   "runner": 0,
+   "exact": 1,
+   "confidence": "review",
+   "coord_hint": false,
+   "name_hint": false,
+   "evidence": [
+    {
+     "up_file": "mound5.SEC",
+     "up_r": 15,
+     "up_c": 19,
+     "down_file": "mound7.SEC",
+     "down_r": 15,
+     "down_c": 15,
+     "dist": 0
+    }
+   ]
+  },
+  {
+   "below": "mound/solo#7",
+   "above": "mound/solo#10",
+   "ox": 0,
+   "oy": -1,
+   "matches": 1,
+   "runner": 0,
+   "exact": 1,
+   "confidence": "review",
+   "coord_hint": false,
+   "name_hint": false,
+   "evidence": [
+    {
+     "up_file": "mound5.SEC",
+     "up_r": 15,
+     "up_c": 19,
+     "down_file": "mound8.SEC",
+     "down_r": 14,
+     "down_c": 19,
+     "dist": 0
+    }
+   ]
+  },
+  {
+   "below": "mound/solo#8",
+   "above": "mound/solo#5",
+   "ox": -5,
+   "oy": -1,
+   "matches": 1,
+   "runner": 0,
+   "exact": 1,
+   "confidence": "review",
+   "coord_hint": false,
+   "name_hint": false,
+   "evidence": [
+    {
+     "up_file": "mound6.SEC",
+     "up_r": 16,
+     "up_c": 18,
+     "down_file": "mound3se.SEC",
+     "down_r": 15,
+     "down_c": 13,
+     "dist": 0
+    }
+   ]
+  },
+  {
+   "below": "mound/solo#8",
+   "above": "mound/solo#6",
+   "ox": -1,
+   "oy": -1,
+   "matches": 1,
+   "runner": 0,
+   "exact": 1,
+   "confidence": "review",
+   "coord_hint": false,
+   "name_hint": false,
+   "evidence": [
+    {
+     "up_file": "mound6.SEC",
+     "up_r": 16,
+     "up_c": 18,
+     "down_file": "mound4.SEC",
+     "down_r": 15,
+     "down_c": 17,
+     "dist": 0
+    }
+   ]
+  },
+  {
+   "below": "mound/solo#8",
+   "above": "mound/solo#7",
+   "ox": -4,
+   "oy": 0,
+   "matches": 1,
+   "runner": 0,
+   "exact": 1,
+   "confidence": "review",
+   "coord_hint": false,
+   "name_hint": false,
+   "evidence": [
+    {
+     "up_file": "mound6.SEC",
+     "up_r": 16,
+     "up_c": 18,
+     "down_file": "mound5.SEC",
+     "down_r": 16,
+     "down_c": 14,
+     "dist": 0
+    }
+   ]
+  },
+  {
+   "below": "mound/solo#8",
+   "above": "mound/solo#10",
+   "ox": 1,
+   "oy": -2,
+   "matches": 1,
+   "runner": 0,
+   "exact": 1,
+   "confidence": "review",
+   "coord_hint": false,
+   "name_hint": false,
+   "evidence": [
+    {
+     "up_file": "mound6.SEC",
+     "up_r": 16,
+     "up_c": 18,
+     "down_file": "mound8.SEC",
+     "down_r": 14,
+     "down_c": 19,
+     "dist": 0
+    }
+   ]
+  },
+  {
+   "below": "mound/solo#9",
+   "above": "mound/solo#5",
+   "ox": -1,
+   "oy": 0,
+   "matches": 1,
+   "runner": 0,
+   "exact": 1,
+   "confidence": "review",
+   "coord_hint": false,
+   "name_hint": false,
+   "evidence": [
+    {
+     "up_file": "mound7.SEC",
+     "up_r": 15,
+     "up_c": 14,
+     "down_file": "mound3se.SEC",
+     "down_r": 15,
+     "down_c": 13,
+     "dist": 0
+    }
+   ]
+  },
+  {
+   "below": "mound/solo#9",
+   "above": "mound/solo#6",
+   "ox": 3,
+   "oy": 0,
+   "matches": 1,
+   "runner": 0,
+   "exact": 1,
+   "confidence": "review",
+   "coord_hint": false,
+   "name_hint": false,
+   "evidence": [
+    {
+     "up_file": "mound7.SEC",
+     "up_r": 15,
+     "up_c": 14,
+     "down_file": "mound4.SEC",
+     "down_r": 15,
+     "down_c": 17,
+     "dist": 0
+    }
+   ]
+  },
+  {
+   "below": "mound/solo#9",
+   "above": "mound/solo#7",
+   "ox": 0,
+   "oy": 1,
+   "matches": 1,
+   "runner": 0,
+   "exact": 1,
+   "confidence": "review",
+   "coord_hint": false,
+   "name_hint": false,
+   "evidence": [
+    {
+     "up_file": "mound7.SEC",
+     "up_r": 15,
+     "up_c": 14,
+     "down_file": "mound5.SEC",
+     "down_r": 16,
+     "down_c": 14,
+     "dist": 0
+    }
+   ]
+  },
+  {
+   "below": "mound/solo#9",
+   "above": "mound/solo#8",
+   "ox": -1,
+   "oy": 0,
+   "matches": 1,
+   "runner": 0,
+   "exact": 1,
+   "confidence": "review",
+   "coord_hint": false,
+   "name_hint": false,
+   "evidence": [
+    {
+     "up_file": "mound7.SEC",
+     "up_r": 15,
+     "up_c": 14,
+     "down_file": "mound6.SEC",
+     "down_r": 15,
+     "down_c": 13,
+     "dist": 0
+    }
+   ]
+  },
+  {
+   "below": "mound/solo#10",
+   "above": "mound/solo#5",
+   "ox": -5,
+   "oy": 0,
+   "matches": 1,
+   "runner": 0,
+   "exact": 1,
+   "confidence": "review",
+   "coord_hint": false,
+   "name_hint": false,
+   "evidence": [
+    {
+     "up_file": "mound8.SEC",
+     "up_r": 15,
+     "up_c": 18,
+     "down_file": "mound3se.SEC",
+     "down_r": 15,
+     "down_c": 13,
+     "dist": 0
+    }
+   ]
+  },
+  {
+   "below": "mound/solo#10",
+   "above": "mound/solo#6",
+   "ox": -1,
+   "oy": 0,
+   "matches": 1,
+   "runner": 0,
+   "exact": 1,
+   "confidence": "review",
+   "coord_hint": false,
+   "name_hint": false,
+   "evidence": [
+    {
+     "up_file": "mound8.SEC",
+     "up_r": 15,
+     "up_c": 18,
+     "down_file": "mound4.SEC",
+     "down_r": 15,
+     "down_c": 17,
+     "dist": 0
+    }
+   ]
+  },
+  {
+   "below": "mound/solo#10",
+   "above": "mound/solo#7",
+   "ox": -4,
+   "oy": 1,
+   "matches": 1,
+   "runner": 0,
+   "exact": 1,
+   "confidence": "review",
+   "coord_hint": false,
+   "name_hint": false,
+   "evidence": [
+    {
+     "up_file": "mound8.SEC",
+     "up_r": 15,
+     "up_c": 18,
+     "down_file": "mound5.SEC",
+     "down_r": 16,
+     "down_c": 14,
+     "dist": 0
+    }
+   ]
+  },
+  {
+   "below": "mound/solo#10",
+   "above": "mound/solo#8",
+   "ox": -5,
+   "oy": 0,
+   "matches": 1,
+   "runner": 0,
+   "exact": 1,
+   "confidence": "review",
+   "coord_hint": false,
+   "name_hint": false,
+   "evidence": [
+    {
+     "up_file": "mound8.SEC",
+     "up_r": 15,
+     "up_c": 18,
+     "down_file": "mound6.SEC",
+     "down_r": 15,
+     "down_c": 13,
+     "dist": 0
+    }
+   ]
+  },
+  {
+   "below": "mound/solo#10",
+   "above": "mound/solo#9",
+   "ox": -3,
+   "oy": 0,
+   "matches": 1,
+   "runner": 0,
+   "exact": 1,
+   "confidence": "review",
+   "coord_hint": false,
+   "name_hint": false,
+   "evidence": [
+    {
+     "up_file": "mound8.SEC",
+     "up_r": 15,
+     "up_c": 18,
+     "down_file": "mound7.SEC",
+     "down_r": 15,
+     "down_c": 15,
+     "dist": 0
+    }
+   ]
+  }
+ ],
+ "contradictions": [],
+ "_meta": {
+  "note": "Vertical stacks from UP/DOWN stair geometry on 2D blocks. waypoint/fixed_warp portals are separate (see portals.js).",
+  "stats": {
+   "clusters": 57,
+   "multi_floor": 2,
+   "proposed_stacks": 18,
+   "auto_joins": 2,
+   "suggested": 18,
+   "review": 44,
+   "contradictions": 0,
+   "one_sided": 38
+  }
+ }
+}
