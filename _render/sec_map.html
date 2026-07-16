@@ -142,7 +142,10 @@
   <label class="legend"><input type="checkbox" id="labels"> labels on placed</label>
   <label class="legend" id="prefwrap" title="swap each matched 2006 tile for its closest 2011 counterpart (merged view)"><input type="checkbox" id="prefer2011" checked> prefer 2011</label>
   <span id="sync" class="legend" title="click to configure sharing" style="cursor:pointer">local only</span>
-  <label class="legend" id="movemodewrap" style="display:none" title="when dragging a placed piece: move it alone, or bring its whole connected block along"><input type="checkbox" id="movepiece"> move single piece</label>
+  <label class="legend" id="movemodewrap" style="display:none" title="Flat drag options">
+    <input type="checkbox" id="moveassembly" checked> move by assembly
+    <input type="checkbox" id="movepiece"> move single piece
+  </label>
   <button id="clearmap" style="display:none; border-color:#a3454a; color:#ffb3b3" title="remove every placement from the flat canvas">Clear map</button>
   <button id="seed" title="auto-fill empty named cells with their best-match tile (draft, reversible)">Seed empty</button>
   <button id="importbtn" title="load an exported build (area_placements*.json) into the active tab">Import</button>
@@ -339,7 +342,8 @@ function makeCell(ew,ns){
     const mv=e.dataTransfer.getData('mv');
     if(mv){ const [sx,sy]=mv.split(',').map(Number);
       const single=document.getElementById('movepiece').checked;
-      const cells=single?[[sx,sy]]:connectedGroup(sx,sy);
+      const byAsm=document.getElementById('moveassembly').checked;
+      const cells=single?[[sx,sy]]:(byAsm?assemblyGroup(sx,sy):connectedGroup(sx,sy));
       if(cells.length) moveCells(cells,ew-sx,ns-sy);
       return; }
     const bid=e.dataTransfer.getData('block');
@@ -830,7 +834,7 @@ function placeBlock(id,ew,ns){
   const floorTxt=isFlat()?'':(' on '+(POP_FLOOR[lay]||lay));
   if(occ.length && !confirm(occ.length+' of '+targets.length+' cells'+floorTxt+' are already occupied. Overwrite them?')) return;
   targets.forEach(([p,x,y])=>{
-    setPlacement(x,y,lay,{filename:p.filename, png:tilePng(p.filename), source:srcOf(p.filename)});
+    setPlacement(x,y,lay,{filename:p.filename, png:tilePng(p.filename), source:srcOf(p.filename), blockId:id});
   });
 }
 // flat canvas preset: place every assembled block at its world anchor
@@ -863,7 +867,7 @@ function layoutBlocksFlat(){
   const used=usedFilenames();
   const stamp=(b,ax,ay)=>{ b.pieces.forEach(p=>{
     const x=ax+p.dx, y=ay+p.dy;
-    setPlacement(x,y,'b',{filename:p.filename, png:tilePng(p.filename), source:srcOf(p.filename)});
+    setPlacement(x,y,'b',{filename:p.filename, png:tilePng(p.filename), source:srcOf(p.filename), blockId:b.id});
     used.add(p.filename); occ.add(x+','+y);
   }); };
   let done=0, skipped=0, nofit=0;
@@ -897,7 +901,7 @@ function layoutBlocksFlat(){
     stamp(b,spot[0],spot[1]); done++;
     px=Math.min(FLAT_W-1,spot[0]+b.w+2);
   });
-  alert('Laid out '+done+' blocks at world positions.'+(skipped?' Skipped '+skipped+' already placed.':'')+(nofit?' '+nofit+' had no room.':'')+'\n\nDrag any piece to move its whole block (or tick "move single piece").');
+  alert('Laid out '+done+' blocks at world positions.'+(skipped?' Skipped '+skipped+' already placed.':'')+(nofit?' '+nofit+' had no room.':'')+'\n\nDrag any piece to move its assembly (uncheck "move by assembly" to drag all touching pieces together).');
 }
 // wipe the flat canvas (placements only; portals/interiors stay)
 function clearFlatMap(){
@@ -907,8 +911,7 @@ function clearFlatMap(){
   keys.forEach(ck=>{ delete placements[ck]; DB.remove(ck); });
   refreshCells(); markUsed(); renderPortalPanel();
 }
-// connected group of placed cells (4-way) containing start - the physical
-// "block" as it currently sits on the canvas
+// connected group of placed cells (4-way) containing start - any touching pieces
 function connectedGroup(sx,sy){
   const start=sx+','+sy+',b';
   if(!placements[start]||placements[start].filename===CLEARED) return [];
@@ -923,6 +926,25 @@ function connectedGroup(sx,sy){
     });
   }
   return out;
+}
+// assembly group: only cells from the same stamped region block (won't merge
+// adjacent assemblies even when their edges touch)
+function inferBlockId(fn){
+  for(const b of Object.values(BLOCK_BY_ID)){
+    if(b.pieces.some(p=>p.filename===fn)) return b.id;
+  }
+  return null;
+}
+function assemblyGroup(sx,sy){
+  const rec=placements[sx+','+sy+',b'];
+  if(!rec||rec.filename===CLEARED) return [];
+  const bid=rec.blockId||inferBlockId(rec.filename);
+  if(!bid||!BLOCK_BY_ID[bid]) return [[sx,sy]];
+  const pieceFiles=new Set(BLOCK_BY_ID[bid].pieces.map(p=>p.filename));
+  return connectedGroup(sx,sy).filter(([x,y])=>{
+    const p=placements[x+','+y+',b'];
+    return p&&pieceFiles.has(p.filename);
+  });
 }
 // move a set of placed cells by (dx,dy); refuses collisions outside the group
 function moveCells(cells,dx,dy){
