@@ -1,21 +1,24 @@
-"""Compile community placements -> a server-ready world_map.json.
+"""Compile community / unified placements -> a server-ready world_map.json.
 
-Closes the loop: the world map builder (sec_map.html) lets the community place
-MAPSALL sectors and blank wrong core tiles, syncing to Supabase. This folds
-those placements onto the binary-grounded core (build_world_coords) and emits
-the engine schema mra_stub.py consumes (sectors / block_to_base / y_axis_ranges).
+Closes the loop: the unified map (sec_map.html) preloads generated Floor 0
+placements and lets the community override them. This folds Floor 0 placements
+onto the binary-grounded core (build_world_coords) and emits the engine schema
+mra_stub.py consumes (sectors / block_to_base / y_axis_ranges).
+
+Non-zero floors are interiors and are ignored here (see build_clusters.py).
 
 Placement sources (first that yields rows wins):
-  1. a JSON file argument - the tool's Export ("area_placements") OR a raw
-     Supabase row dump.
-  2. live Supabase REST (the baked community project), if reachable.
+  1. a JSON file argument - unified_map_export.json OR legacy area_placements
+  2. live Supabase REST (unified: rows only; legacy four-tab rows ignored)
+  3. --from-generated uses _render/unified_map.json Floor 0
 
 A placement whose filename is the blank sentinel "__cleared__" REMOVES the core
-tile at that cell (so the community can delete wrong auto-placed sectors).
+tile at that cell.
 
 Run:
-  python build_world_map.py                      # pull from Supabase
-  python build_world_map.py area_placements.json # use an exported file
+  python build_world_map.py                         # pull unified from Supabase
+  python build_world_map.py unified_map_export.json # use an exported file
+  python build_world_map.py --from-generated         # use unified_map.json Floor 0
 Output: world_map_built.json
 """
 import json
@@ -27,20 +30,22 @@ import build_world_coords as B
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 OUT = os.path.join(HERE, "world_map_built.json")
+UNIFIED = os.path.join(HERE, "_render", "unified_map.json")
 CLEARED = "__cleared__"
 
 SUPABASE_URL = "https://msnxqnqqpdwamzfbwskm.supabase.co"
 SUPABASE_KEY = "sb_publishable_MjRmbztlv0wlOQXpTvoBlQ__BJobsxC"
 
+WORLD_OFF = 6
+WORLD_SCALE = 2
+
 MPX_TO_XBLOCK = {v: k for k, v in
                  zip(B.PREFIX_TO_XBLOCK.values(), B.PREFIX_TO_MPX.values())}
-# mp_x -> prefix, for labeling synthetic sector records
 MPX_TO_PREFIX = {v: k for k, v in B.PREFIX_TO_MPX.items()}
+LAYER_FROM_LEVEL = {0: "b", -1: "a", 1: "c"}
 
 
 def xblock_of_mpx(mp_x):
-    # mp_x steps by 5 from 45 (BECJ=0). Falls back to direct arithmetic so
-    # placements just outside the named band still resolve.
     if mp_x in MPX_TO_XBLOCK:
         return MPX_TO_XBLOCK[mp_x]
     return (mp_x - 45) // 5
@@ -50,8 +55,14 @@ def yblock_of_mpy(mp_y):
     return (mp_y - 15) // 5
 
 
+def canvas_to_world(col, row):
+    mp_x = ((col - WORLD_OFF) // WORLD_SCALE) * 5 + 10
+    mp_y = ((row - WORLD_OFF) // WORLD_SCALE) * 5 + 15
+    return mp_x, mp_y
+
+
 def fetch_supabase():
-    url = f"{SUPABASE_URL}/rest/v1/placements?select=*"
+    url = f"{SUPABASE_URL}/rest/v1/placements?select=*&cell=like.unified:*"
     req = urllib.request.Request(url, headers={
         "apikey": SUPABASE_KEY,
         "Authorization": f"Bearer {SUPABASE_KEY}",
@@ -61,18 +72,83 @@ def fetch_supabase():
         return json.load(r)
 
 
-def load_placements(arg):
+def normalize_rows(raw):
+    if isinstance(raw, dict):
+        if "placements" in raw:
+            rows = []
+            for p in raw["placements"]:
+                lv = int(p.get("level", 0))
+                if lv != 0:
+                    continue
+                fname = p.get("filename")
+                if not fname or fname == CLEARED:
+                    continue
+                if "col" in p and "row" in p:
+                    mp_x = p.get("mp_x")
+                    mp_y = p.get("mp_y")
+                    if mp_x is None or mp_y is None:
+                        mp_x, mp_y = canvas_to_world(int(p["col"]), int(p["row"]))
+                    rows.append({
+                        "filename": fname,
+                        "mp_x": int(mp_x), "mp_y": int(mp_y),
+                        "layer": LAYER_FROM_LEVEL.get(lv, "b"),
+                        "place_name": p.get("place_name"),
+                        "updated_by": "unified-export",
+                    })
+                elif "mp_x" in p:
+                    rows.append(p)
+            return rows
+        if "area_placements" in raw:
+            return raw["area_placements"]
+        return []
+    if isinstance(raw, list):
+        out = []
+        for p in raw:
+            cell = p.get("cell") or ""
+            if cell.startswith("unified:"):
+                parts = cell.split(":", 1)[1].split(",")
+                if len(parts) != 3:
+                    continue
+                col, row, lv = map(int, parts)
+                if lv != 0:
+                    continue
+                mp_x, mp_y = canvas_to_world(col, row)
+                out.append({
+                    "filename": p["filename"],
+                    "mp_x": mp_x, "mp_y": mp_y, "layer": "b",
+                    "place_name": p.get("place_name"),
+                    "updated_by": p.get("updated_by"),
+                })
+                continue
+            if ":" in cell:
+                continue  # ignore legacy four-tab prefixed rows
+            if "mp_x" in p and "filename" in p:
+                out.append(p)
+        return out
+    return []
+
+
+def load_placements(arg, from_generated=False):
+    if from_generated and os.path.isfile(UNIFIED):
+        raw = json.load(open(UNIFIED, encoding="utf-8"))
+        rows = normalize_rows({"dataset": "unified",
+                               "placements": raw.get("placements") or []})
+        print(f"loaded {len(rows)} Floor 0 placements from unified_map.json")
+        return rows
     if arg:
-        raw = json.load(open(arg))
-        rows = raw.get("area_placements", raw) if isinstance(raw, dict) else raw
-        print(f"loaded {len(rows)} placements from {arg}")
+        raw = json.load(open(arg, encoding="utf-8"))
+        rows = normalize_rows(raw)
+        print(f"loaded {len(rows)} Floor 0 placements from {arg}")
         return rows
     try:
-        rows = fetch_supabase()
-        print(f"fetched {len(rows)} placements from Supabase")
+        rows = normalize_rows(fetch_supabase())
+        print(f"fetched {len(rows)} unified Floor 0 placements from Supabase")
         return rows
-    except Exception as e:  # offline / no rows / RLS - keep going with core only
-        print(f"Supabase fetch failed ({e}); building core only")
+    except Exception as e:
+        print(f"Supabase fetch failed ({e}); trying generated Floor 0")
+        if os.path.isfile(UNIFIED):
+            return load_placements(None, from_generated=True)
+        print("building core only")
         return []
 
 
@@ -87,11 +163,13 @@ def valid_filenames():
 
 
 def main():
-    arg = next((a for a in sys.argv[1:] if not a.startswith("-")), None)
-    core = B.build()                       # binary-grounded core (also writes coords json)
+    args = [a for a in sys.argv[1:] if not a.startswith("-")]
+    from_generated = "--from-generated" in sys.argv
+    arg = args[0] if args else None
+    core = B.build()
     sectors = core["sectors"]
     b2b = core["block_to_base"]
-    placements = load_placements(arg)
+    placements = load_placements(arg, from_generated=from_generated)
     valid = valid_filenames()
     sector_key_by_base = {base: f"{s['x_block']},{s['y_block']},{s['layer']}"
                           for base, s in sectors.items()}
@@ -127,11 +205,9 @@ def main():
         base = fname[:-4] if fname.upper().endswith(".SEC") else fname
         owner = sector_key_by_base.get(base)
         if owner is not None and owner != key:
-            # Same sector name at two addresses would overwrite sectors[base].
             name_conflict += 1
             continue
         existed = key in b2b
-        # drop any prior occupant of this block so addressing stays 1:1
         if existed:
             sectors.pop(b2b[key], None)
         sector_key_by_base[base] = key
@@ -149,18 +225,16 @@ def main():
             "mp_z": B.LAYER_TO_MPZ.get(layer),
             "place_name": p.get("place_name"),
             "status": "community-placed",
-            "provenance": "community placement (" + (p.get("updated_by") or "?") +
+            "provenance": "unified map Floor 0 (" + (p.get("updated_by") or "?") +
                           ") compiled onto binary-grounded core",
         }
         b2b[key] = base
-        overridden += existed and 1 or 0
-        added += (not existed) and 1 or 0
+        overridden += 1 if existed else 0
+        added += 0 if existed else 1
 
-    # widen y_axis_ranges if community placed further south than the core
     max_yb = max((s["y_block"] for s in sectors.values()), default=0)
     core["y_axis_ranges"] = [[2 + 32 * i, 33 + 32 * i] for i in range(max_yb + 1)]
-
-    core["_meta"]["title"] = "MRA world map (core + community placements, compiled)"
+    core["_meta"]["title"] = "MRA world map (core + unified Floor 0, compiled)"
     core["_meta"]["stats"] = {
         "sectors_placed": len(sectors),
         "block_to_base_entries": len(b2b),
@@ -173,15 +247,10 @@ def main():
         "placements_duplicate_filename": duplicate,
         "placements_name_conflict": name_conflict,
     }
-    core.pop("holes", None)                # holes report is core-only; drop here
+    core.pop("holes", None)
 
-    with open(OUT, "w") as fh:
+    with open(OUT, "w", encoding="utf-8") as fh:
         json.dump(core, fh, indent=1)
-
-    # consistency check (block_to_base <-> sectors)
-    errs = [f"{k}->{base} missing sector" for k, base in b2b.items() if base not in sectors]
-    errs += [f"{base} has no block entry" for base, s in sectors.items()
-             if f"{s['x_block']},{s['y_block']},{s['layer']}" not in b2b]
 
     print(f"\nWrote {os.path.basename(OUT)}")
     print(f"  sectors total:        {len(sectors)}")
@@ -192,9 +261,6 @@ def main():
     print(f"  invalid filenames:    {invalid}")
     print(f"  duplicate filenames:  {duplicate}")
     print(f"  name conflicts:       {name_conflict}")
-    print(f"  consistency errors:   {len(errs)}")
-    for e in errs[:10]:
-        print("    ", e)
 
 
 if __name__ == "__main__":

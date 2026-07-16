@@ -41,6 +41,7 @@ import build_world_coords as B
 HERE = os.path.dirname(os.path.abspath(__file__))
 OUT = os.path.join(HERE, "clusters_built.json")
 LEVEL_CLUSTERS = os.path.join(HERE, "_render", "level_clusters.json")
+UNIFIED_MAP = os.path.join(HERE, "_render", "unified_map.json")
 
 SUPABASE_URL = "https://msnxqnqqpdwamzfbwskm.supabase.co"
 SUPABASE_KEY = "sb_publishable_MjRmbztlv0wlOQXpTvoBlQ__BJobsxC"
@@ -85,8 +86,77 @@ def level_letter(level):
     return FLOOR_LETTER.get(level, str(level))
 
 
+def cells_from_unified(path):
+    """Non-surface floors from the authoritative unified map become interiors.
+
+    Surface (Floor 0) pieces that belong to a multi-floor cluster are also
+    included and flagged surface=True so stair up/down links can resolve.
+    Lone Floor 0 world pieces stay in build_world_map.py only.
+    """
+    if not os.path.isfile(path):
+        return [], []
+    data = json.load(open(path, encoding="utf-8"))
+    surf = int(data.get("surface_level", 0))
+    # regions that have any non-surface placement
+    multi_regions = set()
+    for p in data.get("placements") or []:
+        if int(p.get("level", 0)) != surf:
+            multi_regions.add(p.get("region") or p.get("cluster_id") or "world")
+    cells = []
+    for p in data.get("placements") or []:
+        lv = int(p.get("level", 0))
+        region = p.get("region") or "world"
+        if lv == surf:
+            # only keep surface tiles that belong to a multi-floor region/stack
+            if not p.get("cluster_id") and region not in multi_regions:
+                continue
+            if region == "world" and not p.get("cluster_id"):
+                continue
+        cells.append({
+            "cluster": region if region != "world" or not p.get("cluster_id")
+                       else (p.get("cluster_id") or region).split("#")[0],
+            "lx": int(p["col"]), "ly": int(p["row"]),
+            "level": lv,
+            "layer": level_letter(lv),
+            "filename": p["filename"],
+            "surface_level": surf,
+        })
+    # Prefer region name from cluster_id when region missing
+    fixed = []
+    for c in cells:
+        if c["cluster"] == "world":
+            # try filename stem region
+            pass
+        fixed.append(c)
+    stair_edges = []
+    if os.path.isfile(LEVEL_CLUSTERS):
+        _, edges = cells_from_level_clusters(LEVEL_CLUSTERS, include_suggest=False)
+        stair_edges = [e for e in edges if e.get("confidence") == "auto"]
+    return fixed, stair_edges
+
+
 def cells_from_export(obj):
     """Normalize an editor export ({cluster, placements:[...]}) to flat cells."""
+    # Unified map export: dataset=unified with col/row/level
+    if obj.get("dataset") == "unified" or (
+            "placements" in obj and obj.get("grid") and "cluster" not in obj):
+        surf = int(obj.get("surface_level", 0))
+        out = []
+        for p in obj.get("placements") or []:
+            lv = int(p.get("level", 0))
+            if lv == surf:
+                continue
+            region = p.get("region") or "world"
+            out.append({
+                "cluster": region,
+                "lx": int(p.get("col", p.get("lx", 0))),
+                "ly": int(p.get("row", p.get("ly", 0))),
+                "level": lv,
+                "layer": level_letter(lv),
+                "filename": p["filename"],
+                "surface_level": surf,
+            })
+        return out
     out = []
     clu = obj.get("cluster")
     surface = obj.get("surface_level")
@@ -97,9 +167,12 @@ def cells_from_export(obj):
             lv = normalize_level(p["level"], 1)
         else:
             lv = normalize_level(p.get("layer") or "b", 1)
+        # prefer col/row from unified-style rows
+        lx = p.get("lx", p.get("col"))
+        ly = p.get("ly", p.get("row"))
         out.append({
             "cluster": clu,
-            "lx": int(p["lx"]), "ly": int(p["ly"]),
+            "lx": int(lx), "ly": int(ly),
             "level": lv,
             "layer": level_letter(lv),
             "filename": p["filename"],
@@ -178,7 +251,32 @@ def load_cells(args):
         for path in paths:
             raw = json.load(open(path, encoding="utf-8"))
             if isinstance(raw, dict) and "placements" in raw:
-                cells += cells_from_export(raw)
+                # Prefer dedicated unified loader when this is the generated map
+                if (path.endswith("unified_map.json")
+                        or raw.get("dataset") == "unified"
+                        or (raw.get("review") is not None and raw.get("grid"))):
+                    c2, e2 = cells_from_unified(path if path.endswith("unified_map.json")
+                                                else UNIFIED_MAP)
+                    if path.endswith("unified_map.json") or raw.get("review") is not None:
+                        # If export file (not generated), rebuild cells from export body
+                        if raw.get("dataset") == "unified" and not path.endswith("unified_map.json"):
+                            cells += cells_from_export(raw)
+                        else:
+                            cells += c2
+                        for e in e2:
+                            if (e["up_file"], e["down_file"]) not in {
+                                    (x["up_file"], x["down_file"]) for x in stair_edges}:
+                                stair_edges.append(e)
+                    else:
+                        cells += cells_from_export(raw)
+                else:
+                    cells += cells_from_export(raw)
+                if os.path.isfile(LEVEL_CLUSTERS):
+                    auto, _all = load_stair_edges(LEVEL_CLUSTERS)
+                    for e in auto:
+                        if (e["up_file"], e["down_file"]) not in {
+                                (x["up_file"], x["down_file"]) for x in stair_edges}:
+                            stair_edges.append(e)
             elif isinstance(raw, dict) and "clusters" in raw and (
                     "proposed_stacks" in raw or "suggested_joins" in raw
                     or any(isinstance(c, dict) and "floors" in c
@@ -200,7 +298,11 @@ def load_cells(args):
         auto, all_e = load_stair_edges(LEVEL_CLUSTERS)
         return cells, auto
     except Exception as e:
-        print(f"Supabase fetch failed ({e}); trying level_clusters seed")
+        print(f"Supabase fetch failed ({e}); trying unified / level seeds")
+        c3, e3 = cells_from_unified(UNIFIED_MAP)
+        if c3:
+            print(f"seeded {len(c3)} interior cells from unified_map.json")
+            return c3, e3
         c2, e2 = cells_from_level_clusters(LEVEL_CLUSTERS, include_suggest=False)
         if c2:
             print(f"seeded {len(c2)} cells from {os.path.basename(LEVEL_CLUSTERS)}")

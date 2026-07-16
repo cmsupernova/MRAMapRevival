@@ -322,10 +322,16 @@ def _build_cluster_from_edges(by_id, members, edge_joins, contradictions, conf_l
         level.setdefault(m, 0)
         offsets.setdefault(m, (0, 0))
 
+    # Relative levels start at 0 = lowest. Designate the lowest floor as the
+    # default surface (Floor 0 in the unified map). Upper floors become +1,+2...
+    # Callers may later re-mark surface; then lower floors become negative.
     min_lv = min(level.values())
     for m in level:
         level[m] -= min_lv
-    surf = [m for m, lv in level.items() if lv == 0]
+    surface_level = 0
+    for m in level:
+        level[m] = level[m] - surface_level  # identity for default surface=lowest
+    surf = [m for m, lv in level.items() if lv == surface_level]
     if surf:
         minx = min(offsets[m][0] for m in surf)
         miny = min(offsets[m][1] for m in surf)
@@ -355,7 +361,7 @@ def _build_cluster_from_edges(by_id, members, edge_joins, contradictions, conf_l
     return {
         "id": f"{region}#{members[0].split('#')[-1]}@{conf_label}",
         "region": region,
-        "surface_level": 0,
+        "surface_level": surface_level,
         "confidence": conf_label,
         "floors": floors,
         "joins": used_joins,
@@ -427,23 +433,78 @@ def resolve_stacks(blocks, joins):
         clusters.append(_build_cluster_from_edges(
             by_id, members, member_joins, contradictions, "auto"))
 
-    # Proposed stacks: one pair-cluster per suggest join (avoid transitive mush)
+    # Proposed stacks:
+    # 1) Prefer complete regional suggest DAGs when they form a clean chain
+    #    (no contradictions) covering 2+ blocks.
+    # 2) Fall back to pairwise propose when a region graph has conflicts.
     proposed = []
-    seen_pairs = set()
+    prop_parent = {b["id"]: b["id"] for b in blocks}
+
+    def pfind(x):
+        while prop_parent[x] != x:
+            prop_parent[x] = prop_parent[prop_parent[x]]
+            x = prop_parent[x]
+        return x
+
+    def punion(a, b):
+        ra, rb = pfind(a), pfind(b)
+        if ra != rb:
+            prop_parent[rb] = ra
+
+    # Exclude blocks already in an auto multi-floor cluster
+    auto_ids = {f["block_id"] for c in clusters if len(c["floors"]) > 1
+                for f in c["floors"]}
+    usable_suggest = []
     for j in suggest:
-        pair = (j["below"], j["above"])
-        if pair in seen_pairs:
+        if j["below"] in auto_ids or j["above"] in auto_ids:
             continue
-        if pair[::-1] in seen_pairs:
+        if any(x["below"] == j["above"] and x["above"] == j["below"] for x in suggest):
             contradictions.append({"a": j["below"], "b": j["above"],
                                    "reason": "mutual suggest above"})
             continue
-        seen_pairs.add(pair)
+        usable_suggest.append(j)
+        punion(j["below"], j["above"])
+
+    prop_comp = defaultdict(list)
+    for b in blocks:
+        if b["id"] in auto_ids:
+            continue
+        prop_comp[pfind(b["id"])].append(b["id"])
+
+    used_in_chain = set()
+    for _root, members in sorted(prop_comp.items()):
+        member_joins = [j for j in usable_suggest
+                        if j["below"] in members and j["above"] in members]
+        if len(members) < 2 or not member_joins:
+            continue
+        # Try full regional chain; if it creates conflicts, fall back to pairs
+        before = len(contradictions)
+        trial = _build_cluster_from_edges(
+            by_id, members, member_joins, contradictions, "suggest")
+        new_conflicts = contradictions[before:]
+        # Keep only conflicts that touch these members
+        bad = [c for c in new_conflicts
+               if (c.get("a") in members) or (c.get("b") in members)]
+        if not bad and len(trial["floors"]) > 1:
+            # Drop the trial conflicts we just added (none were bad)
+            proposed.append(trial)
+            used_in_chain.update(members)
+        else:
+            # Roll back those conflict notes and emit pairs instead
+            del contradictions[before:]
+
+    for j in usable_suggest:
+        if j["below"] in used_in_chain and j["above"] in used_in_chain:
+            continue
+        if j["below"] in used_in_chain or j["above"] in used_in_chain:
+            # one side already chained; skip dangling edge to avoid double-use
+            continue
         members = [j["below"], j["above"]]
         if any(m not in by_id for m in members):
             continue
         proposed.append(_build_cluster_from_edges(
             by_id, members, [j], contradictions, "suggest"))
+        used_in_chain.update(members)
 
     return clusters, proposed, suggest, review, contradictions
 
