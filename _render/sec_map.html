@@ -41,6 +41,7 @@
   .cell .exitmark { position:absolute; top:1px; right:1px; font-size:9px; z-index:4; color:#1a1208; background:#e8a54b; border-radius:6px; padding:0 3px; font-weight:700; }
   .cell .portmark { position:absolute; bottom:1px; right:1px; font-size:10px; z-index:4; color:#1a0f2a; background:#c792ff; border-radius:6px; padding:0 3px; font-weight:700; }
   .cell .stairmark { position:absolute; bottom:1px; left:1px; font-size:8px; z-index:4; color:#082022; background:#3fe0e0; border-radius:6px; padding:0 3px; font-weight:700; }
+  .cell .linkmark { position:absolute; top:1px; right:18px; font-size:8px; z-index:4; color:#1a1208; background:#f0c674; border-radius:6px; padding:0 3px; font-weight:700; }
   .tiles { display:grid; grid-template-columns:repeat(4,1fr); gap:4px; }
   .tilewrap { position:relative; }
   .tilewrap.used .tile { opacity:.30; border-color:#3a7d3a; }
@@ -107,6 +108,7 @@
 <script src="level_clusters.js"></script>
 <script src="unified_map.js"></script>
 <script src="custom_secs.js"></script>
+<script src="travel_links.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
 const U = window.UNIFIED_MAP || {grid:{w:56,h:56},placements:[],guides:{},guide_labels:{},review:{},levels:[0],floor_labels:{'0':'Floor 0'},surface_level:0,_meta:{stats:{}}};
@@ -126,6 +128,7 @@ const generated = {};
 let overrides = {}; // same key shape; null means cleared
 let INTERIORS = [];
 let PORTALS = [];
+let TRAVEL_LINKS = [];
 let IGNORED = {};
 let acceptedStacks = {}; // cluster id -> true
 
@@ -180,14 +183,26 @@ function loadLocal(){
     overrides = (o.overrides&&typeof o.overrides==='object')?o.overrides:{};
     INTERIORS = Array.isArray(o.interiors)?o.interiors:[];
     PORTALS = Array.isArray(o.portals)?o.portals:[];
+    TRAVEL_LINKS = Array.isArray(o.travelLinks)?o.travelLinks:(window.TravelLinks?TravelLinks.load():[]);
     IGNORED = (o.ignored&&typeof o.ignored==='object')?o.ignored:{};
     acceptedStacks = (o.acceptedStacks&&typeof o.acceptedStacks==='object')?o.acceptedStacks:{};
     extraLevels = Array.isArray(o.extraLevels)?o.extraLevels.map(Number):[];
-  }catch(e){ overrides={}; INTERIORS=[]; PORTALS=[]; IGNORED={}; acceptedStacks={}; extraLevels=[]; }
+  }catch(e){ overrides={}; INTERIORS=[]; PORTALS=[]; TRAVEL_LINKS=[]; IGNORED={}; acceptedStacks={}; extraLevels=[]; }
 }
 function saveLocal(){
+  let travelLinks = TRAVEL_LINKS;
+  try{
+    // Prefer the shared TravelLinks store so editor-authored links are not wiped.
+    if(window.TravelLinks) travelLinks = TravelLinks.load();
+    else {
+      const prev=JSON.parse(localStorage.getItem(LS_KEY)||'{}');
+      if(Array.isArray(prev.travelLinks)) travelLinks=prev.travelLinks;
+    }
+  }catch(_e){}
+  TRAVEL_LINKS = travelLinks;
   localStorage.setItem(LS_KEY, JSON.stringify({
-    overrides, interiors:INTERIORS, portals:PORTALS, ignored:IGNORED, acceptedStacks, extraLevels
+    overrides, interiors:INTERIORS, portals:PORTALS, travelLinks,
+    ignored:IGNORED, acceptedStacks, extraLevels
   }));
 }
 loadLocal();
@@ -292,7 +307,7 @@ function makeCell(c,r){
 }
 function renderCell(c,r,el){
   el=el||CELLS[c+','+r]; if(!el) return;
-  [...el.querySelectorAll('img,.x,.label,.conf,.tpmark,.exitmark,.portmark,.stairmark,.guide')].forEach(n=>n.remove());
+  [...el.querySelectorAll('img,.x,.label,.conf,.tpmark,.exitmark,.portmark,.stairmark,.linkmark,.guide')].forEach(n=>n.remove());
   el.classList.remove('s2011','s2006');
   const gname = SHOWGUIDES ? ((U.guide_labels||{})[c+','+r] || (U.guides||{})[c+','+r]) : null;
   if(gname){ const g=document.createElement('div'); g.className='guide'; g.textContent=gname; el.appendChild(g); }
@@ -321,6 +336,13 @@ function renderCell(c,r,el){
   const np=portalsFrom(c+','+r);
   if(np.length){ const pm=document.createElement('div'); pm.className='portmark'; pm.textContent='\u2197'+(np.length>1?np.length:''); el.appendChild(pm); }
   else if(need.length){ const em=document.createElement('div'); em.className='exitmark'; em.textContent='?'+need.length; el.appendChild(em); }
+  const tls=window.TravelLinks?TravelLinks.linksAtMapCell(c,r,FLOOR):[];
+  if(tls.length){
+    const lm=document.createElement('div'); lm.className='linkmark';
+    lm.textContent='\u21C4'+(tls.length>1?tls.length:'');
+    lm.title=tls.map(L=>L.name+' ('+L.kind+(L.bidirectional?' 2-way':' 1-way')+')').join('\n');
+    el.appendChild(lm);
+  }
 }
 
 function refreshCells(){ ROWS.forEach(r=>COLS.forEach(c=>renderCell(c,r))); }
@@ -630,9 +652,26 @@ function openEditor(c,r,evt){
       row.textContent='\u25B2 up r'+t.r+'c'+t.c+(sh?(' - '+sh.title):''); list.appendChild(row); });
     stairCells(p.filename,'down').forEach(t=>{ const row=document.createElement('div'); row.className='legend';
       row.textContent='\u25BC down r'+t.r+'c'+t.c; list.appendChild(row); });
+    const tls=(window.TravelLinks?TravelLinks.linksAtMapCell(c,r,FLOOR):[]);
+    if(tls.length){
+      const th=document.createElement('div'); th.className='legend'; th.style.marginTop='6px';
+      th.textContent='Custom travel links:'; list.appendChild(th);
+      tls.forEach(L=>{
+        const row=document.createElement('div'); row.style.cssText='font-size:11px;padding:2px 0;';
+        const dir=L.bidirectional?'\u2194':'\u2192';
+        row.textContent=L.name+' ('+L.kind+') '+dir;
+        const tip=document.createElement('div'); tip.className='legend';
+        tip.textContent=(window.TravelLinks?TravelLinks.describeEnd(L.from):'')+' '+dir+' '+(window.TravelLinks?TravelLinks.describeEnd(L.to):'');
+        list.appendChild(row); list.appendChild(tip);
+      });
+    }
     pop.appendChild(list);
     if(need.length){ const tip=document.createElement('div'); tip.className='legend';
       tip.textContent='Click ? warp to set a destination.'; pop.appendChild(tip); }
+    const linkBtn=document.createElement('button'); linkBtn.textContent='Edit SEC + travel links';
+    linkBtn.style.cssText='width:100%;margin:6px 0 0;border-color:#f0c674';
+    linkBtn.onclick=()=>openSecEditor(c,r,'edit');
+    pop.appendChild(linkBtn);
   }
   const inp=document.createElement('input'); inp.type='search'; inp.placeholder='search SEC to place here...'; inp.style.width='100%';
   pop.appendChild(inp);
@@ -808,7 +847,9 @@ document.getElementById('labels').addEventListener('change',e=>{ SHOWLABELS=e.ta
 document.getElementById('filter').addEventListener('input',e=>buildPalette(e.target.value));
 document.getElementById('resetgen').onclick=()=>{
   if(!confirm('Clear all local overrides and reload the generated layout?')) return;
-  overrides={}; acceptedStacks={}; INTERIORS=[]; PORTALS=[]; IGNORED={}; saveLocal();
+  overrides={}; acceptedStacks={}; INTERIORS=[]; PORTALS=[]; TRAVEL_LINKS=[]; IGNORED={};
+  if(window.TravelLinks) TravelLinks.save([]);
+  saveLocal();
   rebuildFloors(); refreshCells(); scheduleReview(); markUsed();
 };
 
@@ -827,10 +868,11 @@ document.getElementById('export').onclick=()=>{
   });
   const out={
     dataset:'unified', version:1, grid:{w:W,h:H}, surface_level:U.surface_level||0,
-    placements, portals:PORTALS, ignored:Object.keys(IGNORED), interiors:INTERIORS,
+    placements, portals:PORTALS, travelLinks:(window.TravelLinks?TravelLinks.load():TRAVEL_LINKS),
+    ignored:Object.keys(IGNORED), interiors:INTERIORS,
     acceptedStacks:Object.keys(acceptedStacks),
     overrides:overrides,
-    _note:'Authoritative unified multi-floor map export. Floor 0 is surface.'
+    _note:'Authoritative unified multi-floor map export. Floor 0 is surface. travelLinks are custom named falls/stairs/warps.'
   };
   const blob=new Blob([JSON.stringify(out,null,1)],{type:'application/json'});
   const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='unified_map_export.json'; a.click();
@@ -849,6 +891,10 @@ document.getElementById('importfile').addEventListener('change',e=>{
       });
     }
     if(Array.isArray(o.portals)) PORTALS=o.portals;
+    if(Array.isArray(o.travelLinks)){
+      TRAVEL_LINKS=o.travelLinks;
+      if(window.TravelLinks) TravelLinks.save(TRAVEL_LINKS);
+    }
     if(Array.isArray(o.ignored)){ IGNORED={}; o.ignored.forEach(k=>IGNORED[k]=true); }
     else if(o.ignored&&typeof o.ignored==='object') IGNORED=o.ignored;
     if(Array.isArray(o.interiors)) INTERIORS=o.interiors;

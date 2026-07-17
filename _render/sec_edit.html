@@ -18,16 +18,17 @@
   canvas.tool-drop{ cursor:cell; }
   canvas.tool-select{ cursor:crosshair; }
   canvas.tool-paint{ cursor:crosshair; }
-  .wrap{ display:flex; height:calc(100vh - 50px); }
+  .wrap{ display:flex; flex-direction:column; height:calc(100vh - 50px); min-height:0; }
+  .mainrow{ display:flex; flex:1; min-height:0; }
   .left{ flex:1; overflow:auto; padding:18px; display:flex; flex-direction:column; align-items:flex-start; gap:8px; }
   canvas{ background:#000; border:1px solid var(--line); image-rendering:pixelated; cursor:crosshair; }
   .stage{ position:relative; display:inline-block; }
   .hint{ font-size:11px; color:#9aa0ad; }
   .ctxbar{ font-size:11px; color:#9aa0ad; display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
   .ctxbar code{ color:#c2c7d2; }
-  .right{ width:300px; flex:none; background:var(--panel); border-left:1px solid var(--line); overflow:auto; padding:10px; }
-  .tabs{ display:flex; gap:4px; margin-bottom:8px; }
-  .tabs button{ flex:1; }
+  .right{ width:320px; flex:none; background:var(--panel); border-left:1px solid var(--line); overflow:auto; padding:10px; }
+  .tabs{ display:flex; gap:4px; margin-bottom:8px; flex-wrap:wrap; }
+  .tabs button{ flex:1; min-width:56px; }
   .tabs button.on{ border-color:var(--accent); background:#143; color:#fff; }
   .pal{ display:flex; flex-direction:column; gap:2px; }
   .pi{ display:flex; gap:8px; align-items:center; padding:4px 6px; border:1px solid transparent; border-radius:5px; cursor:pointer; }
@@ -38,6 +39,29 @@
   .edgesel label{ font-size:12px; }
   .small{ font-size:11px; color:#9aa0ad; margin:6px 0; }
   .stat{ font-size:11px; color:#c2c7d2; margin-left:6px; }
+  .refdock{ flex:none; height:240px; border-top:1px solid var(--line); background:var(--panel); display:flex; flex-direction:column; min-height:0; }
+  .refdock.collapsed{ height:36px; }
+  .refdock.collapsed .refbody{ display:none; }
+  .refhead{ display:flex; align-items:center; gap:8px; padding:6px 10px; border-bottom:1px solid var(--line); }
+  .refbody{ display:flex; flex:1; min-height:0; }
+  .refbrowser{ width:280px; flex:none; border-right:1px solid var(--line); display:flex; flex-direction:column; min-height:0; }
+  .refbrowser input{ margin:6px; width:calc(100% - 12px); }
+  .reflist{ flex:1; overflow:auto; padding:0 6px 6px; display:grid; grid-template-columns:repeat(3,1fr); gap:4px; align-content:start; }
+  .reftile{ cursor:pointer; border:1px solid var(--line); border-radius:4px; background:#101116; text-align:center; padding:2px; }
+  .reftile:hover,.reftile.on{ border-color:var(--accent); }
+  .reftile img{ width:100%; aspect-ratio:1; display:block; background:#000; image-rendering:auto; }
+  .reftile span{ display:block; font-size:8px; color:#9aa0ad; overflow:hidden; white-space:nowrap; text-overflow:ellipsis; }
+  .refstage{ flex:1; overflow:auto; padding:8px; display:flex; flex-direction:column; gap:6px; min-width:0; }
+  .refstage .row{ display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+  .linkform{ display:flex; flex-direction:column; gap:6px; }
+  .linkform label{ font-size:11px; color:#9aa0ad; display:flex; flex-direction:column; gap:3px; }
+  .linkform input,.linkform select{ background:#2a2d36; color:var(--txt); border:1px solid var(--line); border-radius:5px; padding:5px 8px; }
+  .linklist{ display:flex; flex-direction:column; gap:6px; margin-top:8px; }
+  .linkcard{ border:1px solid var(--line); border-radius:6px; padding:6px 8px; background:#1a1c22; font-size:11px; }
+  .linkcard .nm{ font-weight:600; color:#d7dae2; }
+  .linkcard .meta{ color:#9aa0ad; margin-top:2px; }
+  .linkcard .acts{ display:flex; gap:6px; margin-top:4px; }
+  .pickon{ outline:1px solid #e8a54b; background:#3a2a12; }
 </style>
 </head>
 <body>
@@ -61,28 +85,79 @@
   <a href="sec_cluster.html" class="hint">interiors &rarr;</a>
 </header>
 <div class="wrap">
-  <div class="left">
-    <div id="ctxbar" class="ctxbar"></div>
-    <div class="stage"><canvas id="cv"></canvas></div>
-    <div class="hint" id="toolhint">Center and neighbor edges load real .SEC data (not just PNGs) so you can match seams. Eyedropper samples those live bytes. Status bar shows live SEC counts.</div>
-    <div id="readout" class="hint"></div>
-  </div>
-  <div class="right">
-    <div class="tabs" id="tabs"></div>
-    <div id="edgewrap" class="edgesel" style="display:none">
-      edge:
-      <label><input type="radio" name="edge" value="N" checked> N</label>
-      <label><input type="radio" name="edge" value="E"> E</label>
-      <label><input type="radio" name="edge" value="S"> S</label>
-      <label><input type="radio" name="edge" value="W"> W</label>
+  <div class="mainrow">
+    <div class="left">
+      <div id="ctxbar" class="ctxbar"></div>
+      <div class="stage"><canvas id="cv"></canvas></div>
+      <div class="hint" id="toolhint">Center and neighbor edges load real .SEC data. Eyedropper samples live bytes. Use the reference dock below to clone from another SEC. Links tab tags custom falls/stairs/warps.</div>
+      <div id="readout" class="hint"></div>
     </div>
-    <div id="paldesc" class="small"></div>
-    <div class="pal" id="pal"></div>
+    <div class="right">
+      <div class="tabs" id="tabs"></div>
+      <div id="edgewrap" class="edgesel" style="display:none">
+        edge:
+        <label><input type="radio" name="edge" value="N" checked> N</label>
+        <label><input type="radio" name="edge" value="E"> E</label>
+        <label><input type="radio" name="edge" value="S"> S</label>
+        <label><input type="radio" name="edge" value="W"> W</label>
+      </div>
+      <div id="palpanel">
+        <div id="paldesc" class="small"></div>
+        <div class="pal" id="pal"></div>
+      </div>
+      <div id="linkpanel" style="display:none">
+        <div class="small">Tag two cells (working and/or reference SEC), name them, and link one-way or two-way. Stored with the map (not inside .SEC bytes).</div>
+        <div class="linkform" id="linkform">
+          <label>Link name<input id="lnName" placeholder="breedery"></label>
+          <label>Kind<select id="lnKind"></select></label>
+          <label><span style="display:flex;gap:8px;align-items:center"><input type="checkbox" id="lnBi"> Two-way</span></label>
+          <label>From name<input id="lnFromName" placeholder="breederyhole"></label>
+          <div class="hint" id="lnFromMeta">From: not set</div>
+          <label>To name<input id="lnToName" placeholder="breederylanding"></label>
+          <div class="hint" id="lnToMeta">To: not set</div>
+          <div style="display:flex;gap:6px;flex-wrap:wrap">
+            <button type="button" id="lnPickFrom">Pick from on working</button>
+            <button type="button" id="lnPickToWork">Pick to on working</button>
+            <button type="button" id="lnPickToRef">Pick to on reference</button>
+          </div>
+          <div style="display:flex;gap:6px;margin-top:4px">
+            <button type="button" id="lnSave" style="border-color:var(--accent)">Save link</button>
+            <button type="button" id="lnClear">Clear form</button>
+          </div>
+        </div>
+        <div class="linklist" id="linklist"></div>
+      </div>
+    </div>
+  </div>
+  <div class="refdock" id="refdock">
+    <div class="refhead">
+      <strong style="font-size:12px">Reference SEC</strong>
+      <span class="hint" id="reffile">none selected</span>
+      <span class="sp"></span>
+      <button type="button" id="refcopy" title="Copy selection from reference into clipboard">Copy from ref</button>
+      <button type="button" id="refclone" title="Paste reference selection onto working SEC at current selection (or 0,0)">Clone onto working</button>
+      <button type="button" id="reftoggle">Hide</button>
+    </div>
+    <div class="refbody">
+      <div class="refbrowser">
+        <input type="search" id="refsearch" placeholder="search SECs...">
+        <div class="reflist" id="reflist"></div>
+      </div>
+      <div class="refstage">
+        <div class="row">
+          <span class="hint">Select tool (V) works here too. Eyedropper samples reference. Ctrl+C copies from the focused canvas.</span>
+        </div>
+        <canvas id="refcv" width="256" height="256"></canvas>
+        <div class="hint" id="refreadout">Pick a SEC from the list to load it as a clone source.</div>
+      </div>
+    </div>
   </div>
 </div>
 <script src="tileset.js"></script>
 <script src="sec_paths.js"></script>
 <script src="custom_secs.js"></script>
+<script src="travel_links.js"></script>
+<script src="unified_map.js"></script>
 <script>
 const GRID=33, PLAY=32, CELL=6, SIZE=GRID*GRID*CELL;       // 6534 bytes
 const MARGIN=6;                                              // ~20% of 32 for neighbor edges
@@ -147,8 +222,8 @@ const SPRITES={}, OBJSPR={}, WALLSPR={}, DOORSPR={}; let spritesReady=false;
   if(window.TILESET_WALL) Object.keys(window.TILESET_WALL).forEach(k=>add(WALLSPR,k,window.TILESET_WALL[k]));
   if(window.TILESET_DOOR) Object.keys(window.TILESET_DOOR).forEach(k=>add(DOORSPR,k,window.TILESET_DOOR[k]));
   let left=jobs.length; if(!left){ spritesReady=true; return; }
-  jobs.forEach(([map,key,url])=>{ const im=new Image(); im.onload=()=>{ if(--left<=0){spritesReady=true;draw();} };
-    im.onerror=()=>{ if(--left<=0){spritesReady=true;draw();} }; im.src=url; map[key]=im; });
+  jobs.forEach(([map,key,url])=>{ const im=new Image(); im.onload=()=>{ if(--left<=0){spritesReady=true;draw(); if(typeof drawRef==='function') drawRef();} };
+    im.onerror=()=>{ if(--left<=0){spritesReady=true;draw(); if(typeof drawRef==='function') drawRef();} }; im.src=url; map[key]=im; });
 })();
 const ready=im=>im&&im.complete&&im.naturalWidth;
 
@@ -579,7 +654,8 @@ function eyedropAtHit(hit){
     ensurePaletteValue(mode, sel[mode]);
     buildPalette();
     scrollPaletteToSel();
-    const where=(zone&&zone.startsWith('neighbor'))?('neighbor '+(side||'').toUpperCase()):'center';
+    const where=(zone&&zone.startsWith('neighbor'))?('neighbor '+(side||'').toUpperCase())
+      :(zone==='reference'?'reference':'center');
     document.getElementById('readout').textContent=
       'Picked '+nameOf('terrain',terr)+' (0x'+terr.toString(16)+')'
       +(obj?(' + '+nameOf('object',obj)):'')
@@ -625,11 +701,12 @@ function eyedropAt(r,c){
   eyedropAtHit({buf:data, r, c, zone:'center'});
 }
 
-function copyRect(rect){
+function copyRect(rect, buf){
+  const src=buf||data;
   const cells=[];
   for(let r=rect.r0;r<=rect.r1;r++) for(let c=rect.c0;c<=rect.c1;c++){
-    const o=off(r,c);
-    cells.push(data.slice(o,o+CELL));
+    const o=(r*GRID+c)*CELL;
+    cells.push(src.slice(o,o+CELL));
   }
   return {w:rect.c1-rect.c0+1, h:rect.r1-rect.r0+1, cells};
 }
@@ -687,8 +764,22 @@ function paint(r,c,erase){
 let painting=false, eraseMode=false;
 cv.addEventListener('contextmenu',e=>e.preventDefault());
 cv.addEventListener('mousedown',e=>{
+  canvasFocus='main';
   (async ()=>{
     try{
+      const p=cellAt(e);
+      if(linkPick && p && (linkPick==='from' || linkPick==='to-work')){
+        e.preventDefault();
+        if(!secLoaded) await ensureLoadedForEdit();
+        applyLinkPick(linkPick==='from'?'from':'to', {
+          filename: filename,
+          col: mapCtx?mapCtx.col:null,
+          row: mapCtx?mapCtx.row:null,
+          level: mapCtx?mapCtx.level:null,
+          r: p[0], c: p[1]
+        });
+        return;
+      }
       if(e.altKey || tool==='drop'){
         e.preventDefault();
         if(!secLoaded) await ensureLoadedForEdit();
@@ -696,7 +787,6 @@ cv.addEventListener('mousedown',e=>{
         setTool('paint');
         return;
       }
-      const p=cellAt(e);
       if(!p){
         document.getElementById('readout').textContent='Click inside the blue editable box to paint.';
         return;
@@ -747,30 +837,42 @@ window.addEventListener('mouseup',()=>{
   painting=false;
 });
 window.addEventListener('keydown',e=>{
-  if(e.target && (e.target.tagName==='INPUT'||e.target.tagName==='TEXTAREA')) return;
+  if(e.target && (e.target.tagName==='INPUT'||e.target.tagName==='TEXTAREA'||e.target.tagName==='SELECT')) return;
   const k=e.key.toLowerCase();
   if(k==='b'){ setTool('paint'); return; }
   if(k==='i'){ setTool('drop'); return; }
   if(k==='v'){ setTool('select'); return; }
-  if(k==='escape'){ selection=null; selDrag=null; draw(); return; }
-  if((k==='delete'||k==='backspace') && selection){
+  if(k==='escape'){
+    selection=null; selDrag=null;
+    refSelection=null; refSelDrag=null;
+    linkPick=null; updateLinkPickButtons();
+    draw(); drawRef(); return;
+  }
+  if((k==='delete'||k==='backspace') && selection && canvasFocus==='main'){
     e.preventDefault();
     clearRect(selection); draw(); return;
   }
-  if(e.ctrlKey&&k==='c'&&selection){
-    e.preventDefault(); clip=copyRect(selection); return;
+  if(e.ctrlKey&&k==='c'){
+    if(canvasFocus==='ref' && refSelection && refData){
+      e.preventDefault(); clip=copyRect(refSelection, refData);
+      document.getElementById('refreadout').textContent='Copied '+clip.w+'x'+clip.h+' from reference';
+      return;
+    }
+    if(selection){ e.preventDefault(); clip=copyRect(selection); return; }
   }
-  if(e.ctrlKey&&k==='x'&&selection){
+  if(e.ctrlKey&&k==='x'&&selection && canvasFocus==='main'){
     e.preventDefault(); clip=copyRect(selection); clearRect(selection); draw(); return;
   }
   if(e.ctrlKey&&k==='v'&&clip){
     e.preventDefault();
+    ensureEditable();
     const anchor=selection?{r0:selection.r0,c0:selection.c0}
       :{r0:0,c0:0};
     const dst={r0:anchor.r0,c0:anchor.c0,r1:anchor.r0+clip.h-1,c1:anchor.c0+clip.w-1};
     if(dst.r1>=PLAY||dst.c1>=PLAY){ alert('Paste does not fit.'); return; }
     pasteRect(dst, clip, true);
     selection=dst;
+    canvasFocus='main';
     draw();
   }
 });
@@ -781,12 +883,33 @@ function showReadout(r,c){ const o=off(r,c);
 // ---- UI: tabs + palettes -------------------------------------------------
 const tabsEl=document.getElementById('tabs'), palEl=document.getElementById('pal'),
       edgeWrap=document.getElementById('edgewrap'), palDesc=document.getElementById('paldesc');
+const palPanel=document.getElementById('palpanel'), linkPanel=document.getElementById('linkpanel');
+let rightTab='palette'; // palette | links
+function showRightTab(which){
+  rightTab=which;
+  [...tabsEl.children].forEach(x=>{
+    if(x.dataset.rtab) x.classList.toggle('on', x.dataset.rtab===which);
+  });
+  palPanel.style.display=which==='palette'?'':'none';
+  linkPanel.style.display=which==='links'?'':'none';
+  if(which==='palette') buildPalette();
+  if(which==='links') refreshLinkList();
+}
 [['terrain','Terrain'],['wall','Wall'],['door','Door'],['object','Object']].forEach(([m,label])=>{
   const b=document.createElement('button'); b.textContent=label; if(m===mode) b.classList.add('on');
-  b.onclick=()=>{ mode=m; [...tabsEl.children].forEach(x=>x.classList.remove('on')); b.classList.add('on');
+  b.dataset.rtab='palette';
+  b.onclick=()=>{ mode=m; showRightTab('palette');
+    [...tabsEl.querySelectorAll('button[data-rtab=palette]')].forEach(x=>x.classList.remove('on'));
+    b.classList.add('on');
     edgeWrap.style.display=(m==='wall'||m==='door')?'flex':'none'; buildPalette(); };
   tabsEl.appendChild(b);
 });
+{
+  const lb=document.createElement('button'); lb.textContent='Links'; lb.dataset.rtab='links';
+  lb.title='Custom travel / teleport / fall links';
+  lb.onclick=()=>showRightTab('links');
+  tabsEl.appendChild(lb);
+}
 document.querySelectorAll('input[name=edge]').forEach(r=>r.onchange=e=>edge=e.target.value);
 function buildPalette(){
   palEl.innerHTML='';
@@ -817,6 +940,364 @@ function buildPalette(){
   });
 }
 buildPalette();
+
+// ---- reference SEC dock --------------------------------------------------
+let canvasFocus='main';
+let refData=null, refFilename=null, refPlace=null;
+let refSelection=null, refSelDrag=null, refScale=8;
+const refCv=document.getElementById('refcv'), refCtx=refCv.getContext('2d');
+let allSecNames=[];
+
+function findPlacement(fn){
+  if(!fn) return null;
+  if(mapCtx && mapCtx.file===fn) return {col:mapCtx.col,row:mapCtx.row,level:mapCtx.level,filename:fn};
+  try{
+    const bag=JSON.parse(localStorage.getItem('mra_unified_v1')||'{}');
+    const ov=bag.overrides||{};
+    for(const k of Object.keys(ov)){
+      const o=ov[k];
+      if(o&&o.filename===fn){
+        const [c,r,lv]=k.split(',');
+        return {col:+c,row:+r,level:+lv,filename:fn};
+      }
+    }
+  }catch(_e){}
+  const U=window.UNIFIED_MAP;
+  if(U&&Array.isArray(U.placements)){
+    const hit=U.placements.find(p=>p.filename===fn);
+    if(hit) return {col:hit.col,row:hit.row,level:hit.level,filename:fn};
+  }
+  return null;
+}
+
+async function collectSecNames(){
+  const set=new Set(Object.keys(window.SEC_PATHS||{}));
+  try{
+    const customs=await CustomSecs.list();
+    (customs||[]).forEach(r=>{ if(r&&r.filename) set.add(r.filename); });
+  }catch(_e){}
+  const U=window.UNIFIED_MAP;
+  if(U&&Array.isArray(U.placements)) U.placements.forEach(p=>{ if(p.filename) set.add(p.filename); });
+  allSecNames=[...set].sort((a,b)=>a.localeCompare(b));
+}
+
+function renderRefBrowser(q){
+  const list=document.getElementById('reflist');
+  list.innerHTML='';
+  const needle=(q||'').toLowerCase().trim();
+  const names=allSecNames.filter(n=>!needle||n.toLowerCase().includes(needle)).slice(0,120);
+  names.forEach(fn=>{
+    const t=document.createElement('div'); t.className='reftile'+(fn===refFilename?' on':'');
+    const im=document.createElement('img'); im.loading='lazy'; im.src='tiles/'+fn+'.png';
+    im.onerror=()=>{ im.style.background='#222'; };
+    const sp=document.createElement('span'); sp.textContent=fn.replace(/\.SEC$/i,'');
+    t.appendChild(im); t.appendChild(sp);
+    t.onclick=()=>loadReference(fn);
+    list.appendChild(t);
+  });
+}
+
+async function loadReference(fn){
+  document.getElementById('reffile').textContent='loading '+fn+'...';
+  const buf=await fetchSecBytes(fn);
+  if(!buf){
+    refData=null; refFilename=null; refPlace=null;
+    document.getElementById('reffile').textContent='failed: '+fn;
+    document.getElementById('refreadout').textContent='Could not load '+fn;
+    drawRef();
+    return;
+  }
+  refData=buf; refFilename=fn; refPlace=findPlacement(fn);
+  refSelection=null; refSelDrag=null;
+  document.getElementById('reffile').textContent=fn+(refPlace?(' @('+refPlace.col+','+refPlace.row+') L'+(refPlace.level>0?'+':'')+refPlace.level):'');
+  document.getElementById('refreadout').textContent='Reference loaded. Select a region, then Copy from ref / Clone onto working.';
+  renderRefBrowser(document.getElementById('refsearch').value);
+  drawRef();
+}
+
+function drawRefCell(buf,r,c,dx,dy){
+  const o=(r*GRID+c)*CELL;
+  const terr=buf[o], obj=buf[o+1];
+  const spr=SPRITES[terr];
+  if(ready(spr)) refCtx.drawImage(spr,dx,dy,refScale,refScale);
+  else {
+    const col=terrColor(terr);
+    refCtx.fillStyle=`rgb(${col[0]},${col[1]},${col[2]})`;
+    refCtx.fillRect(dx,dy,refScale,refScale);
+  }
+  if(obj){
+    const osp=OBJSPR[obj];
+    if(ready(osp)) refCtx.drawImage(osp,dx,dy,refScale,refScale);
+    else {
+      refCtx.fillStyle=(obj>=1&&obj<=4)?'rgba(60,230,230,.95)':'rgba(230,210,120,.95)';
+      refCtx.beginPath(); refCtx.arc(dx+refScale/2,dy+refScale/2,Math.max(1.2,refScale*0.16),0,7); refCtx.fill();
+    }
+  }
+  const nw=buf[o+2]|(buf[o+3]<<8);
+  const nWall=nw&0x1f, wWall=(nw>>5)&0x1f, nDoor=(nw>>10)&0x0f, wDoor=(buf[o+4]>>1)&0x0f;
+  const t=Math.max(1,Math.round(refScale*0.18));
+  function edge(x,y,wallT,doorT,dir){
+    if(!(wallT||doorT)) return;
+    let drew=false;
+    if(wallT){ const ws=WALLSPR[wallT+'|'+dir]; if(ready(ws)){ refCtx.drawImage(ws,x,y,refScale,refScale); drew=true; } }
+    if(doorT){ const ds=DOORSPR[doorT+'|'+dir]; if(ready(ds)){ refCtx.drawImage(ds,x,y,refScale,refScale); drew=true; } }
+    if(drew) return;
+    const k=doorT?(DOOR_COLOR[doorT]||[205,160,70]):[225,225,235];
+    refCtx.fillStyle=`rgb(${k[0]},${k[1]},${k[2]})`;
+    if(dir==='N') refCtx.fillRect(x,y,refScale,t);
+    else if(dir==='W') refCtx.fillRect(x,y,t,refScale);
+  }
+  edge(dx,dy,nWall,nDoor,'N');
+  edge(dx,dy,wWall,wDoor,'W');
+}
+
+function drawRef(){
+  refCv.width=PLAY*refScale; refCv.height=PLAY*refScale;
+  refCtx.fillStyle='#000'; refCtx.fillRect(0,0,refCv.width,refCv.height);
+  if(!refData){
+    refCtx.fillStyle='#666'; refCtx.font='12px sans-serif';
+    refCtx.fillText('No reference SEC', 12, 24);
+    return;
+  }
+  for(let r=0;r<PLAY;r++) for(let c=0;c<PLAY;c++) drawRefCell(refData,r,c,c*refScale,r*refScale);
+  const live=refSelDrag&&refSelDrag.kind==='make'?normRect(refSelDrag.start,refSelDrag.cur):null;
+  const rect=live||refSelection;
+  if(rect){
+    const x=rect.c0*refScale, y=rect.r0*refScale;
+    const w=(rect.c1-rect.c0+1)*refScale, h=(rect.r1-rect.r0+1)*refScale;
+    refCtx.fillStyle='rgba(232,165,75,.20)';
+    refCtx.fillRect(x,y,w,h);
+    refCtx.strokeStyle='rgba(232,165,75,.95)';
+    refCtx.lineWidth=2; refCtx.setLineDash([4,3]);
+    refCtx.strokeRect(x+0.5,y+0.5,w-1,h-1);
+    refCtx.setLineDash([]);
+  }
+}
+
+function refCellAt(ev){
+  const b=refCv.getBoundingClientRect();
+  if(b.width<=0||b.height<=0) return null;
+  const x=(ev.clientX-b.left)*(refCv.width/b.width);
+  const y=(ev.clientY-b.top)*(refCv.height/b.height);
+  const c=Math.floor(x/refScale), r=Math.floor(y/refScale);
+  if(r<0||c<0||r>=PLAY||c>=PLAY) return null;
+  return [r,c];
+}
+
+refCv.addEventListener('contextmenu',e=>e.preventDefault());
+refCv.addEventListener('mousedown',e=>{
+  canvasFocus='ref';
+  if(!refData) return;
+  const p=refCellAt(e); if(!p) return;
+  if(linkPick==='to-ref'){
+    e.preventDefault();
+    applyLinkPick('to', {
+      filename: refFilename,
+      col: refPlace?refPlace.col:null,
+      row: refPlace?refPlace.row:null,
+      level: refPlace?refPlace.level:null,
+      r: p[0], c: p[1]
+    });
+    return;
+  }
+  if(e.altKey || tool==='drop'){
+    e.preventDefault();
+    eyedropAtHit({buf:refData, r:p[0], c:p[1], zone:'reference'});
+    setTool('paint');
+    return;
+  }
+  if(tool!=='select'){ setTool('select'); }
+  if(e.button===2){ refSelection=null; refSelDrag=null; drawRef(); return; }
+  if(refSelection && pointInSel(p[0],p[1],refSelection)){
+    refSelDrag={kind:'make', start:p, cur:p}; // re-make; no move on ref
+  } else {
+    refSelection=null;
+    refSelDrag={kind:'make', start:p, cur:p};
+  }
+  drawRef();
+});
+refCv.addEventListener('mousemove',e=>{
+  const p=refCellAt(e);
+  if(p && refData){
+    const o=(p[0]*GRID+p[1])*CELL;
+    document.getElementById('refreadout').textContent=
+      'ref r'+p[0]+' c'+p[1]+' terr=0x'+refData[o].toString(16)+' obj=0x'+refData[o+1].toString(16);
+  }
+  if(refSelDrag&&p){ refSelDrag.cur=p; drawRef(); }
+});
+window.addEventListener('mouseup',()=>{
+  if(refSelDrag){
+    if(refSelDrag.kind==='make') refSelection=normRect(refSelDrag.start, refSelDrag.cur);
+    refSelDrag=null;
+    drawRef();
+  }
+});
+
+function copyFromReference(){
+  if(!refData||!refSelection){
+    alert('Select a region on the reference SEC first.');
+    return;
+  }
+  clip=copyRect(refSelection, refData);
+  document.getElementById('refreadout').textContent='Copied '+clip.w+'x'+clip.h+' from '+refFilename+'. Paste (Ctrl+V) on working SEC.';
+  canvasFocus='main';
+}
+function cloneOntoWorking(){
+  if(!refData||!refSelection){
+    alert('Select a region on the reference SEC first.');
+    return;
+  }
+  ensureEditable();
+  const blob=copyRect(refSelection, refData);
+  const anchor=selection?{r0:selection.r0,c0:selection.c0}:{r0:0,c0:0};
+  const dst={r0:anchor.r0,c0:anchor.c0,r1:anchor.r0+blob.h-1,c1:anchor.c0+blob.w-1};
+  if(dst.r1>=PLAY||dst.c1>=PLAY){ alert('Clone does not fit at that anchor.'); return; }
+  pasteRect(dst, blob, true);
+  selection=dst; clip=blob; canvasFocus='main';
+  draw();
+  document.getElementById('readout').textContent='Cloned '+blob.w+'x'+blob.h+' from '+refFilename+' onto working SEC.';
+}
+document.getElementById('refcopy').onclick=copyFromReference;
+document.getElementById('refclone').onclick=cloneOntoWorking;
+document.getElementById('reftoggle').onclick=()=>{
+  const dock=document.getElementById('refdock');
+  dock.classList.toggle('collapsed');
+  document.getElementById('reftoggle').textContent=dock.classList.contains('collapsed')?'Show':'Hide';
+};
+document.getElementById('refsearch').addEventListener('input',e=>renderRefBrowser(e.target.value));
+
+// ---- travel / teleport link manager --------------------------------------
+let linkPick=null; // 'from' | 'to-work' | 'to-ref' | null
+let draftFrom=null, draftTo=null, editingLinkId=null;
+
+(function fillKinds(){
+  const sel=document.getElementById('lnKind');
+  (window.TravelLinks&&TravelLinks.KINDS||[{id:'custom',label:'Custom'}]).forEach(k=>{
+    const o=document.createElement('option'); o.value=k.id; o.textContent=k.label; sel.appendChild(o);
+  });
+})();
+
+function updateLinkPickButtons(){
+  ['lnPickFrom','lnPickToWork','lnPickToRef'].forEach(id=>{
+    const el=document.getElementById(id);
+    if(!el) return;
+    el.classList.remove('pickon');
+  });
+  if(linkPick==='from') document.getElementById('lnPickFrom').classList.add('pickon');
+  if(linkPick==='to-work') document.getElementById('lnPickToWork').classList.add('pickon');
+  if(linkPick==='to-ref') document.getElementById('lnPickToRef').classList.add('pickon');
+}
+function endMetaHtml(end){
+  if(!end) return 'not set';
+  return TravelLinks.describeEnd(end);
+}
+function refreshDraftMeta(){
+  document.getElementById('lnFromMeta').textContent='From: '+endMetaHtml(draftFrom);
+  document.getElementById('lnToMeta').textContent='To: '+endMetaHtml(draftTo);
+}
+function applyLinkPick(which, end){
+  const nameEl=which==='from'?document.getElementById('lnFromName'):document.getElementById('lnToName');
+  end.name=(nameEl.value||'').trim() || end.name || '';
+  if(which==='from') draftFrom=end; else draftTo=end;
+  linkPick=null; updateLinkPickButtons(); refreshDraftMeta();
+  document.getElementById('readout').textContent='Set link '+which+': '+TravelLinks.describeEnd(end);
+}
+document.getElementById('lnPickFrom').onclick=()=>{
+  linkPick=linkPick==='from'?null:'from'; updateLinkPickButtons();
+  document.getElementById('readout').textContent=linkPick?'Click a cell on the working SEC for From.':'';
+};
+document.getElementById('lnPickToWork').onclick=()=>{
+  linkPick=linkPick==='to-work'?null:'to-work'; updateLinkPickButtons();
+  document.getElementById('readout').textContent=linkPick?'Click a cell on the working SEC for To.':'';
+};
+document.getElementById('lnPickToRef').onclick=()=>{
+  if(!refData){ alert('Load a reference SEC first (bottom dock).'); return; }
+  linkPick=linkPick==='to-ref'?null:'to-ref'; updateLinkPickButtons();
+  document.getElementById('readout').textContent=linkPick?'Click a cell on the reference SEC for To.':'';
+};
+document.getElementById('lnClear').onclick=()=>{
+  editingLinkId=null; draftFrom=null; draftTo=null; linkPick=null;
+  document.getElementById('lnName').value='';
+  document.getElementById('lnFromName').value='';
+  document.getElementById('lnToName').value='';
+  document.getElementById('lnBi').checked=false;
+  document.getElementById('lnKind').value='custom';
+  updateLinkPickButtons(); refreshDraftMeta();
+};
+document.getElementById('lnSave').onclick=()=>{
+  if(!draftFrom||!draftTo){ alert('Set both From and To cells first.'); return; }
+  draftFrom.name=(document.getElementById('lnFromName').value||'').trim()||draftFrom.name;
+  draftTo.name=(document.getElementById('lnToName').value||'').trim()||draftTo.name;
+  const linkName=(document.getElementById('lnName').value||'').trim()
+    || (draftFrom.name&&draftTo.name?draftFrom.name+'-'+draftTo.name:'unnamed');
+  const saved=TravelLinks.upsert({
+    id: editingLinkId||TravelLinks.newId(),
+    name: linkName,
+    kind: document.getElementById('lnKind').value||'custom',
+    bidirectional: document.getElementById('lnBi').checked,
+    from: draftFrom,
+    to: draftTo,
+    updated: Date.now()
+  });
+  editingLinkId=saved.id;
+  refreshLinkList();
+  document.getElementById('readout').textContent='Saved travel link "'+saved.name+'"'
+    +(saved.bidirectional?' (two-way)':' (one-way)');
+};
+function refreshLinkList(){
+  const box=document.getElementById('linklist');
+  box.innerHTML='';
+  const all=TravelLinks.load();
+  const relevant=all.filter(L=>{
+    if(mapCtx&&mapCtx.file){
+      if(L.from&&L.from.filename===mapCtx.file) return true;
+      if(L.to&&L.to.filename===mapCtx.file) return true;
+    }
+    if(filename && filename!=='blank.SEC'){
+      if(L.from&&L.from.filename===filename) return true;
+      if(L.to&&L.to.filename===filename) return true;
+    }
+    return true; // show all; small list for now
+  });
+  // Prefer links touching current file, then rest
+  relevant.sort((a,b)=>{
+    const touch=L=> (L.from&&(L.from.filename===filename||(mapCtx&&L.from.filename===mapCtx.file)))
+      || (L.to&&(L.to.filename===filename||(mapCtx&&L.to.filename===mapCtx.file)));
+    return (touch(b)?1:0)-(touch(a)?1:0);
+  });
+  if(!relevant.length){
+    box.innerHTML='<div class="hint">No custom travel links yet.</div>';
+    return;
+  }
+  relevant.forEach(L=>{
+    const card=document.createElement('div'); card.className='linkcard';
+    const dir=L.bidirectional?'\u2194':'\u2192';
+    card.innerHTML='<div class="nm">'+L.name+' <span class="hint">('+L.kind+(L.bidirectional?', 2-way':', 1-way')+')</span></div>'
+      +'<div class="meta">'+TravelLinks.describeEnd(L.from)+' '+dir+' '+TravelLinks.describeEnd(L.to)+'</div>';
+    const acts=document.createElement('div'); acts.className='acts';
+    const ed=document.createElement('button'); ed.textContent='Edit';
+    ed.onclick=()=>{
+      editingLinkId=L.id;
+      document.getElementById('lnName').value=L.name||'';
+      document.getElementById('lnKind').value=L.kind||'custom';
+      document.getElementById('lnBi').checked=!!L.bidirectional;
+      document.getElementById('lnFromName').value=(L.from&&L.from.name)||'';
+      document.getElementById('lnToName').value=(L.to&&L.to.name)||'';
+      draftFrom=Object.assign({},L.from); draftTo=Object.assign({},L.to);
+      refreshDraftMeta(); showRightTab('links');
+    };
+    const del=document.createElement('button'); del.textContent='Delete';
+    del.onclick=()=>{ if(confirm('Delete link "'+L.name+'"?')){ TravelLinks.remove(L.id); refreshLinkList(); } };
+    acts.appendChild(ed); acts.appendChild(del); card.appendChild(acts);
+    box.appendChild(card);
+  });
+}
+
+(async function bootRefDock(){
+  await collectSecNames();
+  renderRefBrowser('');
+  refreshDraftMeta();
+})();
 
 // ---- file load / save / new ----------------------------------------------
 function setFilename(fn, label){
