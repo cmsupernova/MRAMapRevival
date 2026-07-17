@@ -64,7 +64,7 @@
   <div class="left">
     <div id="ctxbar" class="ctxbar"></div>
     <div class="stage"><canvas id="cv"></canvas></div>
-    <div class="hint" id="toolhint">Eyedropper: click Eyedropper (or press I), then click a cell in the blue box OR on a neighbor edge. Status line below shows what was picked. Paint with B. Alt+click also eyedrops.</div>
+    <div class="hint" id="toolhint">Center and neighbor edges load real .SEC data (not just PNGs) so you can match seams. Eyedropper samples those live bytes. Status bar shows live SEC counts.</div>
     <div id="readout" class="hint"></div>
   </div>
   <div class="right">
@@ -196,20 +196,52 @@ function loadNeighborImages(){
     neighborImgs[side]=im;
   });
 }
+/** Draw one playfield cell from a SEC buffer at canvas pixel (dx,dy). */
+function drawSecCell(buf, r, c, dx, dy, alpha){
+  if(!buf || r<0||c<0||r>=PLAY||c>=PLAY) return;
+  const o=(r*GRID+c)*CELL;
+  const prev=ctx.globalAlpha;
+  if(alpha!=null) ctx.globalAlpha=alpha;
+  const spr=SPRITES[buf[o]];
+  if(spr && spr.complete && spr.naturalWidth) ctx.drawImage(spr, dx, dy, scale, scale);
+  else {
+    const col=terrColor(buf[o]);
+    ctx.fillStyle=`rgb(${col[0]},${col[1]},${col[2]})`;
+    ctx.fillRect(dx, dy, scale, scale);
+  }
+  if(buf[o+1]){
+    const osp=OBJSPR[buf[o+1]];
+    if(ready(osp)) ctx.drawImage(osp, dx, dy, scale, scale);
+    else {
+      ctx.fillStyle=(buf[o+1]>=1&&buf[o+1]<=4)?'rgba(60,230,230,.95)':'rgba(230,210,120,.95)';
+      ctx.beginPath(); ctx.arc(dx+scale/2, dy+scale/2, Math.max(1.5,scale*0.16), 0, 7); ctx.fill();
+    }
+  }
+  const t=Math.max(2, Math.round(scale*0.18));
+  const wbits=buf[o+2]|(buf[o+3]<<8);
+  const nW=wbits&0x1f, wW=(wbits>>5)&0x1f, nD=(wbits>>10)&0x0f, wD=(buf[o+4]>>1)&0x0f;
+  function edgeLine(wallT, doorT, which){
+    if(!(wallT||doorT)) return;
+    let drew=false;
+    if(wallT){ const ws=WALLSPR[wallT+'|'+which]; if(ready(ws)){ ctx.drawImage(ws,dx,dy,scale,scale); drew=true; } }
+    if(doorT){ const ds=DOORSPR[doorT+'|'+which]; if(ready(ds)){ ctx.drawImage(ds,dx,dy,scale,scale); drew=true; } }
+    if(drew) return;
+    const k=doorT?(DOOR_COLOR[doorT]||[205,160,70]):[225,225,235];
+    ctx.fillStyle=`rgb(${k[0]},${k[1]},${k[2]})`;
+    if(which==='N') ctx.fillRect(dx,dy,scale,t);
+    else if(which==='W') ctx.fillRect(dx,dy,t,scale);
+  }
+  edgeLine(nW, nD, 'N');
+  edgeLine(wW, wD, 'W');
+  ctx.globalAlpha=prev;
+}
+/** Prefer real SEC bytes for neighbor rims; fall back to PNG strips. */
 function drawNeighborContext(){
   if(!showCtx || !mapCtx) return;
   const m=MARGIN, o=m*scale, playPx=PLAY*scale;
   const imgReady=im=>im&&im.complete&&im.naturalWidth;
-  // Darken rim first
   ctx.fillStyle='#0a0b10';
   ctx.fillRect(0,0,cv.width,cv.height);
-  function blit(im, sx,sy,sw,sh, dx,dy,dw,dh){
-    if(!imgReady(im)) return false;
-    ctx.globalAlpha=0.95;
-    ctx.drawImage(im, sx,sy,sw,sh, dx,dy,dw,dh);
-    ctx.globalAlpha=1;
-    return true;
-  }
   function emptySlot(dx,dy,dw,dh,label){
     ctx.fillStyle='#12141a';
     ctx.fillRect(dx,dy,dw,dh);
@@ -222,30 +254,63 @@ function drawNeighborContext(){
       ctx.fillText(label, dx+dw/2, dy+dh/2);
     }
   }
+  function blitPng(im, sx,sy,sw,sh, dx,dy,dw,dh){
+    if(!imgReady(im)) return false;
+    ctx.globalAlpha=0.92;
+    ctx.drawImage(im, sx,sy,sw,sh, dx,dy,dw,dh);
+    ctx.globalAlpha=1;
+    return true;
+  }
   const tw=256, cell=tw/PLAY, strip=m*cell;
-  // N: bottom strip of north SEC
-  if(!blit(neighborImgs.n, 0, tw-strip, tw, strip, o, 0, playPx, m*scale))
+  const A=0.92;
+
+  // N: bottom MARGIN rows of north SEC
+  if(neighborData.n){
+    for(let i=0;i<m;i++) for(let c=0;c<PLAY;c++)
+      drawSecCell(neighborData.n, PLAY-m+i, c, o+c*scale, i*scale, A);
+  } else if(!blitPng(neighborImgs.n, 0, tw-strip, tw, strip, o, 0, playPx, m*scale))
     emptySlot(o, 0, playPx, m*scale, mapCtx.neighbors&&mapCtx.neighbors.n?'…':'N empty');
-  // S
-  if(!blit(neighborImgs.s, 0, 0, tw, strip, o, o+playPx, playPx, m*scale))
+
+  // S: top MARGIN rows of south SEC
+  if(neighborData.s){
+    for(let i=0;i<m;i++) for(let c=0;c<PLAY;c++)
+      drawSecCell(neighborData.s, i, c, o+c*scale, o+playPx+i*scale, A);
+  } else if(!blitPng(neighborImgs.s, 0, 0, tw, strip, o, o+playPx, playPx, m*scale))
     emptySlot(o, o+playPx, playPx, m*scale, mapCtx.neighbors&&mapCtx.neighbors.s?'…':'S empty');
-  // W
-  if(!blit(neighborImgs.w, tw-strip, 0, strip, tw, 0, o, m*scale, playPx))
+
+  // W: right MARGIN cols of west SEC
+  if(neighborData.w){
+    for(let r=0;r<PLAY;r++) for(let i=0;i<m;i++)
+      drawSecCell(neighborData.w, r, PLAY-m+i, i*scale, o+r*scale, A);
+  } else if(!blitPng(neighborImgs.w, tw-strip, 0, strip, tw, 0, o, m*scale, playPx))
     emptySlot(0, o, m*scale, playPx, mapCtx.neighbors&&mapCtx.neighbors.w?'…':'W');
-  // E
-  if(!blit(neighborImgs.e, 0, 0, strip, tw, o+playPx, o, m*scale, playPx))
+
+  // E: left MARGIN cols of east SEC
+  if(neighborData.e){
+    for(let r=0;r<PLAY;r++) for(let i=0;i<m;i++)
+      drawSecCell(neighborData.e, r, i, o+playPx+i*scale, o+r*scale, A);
+  } else if(!blitPng(neighborImgs.e, 0, 0, strip, tw, o+playPx, o, m*scale, playPx))
     emptySlot(o+playPx, o, m*scale, playPx, mapCtx.neighbors&&mapCtx.neighbors.e?'…':'E');
-  // Corners
-  if(!blit(neighborImgs.nw, tw-strip, tw-strip, strip, strip, 0, 0, m*scale, m*scale))
-    emptySlot(0, 0, m*scale, m*scale, '');
-  if(!blit(neighborImgs.ne, 0, tw-strip, strip, strip, o+playPx, 0, m*scale, m*scale))
-    emptySlot(o+playPx, 0, m*scale, m*scale, '');
-  if(!blit(neighborImgs.sw, tw-strip, 0, strip, strip, 0, o+playPx, m*scale, m*scale))
-    emptySlot(0, o+playPx, m*scale, m*scale, '');
-  if(!blit(neighborImgs.se, 0, 0, strip, strip, o+playPx, o+playPx, m*scale, m*scale))
-    emptySlot(o+playPx, o+playPx, m*scale, m*scale, '');
-  // Dim overlay on rim so editable center reads as primary
-  ctx.fillStyle='rgba(10,12,18,.28)';
+
+  // Corners from real SEC when available
+  function corner(side, r0, c0, dx, dy){
+    if(neighborData[side]){
+      for(let r=0;r<m;r++) for(let c=0;c<m;c++)
+        drawSecCell(neighborData[side], r0+r, c0+c, dx+c*scale, dy+r*scale, A);
+      return true;
+    }
+    return false;
+  }
+  if(!corner('nw', PLAY-m, PLAY-m, 0, 0))
+    if(!blitPng(neighborImgs.nw, tw-strip, tw-strip, strip, strip, 0, 0, m*scale, m*scale)) emptySlot(0,0,m*scale,m*scale,'');
+  if(!corner('ne', PLAY-m, 0, o+playPx, 0))
+    if(!blitPng(neighborImgs.ne, 0, tw-strip, strip, strip, o+playPx, 0, m*scale, m*scale)) emptySlot(o+playPx,0,m*scale,m*scale,'');
+  if(!corner('sw', 0, PLAY-m, 0, o+playPx))
+    if(!blitPng(neighborImgs.sw, tw-strip, 0, strip, strip, 0, o+playPx, m*scale, m*scale)) emptySlot(0,o+playPx,m*scale,m*scale,'');
+  if(!corner('se', 0, 0, o+playPx, o+playPx))
+    if(!blitPng(neighborImgs.se, 0, 0, strip, strip, o+playPx, o+playPx, m*scale, m*scale)) emptySlot(o+playPx,o+playPx,m*scale,m*scale,'');
+
+  ctx.fillStyle='rgba(10,12,18,.22)';
   ctx.fillRect(0,0,cv.width,m*scale);
   ctx.fillRect(0,o+playPx,cv.width,m*scale);
   ctx.fillRect(0,o,m*scale,playPx);
@@ -412,6 +477,8 @@ async function loadNeighborData(){
   await Promise.all(['n','s','e','w','ne','nw','se','sw'].map(async side=>{
     neighborData[side]=n[side]?await fetchSecBytes(n[side]):null;
   }));
+  draw();
+  updateCtxBar();
 }
 
 /** Hit-test including neighbor rim. Returns {buf,r,c,zone} or null. */
@@ -708,7 +775,7 @@ function setFilename(fn, label){
 }
 function applyBuffer(buf, fn){
   if(buf.length!==SIZE){ alert('Expected '+SIZE+' bytes (33x33x6), got '+buf.length+'. Not a valid .SEC.'); return false; }
-  data=buf; secLoaded=true; setFilename(fn); draw(); return true;
+  data=buf; secLoaded=true; setFilename(fn); draw(); updateCtxBar(); return true;
 }
 function loadCenterPreview(fn){
   if(!fn){ centerPreview=null; return; }
@@ -777,10 +844,13 @@ function updateCtxBar(){
     return d+': '+(fn?('<code>'+fn.replace('.SEC','')+'</code>'):'(empty)');
   });
   const present=['n','s','e','w','ne','nw','se','sw'].filter(k=>n[k]).length;
+  const live=['n','s','e','w','ne','nw','se','sw'].filter(k=>neighborData[k]).length;
   bar.innerHTML='Map cell <code>('+mapCtx.col+','+mapCtx.row+')</code> Floor '+
     (mapCtx.level>0?'+':'')+mapCtx.level+
     (mapCtx.label?(' · '+mapCtx.label):'')+
-    ' · '+present+' neighbor tile(s) · borders '+bits.join(' · ')+
+    ' · borders '+bits.join(' · ')+
+    ' · rim '+live+'/'+present+' live SEC'+
+    (secLoaded?' · center: live SEC':' · center: loading…')+
     ' · use <b>Save &amp; place on map</b> when done';
 }
 function downloadSec(fn){
