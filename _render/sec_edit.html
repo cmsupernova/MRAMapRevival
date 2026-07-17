@@ -45,6 +45,7 @@
   <button id="zout">-</button><span id="zlvl" class="stat">16</span><button id="zin">+</button>
   <button id="newbtn">New blank</button>
   <button id="save">Save .SEC</button>
+  <button id="savemap" style="display:none;border-color:var(--accent)">Save & place on map</button>
   <label class="hint"><input type="checkbox" id="showctx" checked> neighbor edges</label>
   <a href="sec_map.html" class="hint" id="backmap">&larr; world map</a>
   <a href="sec_cluster.html" class="hint">interiors &rarr;</a>
@@ -71,6 +72,7 @@
 </div>
 <script src="tileset.js"></script>
 <script src="sec_paths.js"></script>
+<script src="custom_secs.js"></script>
 <script>
 const GRID=33, PLAY=32, CELL=6, SIZE=GRID*GRID*CELL;       // 6534 bytes
 const MARGIN=6;                                              // ~20% of 32 for neighbor edges
@@ -391,8 +393,14 @@ function loadCenterPreview(fn){
   const im=new Image();
   im.onload=()=>draw();
   im.onerror=()=>{ centerPreview=null; };
-  im.src=tileUrl(fn);
   centerPreview=im;
+  (async ()=>{
+    try{
+      const custom=await CustomSecs.get(fn);
+      if(custom&&custom.png){ im.src=custom.png; return; }
+    }catch(_e){}
+    im.src=tileUrl(fn);
+  })();
 }
 function parseMapCtx(){
   const q=new URLSearchParams(location.search);
@@ -429,6 +437,16 @@ function parseMapCtx(){
 }
 async function tryFetchSec(fn){
   if(!fn) return false;
+  try{
+    const custom=await CustomSecs.get(fn);
+    if(custom && custom.bytes){
+      const buf=new Uint8Array(custom.bytes);
+      if(applyBuffer(buf, fn)){
+        if(custom.png){ const im=new Image(); im.onload=()=>draw(); im.src=custom.png; centerPreview=im; }
+        return true;
+      }
+    }
+  }catch(_e){}
   const rel=(window.SEC_PATHS||{})[fn];
   const tries=[];
   if(rel) tries.push(rel);
@@ -455,7 +473,92 @@ function updateCtxBar(){
   bar.innerHTML='Map cell <code>('+mapCtx.col+','+mapCtx.row+')</code> Floor '+
     (mapCtx.level>0?'+':'')+mapCtx.level+
     (mapCtx.label?(' · '+mapCtx.label):'')+
-    ' · '+present+' neighbor tile(s) · borders '+bits.join(' · ');
+    ' · '+present+' neighbor tile(s) · borders '+bits.join(' · ')+
+    ' · use <b>Save &amp; place on map</b> when done';
+}
+function downloadSec(fn){
+  const name=(fn||filename).toLowerCase().endsWith('.sec')?(fn||filename):(fn||filename)+'.SEC';
+  const blob=new Blob([data],{type:'application/octet-stream'});
+  const a=document.createElement('a'); a.href=URL.createObjectURL(blob);
+  a.download=name; a.click();
+  setTimeout(()=>URL.revokeObjectURL(a.href), 2000);
+}
+function renderCenterPng(){
+  const out=document.createElement('canvas');
+  out.width=256; out.height=256;
+  const g=out.getContext('2d');
+  g.imageSmoothingEnabled=false;
+  const s=256/PLAY;
+  for(let r=0;r<PLAY;r++) for(let c=0;c<PLAY;c++){
+    const o=off(r,c), x=c*s, y=r*s, spr=SPRITES[data[o]];
+    if(spr && spr.complete && spr.naturalWidth) g.drawImage(spr,x,y,s,s);
+    else { const col=terrColor(data[o]); g.fillStyle=`rgb(${col[0]},${col[1]},${col[2]})`; g.fillRect(x,y,s,s); }
+    if(data[o+1]){ const osp=OBJSPR[data[o+1]];
+      if(ready(osp)) g.drawImage(osp,x,y,s,s);
+      else { g.fillStyle=(data[o+1]>=1&&data[o+1]<=4)?'rgba(60,230,230,.95)':'rgba(230,210,120,.95)';
+        g.beginPath(); g.arc(x+s/2,y+s/2,Math.max(1.2,s*0.16),0,7); g.fill(); } }
+  }
+  const t=Math.max(1,Math.round(s*0.18));
+  function drawEdge(x,y,wallT,doorT,edge){
+    if(!(wallT||doorT)) return;
+    let drew=false;
+    if(wallT){ const ws=WALLSPR[wallT+'|'+edge]; if(ready(ws)){ g.drawImage(ws,x,y,s,s); drew=true; } }
+    if(doorT){ const ds=DOORSPR[doorT+'|'+edge]; if(ready(ds)){ g.drawImage(ds,x,y,s,s); drew=true; } }
+    if(drew) return;
+    const k=doorT?(DOOR_COLOR[doorT]||[205,160,70]):[225,225,235];
+    g.fillStyle=`rgb(${k[0]},${k[1]},${k[2]})`;
+    if(edge==='N') g.fillRect(x,y,s,t); else if(edge==='S') g.fillRect(x,y+s-t,s,t);
+    else if(edge==='W') g.fillRect(x,y,t,s); else g.fillRect(x+s-t,y,t,s);
+  }
+  for(let r=0;r<PLAY;r++) for(let c=0;c<PLAY;c++){
+    const o=off(r,c), x=c*s, y=r*s;
+    drawEdge(x,y,northWall(o),northDoor(o),'N');
+    drawEdge(x,y,westWall(o),westDoor(o),'W');
+  }
+  for(let r=0;r<PLAY;r++){ const o=off(r,32); drawEdge((PLAY-1)*s,r*s,westWall(o),westDoor(o),'E'); }
+  for(let c=0;c<PLAY;c++){ const o=off(32,c); drawEdge(c*s,(PLAY-1)*s,northWall(o),northDoor(o),'S'); }
+  return out.toDataURL('image/png');
+}
+function normalizeSecName(name){
+  let fn=(name||'blank.SEC').trim();
+  if(!fn) fn='blank.SEC';
+  if(!fn.toLowerCase().endsWith('.sec')) fn+='.SEC';
+  return fn;
+}
+async function saveAndPlaceOnMap(){
+  if(!mapCtx || mapCtx.col==null){ downloadSec(filename); return; }
+  if(!secLoaded && mapCtx.mode==='edit'){
+    alert('Load the .SEC file first (Browse), or paint a new blank sector, before saving.');
+    return;
+  }
+  let fn=normalizeSecName(filename);
+  if(mapCtx.mode==='create' || fn.toLowerCase()==='blank.sec'){
+    const asked=prompt('Filename for this new SEC (will be placed on the map cell):', mapCtx.suggestName||fn);
+    if(asked==null) return;
+    fn=normalizeSecName(asked);
+  }
+  filename=fn;
+  setFilename(fn, 'saving '+fn+'...');
+  const png=renderCenterPng();
+  const copy=data.slice(0);
+  try{
+    await CustomSecs.put({
+      filename:fn,
+      bytes: copy.buffer.slice(copy.byteOffset, copy.byteOffset+copy.byteLength),
+      png,
+      updated: Date.now(),
+      col: mapCtx.col, row: mapCtx.row, level: mapCtx.level
+    });
+  }catch(e){
+    alert('Could not store SEC in browser: '+(e&&e.message||e));
+    return;
+  }
+  downloadSec(fn);
+  CustomSecs.setPendingPlace({
+    filename:fn, col:mapCtx.col, row:mapCtx.row, level:mapCtx.level,
+    mode: mapCtx.mode||'edit', png
+  });
+  location.href='sec_map.html?placed='+encodeURIComponent(fn)+'&v=4';
 }
 document.getElementById('file').addEventListener('change',e=>{
   const f=e.target.files[0]; if(!f) return;
@@ -469,11 +572,8 @@ document.getElementById('newbtn').onclick=()=>{
   setFilename(sug, mapCtx?'new sector for ('+mapCtx.col+','+mapCtx.row+') - '+sug:'no file - editing a blank sector');
   draw();
 };
-document.getElementById('save').onclick=()=>{
-  const blob=new Blob([data],{type:'application/octet-stream'});
-  const a=document.createElement('a'); a.href=URL.createObjectURL(blob);
-  a.download=filename.toLowerCase().endsWith('.sec')?filename:filename+'.SEC'; a.click();
-};
+document.getElementById('save').onclick=()=>downloadSec(filename);
+document.getElementById('savemap').onclick=()=>saveAndPlaceOnMap();
 document.getElementById('zin').onclick=()=>{ scale=Math.min(28,scale+2); document.getElementById('zlvl').textContent=scale; resize(); };
 document.getElementById('zout').onclick=()=>{ scale=Math.max(8,scale-2); document.getElementById('zlvl').textContent=scale; resize(); };
 document.getElementById('showctx').onchange=e=>{ showCtx=!!e.target.checked; resize(); };
@@ -491,6 +591,8 @@ document.getElementById('showctx').onchange=e=>{ showCtx=!!e.target.checked; res
     showCtx=true;
     const showEl=document.getElementById('showctx');
     if(showEl) showEl.checked=true;
+    document.getElementById('savemap').style.display='inline-block';
+    document.getElementById('save').textContent='Download .SEC';
     if(ctx.mode==='create'){
       data=new Uint8Array(SIZE); secLoaded=true; centerPreview=null;
       setFilename(ctx.suggestName||'blank.SEC',

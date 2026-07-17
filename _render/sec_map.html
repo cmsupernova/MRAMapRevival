@@ -106,6 +106,7 @@
 <script src="portals.js"></script>
 <script src="level_clusters.js"></script>
 <script src="unified_map.js"></script>
+<script src="custom_secs.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
 const U = window.UNIFIED_MAP || {grid:{w:56,h:56},placements:[],guides:{},guide_labels:{},review:{},levels:[0],floor_labels:{'0':'Floor 0'},surface_level:0,_meta:{stats:{}}};
@@ -154,7 +155,12 @@ function effective(c,r,lv){
   }
   return generated[k] || null;
 }
-function tilePng(fn){ const t=TILE_BY_NAME[fn]; return (t&&t.png)||('tiles/'+fn+'.png'); }
+const CUSTOM_PNG = {}; // filename -> data URL from editor saves
+function tilePng(fn){
+  if(CUSTOM_PNG[fn]) return CUSTOM_PNG[fn];
+  const t=TILE_BY_NAME[fn];
+  return (t&&t.png)||('tiles/'+fn+'.png');
+}
 
 // ---- persistence (local + new unified supabase namespace) ----
 const LS_KEY = 'mra_unified_v1';
@@ -856,6 +862,35 @@ document.getElementById('legendtxt').textContent =
   'One map · '+(stats?(stats.by_source&&stats.by_source['2011']||0)+'×2011 + '+(stats.by_source&&stats.by_source['2006']||0)+'×2006':'')+
   ' · Floor 0 surface · blue=2011 green=2006';
 rebuildFloors(); buildGrid(); buildPalette(); renderReview(); DB.connect();
+
+(async function applyCustomSecSaves(){
+  try{
+    const all=await CustomSecs.list();
+    (all||[]).forEach(s=>{
+      if(s&&s.filename&&s.png){
+        CUSTOM_PNG[s.filename]=s.png;
+        if(!TILE_BY_NAME[s.filename]) TILE_BY_NAME[s.filename]={filename:s.filename,png:s.png,custom:true};
+        else TILE_BY_NAME[s.filename].png=s.png;
+      }
+    });
+  }catch(e){ console.warn('custom secs load failed', e); }
+  const pending=CustomSecs.takePendingPlace();
+  if(pending&&pending.filename!=null&&pending.col!=null){
+    if(pending.png) CUSTOM_PNG[pending.filename]=pending.png;
+    FLOOR=+(pending.level||0);
+    placeAt(pending.col, pending.row, pending.level, pending.filename, {
+      source:'custom', confidence:'custom',
+      png: CUSTOM_PNG[pending.filename]||pending.png||tilePng(pending.filename),
+      custom:true
+    });
+    rebuildFloors();
+    document.getElementById('legendtxt').textContent =
+      'Placed '+pending.filename.replace('.SEC','')+' at ('+pending.col+','+pending.row+') '+floorLabel(FLOOR)+'.';
+  }
+  refreshCells();
+  markUsed();
+  scheduleReview();
+})();
 </script>
 </body>
 </html>
