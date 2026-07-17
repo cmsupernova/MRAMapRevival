@@ -16,7 +16,10 @@
   .wrap{ display:flex; height:calc(100vh - 50px); }
   .left{ flex:1; overflow:auto; padding:18px; display:flex; flex-direction:column; align-items:flex-start; gap:8px; }
   canvas{ background:#000; border:1px solid var(--line); image-rendering:pixelated; cursor:crosshair; }
+  .stage{ position:relative; display:inline-block; }
   .hint{ font-size:11px; color:#9aa0ad; }
+  .ctxbar{ font-size:11px; color:#9aa0ad; display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
+  .ctxbar code{ color:#c2c7d2; }
   .right{ width:300px; flex:none; background:var(--panel); border-left:1px solid var(--line); overflow:auto; padding:10px; }
   .tabs{ display:flex; gap:4px; margin-bottom:8px; }
   .tabs button{ flex:1; }
@@ -42,13 +45,15 @@
   <button id="zout">-</button><span id="zlvl" class="stat">16</span><button id="zin">+</button>
   <button id="newbtn">New blank</button>
   <button id="save">Save .SEC</button>
-  <a href="sec_map.html" class="hint">&larr; world map builder</a>
+  <label class="hint"><input type="checkbox" id="showctx" checked> neighbor edges</label>
+  <a href="sec_map.html" class="hint" id="backmap">&larr; world map</a>
   <a href="sec_cluster.html" class="hint">interiors &rarr;</a>
 </header>
 <div class="wrap">
   <div class="left">
-    <canvas id="cv"></canvas>
-    <div class="hint">left-drag paints the selected item; right-drag erases. Walls/doors sit on a cell edge (N/E/S/W) - E and S write to the neighbouring cell, matching the game.</div>
+    <div id="ctxbar" class="ctxbar"></div>
+    <div class="stage"><canvas id="cv"></canvas></div>
+    <div class="hint">left-drag paints the selected item; right-drag erases. Dim rim = ~20% of bordering SECs (read-only) so you can match paths. Walls/doors sit on a cell edge (N/E/S/W) - E and S write to the neighbouring cell, matching the game.</div>
     <div id="readout" class="hint"></div>
   </div>
   <div class="right">
@@ -65,10 +70,16 @@
   </div>
 </div>
 <script src="tileset.js"></script>
+<script src="sec_paths.js"></script>
 <script>
 const GRID=33, PLAY=32, CELL=6, SIZE=GRID*GRID*CELL;       // 6534 bytes
+const MARGIN=6;                                              // ~20% of 32 for neighbor edges
 let data=new Uint8Array(SIZE);                              // current sector
 let scale=16, filename='blank.SEC';
+let mapCtx=null;                                            // {col,row,level,neighbors,label,...}
+let showCtx=true;
+const neighborImgs={};                                      // side -> HTMLImageElement|null
+
 
 // ---- authoritative type tables (RE'd from SCB.EXE; scbdata.py) ------------
 // [id, name, fallback RGB or null]. Colors used only when no real art tile.
@@ -152,12 +163,67 @@ function setWestDoor(o,t){ data[o+4]=(data[o+4]&~(0x0f<<1))|((t&0x0f)<<1); }
 // ---- state ---------------------------------------------------------------
 let mode='terrain', sel={terrain:0x14, object:0x3d, wall:1, door:1}, edge='N';
 const cv=document.getElementById('cv'), ctx=cv.getContext('2d');
-function resize(){ cv.width=PLAY*scale; cv.height=PLAY*scale; draw(); }
+function totalCells(){ return showCtx ? (PLAY + 2*MARGIN) : PLAY; }
+function origin(){ return showCtx ? MARGIN : 0; }
+function resize(){
+  const t=totalCells();
+  cv.width=t*scale; cv.height=t*scale; draw();
+}
+function tileUrl(fn){ return fn ? ('tiles/'+fn+'.png') : null; }
+function loadNeighborImages(){
+  const n=(mapCtx&&mapCtx.neighbors)||{};
+  ['n','s','e','w','ne','nw','se','sw'].forEach(side=>{
+    const fn=n[side];
+    if(!fn){ neighborImgs[side]=null; return; }
+    const im=new Image();
+    im.onload=()=>draw();
+    im.onerror=()=>{ neighborImgs[side]=null; draw(); };
+    im.src=tileUrl(fn);
+    neighborImgs[side]=im;
+  });
+}
+function drawNeighborContext(){
+  if(!showCtx) return;
+  const m=MARGIN, o=m*scale, playPx=PLAY*scale;
+  const ready=im=>im&&im.complete&&im.naturalWidth;
+  // Darken rim first
+  ctx.fillStyle='#0a0b10';
+  ctx.fillRect(0,0,cv.width,cv.height);
+  // Helper: crop from 256x256 tile (PLAY cells)
+  function blit(im, sx,sy,sw,sh, dx,dy,dw,dh){
+    if(!ready(im)) return;
+    ctx.globalAlpha=0.92;
+    ctx.drawImage(im, sx,sy,sw,sh, dx,dy,dw,dh);
+    ctx.globalAlpha=1;
+  }
+  const tw=256, cell=tw/PLAY, strip=m*cell;
+  // N: bottom strip of north SEC
+  blit(neighborImgs.n, 0, tw-strip, tw, strip, o, 0, playPx, m*scale);
+  // S: top strip of south SEC
+  blit(neighborImgs.s, 0, 0, tw, strip, o, o+playPx, playPx, m*scale);
+  // W: right strip of west SEC
+  blit(neighborImgs.w, tw-strip, 0, strip, tw, 0, o, m*scale, playPx);
+  // E: left strip of east SEC
+  blit(neighborImgs.e, 0, 0, strip, tw, o+playPx, o, m*scale, playPx);
+  // Corners
+  blit(neighborImgs.nw, tw-strip, tw-strip, strip, strip, 0, 0, m*scale, m*scale);
+  blit(neighborImgs.ne, 0, tw-strip, strip, strip, o+playPx, 0, m*scale, m*scale);
+  blit(neighborImgs.sw, tw-strip, 0, strip, strip, 0, o+playPx, m*scale, m*scale);
+  blit(neighborImgs.se, 0, 0, strip, strip, o+playPx, o+playPx, m*scale, m*scale);
+  // Dim overlay on rim so editable center reads as primary
+  ctx.fillStyle='rgba(10,12,18,.35)';
+  ctx.fillRect(0,0,cv.width,m*scale);
+  ctx.fillRect(0,o+playPx,cv.width,m*scale);
+  ctx.fillRect(0,o,m*scale,playPx);
+  ctx.fillRect(o+playPx,o,m*scale,playPx);
+}
 function draw(){
   ctx.clearRect(0,0,cv.width,cv.height);
   ctx.imageSmoothingEnabled=false;
+  drawNeighborContext();
+  const ox=origin()*scale, oy=origin()*scale;
   for(let r=0;r<PLAY;r++) for(let c=0;c<PLAY;c++){
-    const o=off(r,c), x=c*scale, y=r*scale, spr=SPRITES[data[o]];
+    const o=off(r,c), x=ox+c*scale, y=oy+r*scale, spr=SPRITES[data[o]];
     if(spr && spr.complete && spr.naturalWidth){ ctx.drawImage(spr,x,y,scale,scale); }
     else { const col=terrColor(data[o]); ctx.fillStyle=`rgb(${col[0]},${col[1]},${col[2]})`; ctx.fillRect(x,y,scale,scale); }
     if(data[o+1]){ const osp=OBJSPR[data[o+1]];
@@ -178,23 +244,33 @@ function draw(){
     else if(edge==='W') ctx.fillRect(x,y,t,scale); else ctx.fillRect(x+scale-t,y,t,scale);
   }
   for(let r=0;r<PLAY;r++) for(let c=0;c<PLAY;c++){
-    const o=off(r,c), x=c*scale, y=r*scale;
+    const o=off(r,c), x=ox+c*scale, y=oy+r*scale;
     drawEdge(x,y,northWall(o),northDoor(o),'N');
     drawEdge(x,y,westWall(o),westDoor(o),'W');
   }
   // boundary walls live on pad row/col 32 (shared S/E edges of the sector)
-  for(let r=0;r<PLAY;r++){ const o=off(r,32); drawEdge((PLAY-1)*scale,r*scale,westWall(o),westDoor(o),'E'); }
-  for(let c=0;c<PLAY;c++){ const o=off(32,c); drawEdge(c*scale,(PLAY-1)*scale,northWall(o),northDoor(o),'S'); }
-  // grid
+  for(let r=0;r<PLAY;r++){ const o=off(r,32); drawEdge(ox+(PLAY-1)*scale,oy+r*scale,westWall(o),westDoor(o),'E'); }
+  for(let c=0;c<PLAY;c++){ const o=off(32,c); drawEdge(ox+c*scale,oy+(PLAY-1)*scale,northWall(o),northDoor(o),'S'); }
+  // grid (editable area only)
   ctx.strokeStyle='rgba(255,255,255,.05)'; ctx.lineWidth=1;
-  for(let i=0;i<=PLAY;i++){ ctx.beginPath(); ctx.moveTo(i*scale+.5,0); ctx.lineTo(i*scale+.5,cv.height); ctx.stroke();
-    ctx.beginPath(); ctx.moveTo(0,i*scale+.5); ctx.lineTo(cv.width,i*scale+.5); ctx.stroke(); }
+  for(let i=0;i<=PLAY;i++){
+    ctx.beginPath(); ctx.moveTo(ox+i*scale+.5,oy); ctx.lineTo(ox+i*scale+.5,oy+PLAY*scale); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(ox,oy+i*scale+.5); ctx.lineTo(ox+PLAY*scale,oy+i*scale+.5); ctx.stroke();
+  }
+  if(showCtx){
+    ctx.strokeStyle='rgba(90,169,255,.85)'; ctx.lineWidth=2;
+    ctx.strokeRect(ox+0.5, oy+0.5, PLAY*scale-1, PLAY*scale-1);
+  }
 }
 
 // ---- painting ------------------------------------------------------------
-function cellAt(ev){ const b=cv.getBoundingClientRect();
-  const c=Math.floor((ev.clientX-b.left)/scale), r=Math.floor((ev.clientY-b.top)/scale);
-  return (r>=0&&r<PLAY&&c>=0&&c<PLAY)?[r,c]:null; }
+function cellAt(ev){
+  const b=cv.getBoundingClientRect();
+  const ox=origin(), oy=origin();
+  const c=Math.floor((ev.clientX-b.left)/scale)-ox;
+  const r=Math.floor((ev.clientY-b.top)/scale)-oy;
+  return (r>=0&&r<PLAY&&c>=0&&c<PLAY)?[r,c]:null;
+}
 // route an edge (N/E/S/W) to the canonical N/W field on this or the neighbour cell
 function wallSlot(r,c,e){
   if(e==='N') return ['N',off(r,c)];
@@ -266,16 +342,55 @@ function buildPalette(){
 buildPalette();
 
 // ---- file load / save / new ----------------------------------------------
+function setFilename(fn, label){
+  filename=fn||'blank.SEC';
+  document.getElementById('fname').textContent=label||filename;
+}
+function applyBuffer(buf, fn){
+  if(buf.length!==SIZE){ alert('Expected '+SIZE+' bytes (33x33x6), got '+buf.length+'. Not a valid .SEC.'); return false; }
+  data=buf; setFilename(fn); draw(); return true;
+}
+async function tryFetchSec(fn){
+  if(!fn) return false;
+  const rel=(window.SEC_PATHS||{})[fn];
+  const tries=[];
+  if(rel) tries.push(rel);
+  tries.push('../_maps_unzip/MAPS/'+fn);
+  for(const url of tries){
+    try{
+      const r=await fetch(url);
+      if(!r.ok) continue;
+      const buf=new Uint8Array(await r.arrayBuffer());
+      if(applyBuffer(buf, fn)) return true;
+    }catch(_e){}
+  }
+  return false;
+}
+function updateCtxBar(){
+  const bar=document.getElementById('ctxbar');
+  if(!mapCtx){ bar.textContent=''; return; }
+  const n=mapCtx.neighbors||{};
+  const bits=['N','E','S','W'].map(d=>{
+    const k=d.toLowerCase(); const fn=n[k];
+    return d+': '+(fn?('<code>'+fn.replace('.SEC','')+'</code>'):'(empty)');
+  });
+  bar.innerHTML='Map cell <code>('+mapCtx.col+','+mapCtx.row+')</code> Floor '+
+    (mapCtx.level>0?'+':'')+mapCtx.level+
+    (mapCtx.label?(' · '+mapCtx.label):'')+
+    ' · borders '+bits.join(' · ');
+}
 document.getElementById('file').addEventListener('change',e=>{
   const f=e.target.files[0]; if(!f) return;
   const rd=new FileReader();
-  rd.onload=()=>{ const buf=new Uint8Array(rd.result);
-    if(buf.length!==SIZE){ alert('Expected '+SIZE+' bytes (33x33x6), got '+buf.length+'. Not a valid .SEC.'); return; }
-    data=buf; filename=f.name; document.getElementById('fname').textContent=filename; draw(); };
+  rd.onload=()=>applyBuffer(new Uint8Array(rd.result), f.name);
   rd.readAsArrayBuffer(f);
 });
-document.getElementById('newbtn').onclick=()=>{ data=new Uint8Array(SIZE); filename='blank.SEC';
-  document.getElementById('fname').textContent='no file - editing a blank sector'; draw(); };
+document.getElementById('newbtn').onclick=()=>{
+  data=new Uint8Array(SIZE);
+  const sug=(mapCtx&&mapCtx.suggestName)||'blank.SEC';
+  setFilename(sug, mapCtx?'new sector for ('+mapCtx.col+','+mapCtx.row+') - '+sug:'no file - editing a blank sector');
+  draw();
+};
 document.getElementById('save').onclick=()=>{
   const blob=new Blob([data],{type:'application/octet-stream'});
   const a=document.createElement('a'); a.href=URL.createObjectURL(blob);
@@ -283,6 +398,38 @@ document.getElementById('save').onclick=()=>{
 };
 document.getElementById('zin').onclick=()=>{ scale=Math.min(28,scale+2); document.getElementById('zlvl').textContent=scale; resize(); };
 document.getElementById('zout').onclick=()=>{ scale=Math.max(8,scale-2); document.getElementById('zlvl').textContent=scale; resize(); };
+document.getElementById('showctx').onchange=e=>{ showCtx=!!e.target.checked; resize(); };
+
+// ---- map context bootstrap (from sec_map.html) ----------------------------
+(async function bootFromMap(){
+  let ctx=null;
+  try{ ctx=JSON.parse(sessionStorage.getItem('mra_sec_edit_ctx')||'null'); }catch(_e){}
+  const q=new URLSearchParams(location.search);
+  if(q.get('clearctx')){ sessionStorage.removeItem('mra_sec_edit_ctx'); ctx=null; }
+  if(ctx&&(ctx.col!=null)){
+    mapCtx=ctx;
+    if(ctx.mode==='create'){
+      data=new Uint8Array(SIZE);
+      setFilename(ctx.suggestName||'blank.SEC',
+        'new sector @('+ctx.col+','+ctx.row+') Floor '+(ctx.level>0?'+':'')+ctx.level);
+    } else if(ctx.file){
+      setFilename(ctx.file, 'loading '+ctx.file+'...');
+      const ok=await tryFetchSec(ctx.file);
+      if(!ok) setFilename(ctx.file, ctx.file+' - pick file or serve repo root so SEC_PATHS fetch works');
+    }
+    loadNeighborImages();
+    updateCtxBar();
+    const back=document.getElementById('backmap');
+    back.href='sec_map.html';
+    back.textContent='\u2190 back to map ('+ctx.col+','+ctx.row+')';
+  } else if(q.get('file')){
+    const fn=q.get('file');
+    setFilename(fn, 'loading '+fn+'...');
+    const ok=await tryFetchSec(fn);
+    if(!ok) setFilename(fn, fn+' - use file picker');
+  }
+  resize();
+})();
 resize();
 </script>
 </body>

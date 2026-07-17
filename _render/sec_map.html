@@ -258,7 +258,12 @@ function makeCell(c,r){
     const fn=e.dataTransfer.getData('fn');
     if(fn) placeAt(c,r,FLOOR,fn,{});
   });
-  el.addEventListener('click',e=>{ if(e.target.classList.contains('x')) return; openEditor(c,r,e); });
+  el.addEventListener('click',e=>{ if(e.target.classList.contains('x')) return;
+    clearTimeout(el._clickT);
+    el._clickT=setTimeout(()=>openEditor(c,r,e), 220); });
+  el.addEventListener('dblclick',e=>{ e.preventDefault(); e.stopPropagation();
+    clearTimeout(el._clickT);
+    openSecEditor(c,r, effective(c,r,FLOOR)?'edit':'create'); });
   el.addEventListener('contextmenu',e=>{ e.preventDefault();
     const p=effective(c,r,FLOOR);
     if(p) setOverride(c,r,FLOOR,{filename:CLEARED});
@@ -465,6 +470,34 @@ function acceptStack(cl){
 
 // ---- editor popover ----
 const pop=document.getElementById('pop');
+function neighborFilenames(c,r,lv){
+  const out={};
+  const dirs={n:[0,-1],s:[0,1],w:[-1,0],e:[1,0],nw:[-1,-1],ne:[1,-1],sw:[-1,1],se:[1,1]};
+  Object.keys(dirs).forEach(k=>{
+    const [dc,dr]=dirs[k];
+    const p=effective(c+dc,r+dr,lv);
+    out[k]=p?p.filename:null;
+  });
+  return out;
+}
+function openSecEditor(c,r,mode){
+  const p=effective(c,r,FLOOR);
+  const gname=(U.guide_labels||{})[c+','+r]||(U.guides||{})[c+','+r]||'';
+  const suggest=gname
+    ? (gname.replace(/[^A-Za-z0-9]+/g,'').slice(0,12).toUpperCase()||'NEW')+'_'+c+'_'+r+'.SEC'
+    : 'NEW_'+c+'_'+r+'.SEC';
+  const ctx={
+    mode: mode||(p?'edit':'create'),
+    file: (mode==='create')?null:(p&&p.filename)||null,
+    col:c, row:r, level:FLOOR,
+    label: gname||(p&&p.place_name)||null,
+    suggestName: suggest,
+    neighbors: neighborFilenames(c,r,FLOOR),
+    openedAt: Date.now()
+  };
+  try{ sessionStorage.setItem('mra_sec_edit_ctx', JSON.stringify(ctx)); }catch(_e){}
+  location.href='sec_edit.html';
+}
 function openEditor(c,r,evt){
   const p=effective(c,r,FLOOR);
   const gname=(U.guide_labels||{})[c+','+r]||(U.guides||{})[c+','+r]||'';
@@ -473,6 +506,18 @@ function openEditor(c,r,evt){
   h.innerHTML='<span class="x2">close</span>'+(gname|| (p?p.filename.replace('.SEC',''):'(empty)'))+
     ' <span class="legend">('+c+','+r+') '+floorLabel(FLOOR)+'</span>';
   pop.appendChild(h); h.querySelector('.x2').onclick=()=>pop.style.display='none';
+  // SEC editor with neighbor edges
+  const editRow=document.createElement('div'); editRow.style.cssText='display:flex;gap:6px;margin:0 0 8px';
+  if(p){
+    const eb=document.createElement('button'); eb.textContent='Edit SEC (with borders)'; eb.style.flex='1';
+    eb.title='Open the SEC editor showing ~20% of neighboring sectors';
+    eb.onclick=()=>openSecEditor(c,r,'edit'); editRow.appendChild(eb);
+  } else {
+    const cb=document.createElement('button'); cb.textContent='Create SEC here (with borders)'; cb.style.flex='1';
+    cb.title='Start a blank SEC with neighboring edges visible for path matching';
+    cb.onclick=()=>openSecEditor(c,r,'create'); editRow.appendChild(cb);
+  }
+  pop.appendChild(editRow);
   if(p){
     const meta=document.createElement('div'); meta.className='legend'; meta.style.margin='0 0 8px';
     meta.textContent=p.filename+' · '+p.source+' · '+p.confidence+(p.place_name?(' · '+p.place_name):'');
