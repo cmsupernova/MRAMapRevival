@@ -237,6 +237,22 @@ function terrColor(v){ if(TERRAIN_COLOR[v]) return TERRAIN_COLOR[v];
   const [r,g,b]=[[val,t,p],[q,val,p],[p,val,t],[p,q,val],[t,p,val],[val,p,q]][i%6];
   return [Math.round(r*255),Math.round(g*255),Math.round(b*255)]; }
 
+/** CLEAR (0) and No-see-through (2) are near-black and vanish on the #000 canvas.
+ *  Draw a loud hatch so voids are obvious in the editor (game still shows them as blanks). */
+function isVoidTerrain(v){ return v===0 || v===2; }
+function fillVoidCell(g, x, y, s, terr){
+  g.fillStyle = terr===2 ? '#3a2048' : '#1a1020';
+  g.fillRect(x, y, s, s);
+  g.fillStyle = terr===2 ? 'rgba(200,80,255,.55)' : 'rgba(255,70,120,.5)';
+  const step=Math.max(3, Math.floor(s/4));
+  for(let i=-s;i<s*2;i+=step){
+    g.fillRect(x+i, y, 2, s);
+  }
+  g.strokeStyle = terr===2 ? 'rgba(220,140,255,.8)' : 'rgba(255,120,160,.75)';
+  g.lineWidth=1;
+  g.strokeRect(x+0.5, y+0.5, s-1, s-1);
+}
+
 // ---- record helpers ------------------------------------------------------
 const off=(r,c)=>(r*GRID+c)*CELL;
 const walls=o=>data[o+2]|(data[o+3]<<8);
@@ -279,7 +295,8 @@ function drawSecCell(buf, r, c, dx, dy, alpha){
   const prev=ctx.globalAlpha;
   if(alpha!=null) ctx.globalAlpha=alpha;
   const spr=SPRITES[buf[o]];
-  if(spr && spr.complete && spr.naturalWidth) ctx.drawImage(spr, dx, dy, scale, scale);
+  if(isVoidTerrain(buf[o])) fillVoidCell(ctx, dx, dy, scale, buf[o]);
+  else if(spr && spr.complete && spr.naturalWidth) ctx.drawImage(spr, dx, dy, scale, scale);
   else {
     const col=terrColor(buf[o]);
     ctx.fillStyle=`rgb(${col[0]},${col[1]},${col[2]})`;
@@ -405,7 +422,8 @@ function draw(){
   } else {
     for(let r=0;r<PLAY;r++) for(let c=0;c<PLAY;c++){
       const o=off(r,c), x=ox+c*scale, y=oy+r*scale, spr=SPRITES[data[o]];
-      if(spr && spr.complete && spr.naturalWidth){ ctx.drawImage(spr,x,y,scale,scale); }
+      if(isVoidTerrain(data[o])) fillVoidCell(ctx, x, y, scale, data[o]);
+      else if(spr && spr.complete && spr.naturalWidth){ ctx.drawImage(spr,x,y,scale,scale); }
       else { const col=terrColor(data[o]); ctx.fillStyle=`rgb(${col[0]},${col[1]},${col[2]})`; ctx.fillRect(x,y,scale,scale); }
       if(data[o+1]){ const osp=OBJSPR[data[o+1]];
         if(ready(osp)){ ctx.drawImage(osp,x,y,scale,scale); }
@@ -917,8 +935,10 @@ window.addEventListener('keydown',e=>{
   }
 });
 function showReadout(r,c){ const o=off(r,c);
+  const terr=data[o];
+  const voidNote=isVoidTerrain(terr)?(terr===2?'  [VOID: No see through]':'  [VOID: CLEAR]') : '';
   document.getElementById('readout').textContent=
-    `cell r${r} c${c}  terrain=0x${data[o].toString(16)}  object=0x${data[o+1].toString(16)}  Nwall=${northWall(o)} Wwall=${westWall(o)} Ndoor=${northDoor(o)} Wdoor=${westDoor(o)} entity=${data[o+5]}`; }
+    `cell r${r} c${c}  terrain=0x${terr.toString(16)}  object=0x${data[o+1].toString(16)}  Nwall=${northWall(o)} Wwall=${westWall(o)} Ndoor=${northDoor(o)} Wdoor=${westDoor(o)} entity=${data[o+5]}`+voidNote; }
 
 // ---- UI: tabs + palettes -------------------------------------------------
 const tabsEl=document.getElementById('tabs'), palEl=document.getElementById('pal'),
@@ -1059,7 +1079,8 @@ function drawRefCell(buf,r,c,dx,dy){
   const o=(r*GRID+c)*CELL;
   const terr=buf[o], obj=buf[o+1];
   const spr=SPRITES[terr];
-  if(ready(spr)) refCtx.drawImage(spr,dx,dy,refScale,refScale);
+  if(isVoidTerrain(terr)) fillVoidCell(refCtx, dx, dy, refScale, terr);
+  else if(ready(spr)) refCtx.drawImage(spr,dx,dy,refScale,refScale);
   else {
     const col=terrColor(terr);
     refCtx.fillStyle=`rgb(${col[0]},${col[1]},${col[2]})`;
@@ -1440,7 +1461,8 @@ function renderCenterPng(){
   const s=256/PLAY;
   for(let r=0;r<PLAY;r++) for(let c=0;c<PLAY;c++){
     const o=off(r,c), x=c*s, y=r*s, spr=SPRITES[data[o]];
-    if(spr && spr.complete && spr.naturalWidth) g.drawImage(spr,x,y,s,s);
+    if(isVoidTerrain(data[o])) fillVoidCell(g, x, y, s, data[o]);
+    else if(spr && spr.complete && spr.naturalWidth) g.drawImage(spr,x,y,s,s);
     else { const col=terrColor(data[o]); g.fillStyle=`rgb(${col[0]},${col[1]},${col[2]})`; g.fillRect(x,y,s,s); }
     if(data[o+1]){ const osp=OBJSPR[data[o+1]];
       if(ready(osp)) g.drawImage(osp,x,y,s,s);
