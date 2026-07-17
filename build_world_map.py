@@ -16,17 +16,17 @@ A placement whose filename is the blank sentinel "__cleared__" REMOVES the core
 tile at that cell.
 
 Run:
-  python build_world_map.py                         # pull unified from Supabase
-  python build_world_map.py unified_map_export.json # use an exported file
-  python build_world_map.py --from-generated         # use unified_map.json Floor 0
-  python build_world_map.py export.json --allow-expand  # allow MP outside 45-80/15-80
+  python build_world_map.py unified_map_export.json
+      # DEFAULT: 1 editor cell = 1 game cell (your export layout is authority;
+      # 2006 filename coords are ignored; mixed haven1/sal*/IOX* OK)
+  python build_world_map.py export.json --classic-grid
+      # old 2006 MP band + 2 editor cells per game cell
+  python build_world_map.py --from-generated
 Output: world_map_built.json
 
-By default, editor cells that map outside the engine band (MP 45-80 x 15-80)
-are skipped so parked far-canvas assemblies do not become real geography.
-haven1.SEC is pinned as the spawn *content* under base name EWGB194225b
-(the server hardcodes that name in Player.set_initial; without it, spawn
-picks a random high-breathing-room sector).
+Spawn: server set_initial requires base name EWGB194225b. We place that key
+at wherever haven1 sits in the export, loading haven1_spawn.SEC (south-biased
+intra cell).
 """
 import json
 import os
@@ -44,11 +44,11 @@ SUPABASE_URL = "https://msnxqnqqpdwamzfbwskm.supabase.co"
 SUPABASE_KEY = "sb_publishable_MjRmbztlv0wlOQXpTvoBlQ__BJobsxC"
 
 WORLD_OFF = 6
-WORLD_SCALE = 2
+# Default matches the SEC editor: one canvas cell per engine sector.
+# --classic-grid switches back to WORLD_SCALE=2 (2006-dense crush).
+WORLD_SCALE = 1
 
-# Engine-safe outdoor band (original WINMRA / 2006 prefix grid).
-# Editor canvas is larger and parks interiors/far assemblies outside this;
-# those must NOT become real MP coordinates or spawn/position math breaks.
+# Only used with --classic-grid (original WINMRA / 2006 prefix band).
 MP_X_MIN, MP_X_MAX = 45, 80
 MP_Y_MIN, MP_Y_MAX = 15, 80
 XB_MIN, XB_MAX = 0, 7
@@ -59,21 +59,18 @@ MPX_TO_XBLOCK = {v: k for k, v in
 MPX_TO_PREFIX = {v: k for k, v in B.PREFIX_TO_MPX.items()}
 LAYER_FROM_LEVEL = {0: "b", -1: "a", 1: "c"}
 
-# When several editor cells crush onto one MP cell, prefer these bases.
 CELL_PRIORITY = {
     "haven1": 100, "haven2": 90, "haven3": 90, "haven5": 90, "haven9": 90,
     "sanctuary1": 80, "sanctuary2": 80, "sanctuary3": 80, "sanctuary4": 80,
 }
 
-# Server set_initial picks the cell with max "breathing room" inside the
-# preferred sector. Haven's natural winner is ~intra (14,16) (courtyard).
-# Bias a game-only SEC copy so spawn lands ~13 tiles south of that.
 SPAWN_SEC_NAME = "haven1_spawn.SEC"
 SPAWN_TARGET_ROW = 27
 SPAWN_TARGET_COL = 16
 SEC_GRID, SEC_PLAY, SEC_CELL = 33, 32, 6
 SEC_SIZE = SEC_GRID * SEC_GRID * SEC_CELL
 SEC_IMPASS = {0x00, 0x02, 0x03, 0x06, 0x07}
+
 
 
 def _sec_walkable(data, r, c):
@@ -174,11 +171,10 @@ def canvas_to_world(col, row):
 
 
 def coords_from_filename(fname):
-    """Return (mp_x, mp_y, layer) from a coordinate SEC name, else None.
+    """Return (mp_x, mp_y, layer) from a 2006 coordinate SEC name, else None.
 
-    Editor canvas is 2x denser than the engine grid, so canvas_to_world()
-    often merges neighboring editor cells. Coordinate SECs must sit at their
-    filename-derived MP or they vanish under area SECs (sal3 over IOX, etc.).
+    Only used with --classic-grid. Default editor-layout mode ignores filename
+    coordinates and trusts the export cell positions instead.
     """
     m = B.FNAME_RE.match(fname)
     if not m:
@@ -194,7 +190,6 @@ def coords_from_filename(fname):
     ystart, _yend = ypair
     mp_x = B.PREFIX_TO_MPX[prefix]
     mp_y = B.mp_y_of(ystart)
-    # Unlayered coordinate files in Floor-0 exports play as outdoor 'b'.
     layer = (layer or "b").lower()
     if layer not in ("a", "b", "c"):
         layer = "b"
@@ -212,7 +207,7 @@ def fetch_supabase():
         return json.load(r)
 
 
-def normalize_rows(raw):
+def normalize_rows(raw, classic_grid=False):
     if isinstance(raw, dict):
         if "placements" in raw:
             rows = []
@@ -224,7 +219,9 @@ def normalize_rows(raw):
                 if not fname or fname == CLEARED:
                     continue
                 if "col" in p and "row" in p:
-                    native = coords_from_filename(fname)
+                    # Default: editor cell is authority (haven1 / sal3 / IOX mixed).
+                    # --classic-grid: 2006 coordinate names snap to filename MP.
+                    native = coords_from_filename(fname) if classic_grid else None
                     if native:
                         mp_x, mp_y, layer = native
                     else:
@@ -275,26 +272,27 @@ def normalize_rows(raw):
     return []
 
 
-def load_placements(arg, from_generated=False):
+def load_placements(arg, from_generated=False, classic_grid=False):
     if from_generated and os.path.isfile(UNIFIED):
         raw = json.load(open(UNIFIED, encoding="utf-8"))
         rows = normalize_rows({"dataset": "unified",
-                               "placements": raw.get("placements") or []})
+                               "placements": raw.get("placements") or []},
+                              classic_grid=classic_grid)
         print(f"loaded {len(rows)} Floor 0 placements from unified_map.json")
         return rows
     if arg:
         raw = json.load(open(arg, encoding="utf-8"))
-        rows = normalize_rows(raw)
+        rows = normalize_rows(raw, classic_grid=classic_grid)
         print(f"loaded {len(rows)} Floor 0 placements from {arg}")
         return rows
     try:
-        rows = normalize_rows(fetch_supabase())
+        rows = normalize_rows(fetch_supabase(), classic_grid=classic_grid)
         print(f"fetched {len(rows)} unified Floor 0 placements from Supabase")
         return rows
     except Exception as e:
         print(f"Supabase fetch failed ({e}); trying generated Floor 0")
         if os.path.isfile(UNIFIED):
-            return load_placements(None, from_generated=True)
+            return load_placements(None, from_generated=True, classic_grid=classic_grid)
         print("building core only")
         return []
 
@@ -317,20 +315,11 @@ def base_of(fname):
     return fname[:-4] if fname.upper().endswith(".SEC") else fname
 
 
-def placement_priority(fname, mp_x=None, mp_y=None, layer=None):
+def placement_priority(fname):
     base = base_of(fname).lower()
     if base in CELL_PRIORITY:
         return CELL_PRIORITY[base]
-    native = coords_from_filename(fname)
-    if native:
-        nmp_x, nmp_y, nlayer = native
-        # Coordinate SECs at their true MP beat area SECs that crushed onto them.
-        if (mp_x is None or int(mp_x) == nmp_x) and (mp_y is None or int(mp_y) == nmp_y):
-            if layer is None or layer == nlayer:
-                return 150
-        return 5
-    # Area / 2011 names
-    return 20
+    return 10
 
 
 def in_engine_band(mp_x, mp_y, xb, yb):
@@ -339,20 +328,36 @@ def in_engine_band(mp_x, mp_y, xb, yb):
 
 
 def main():
+    global WORLD_SCALE
     args = [a for a in sys.argv[1:] if not a.startswith("-")]
     from_generated = "--from-generated" in sys.argv
-    allow_expand = "--allow-expand" in sys.argv
+    classic_grid = "--classic-grid" in sys.argv
+    allow_expand = "--allow-expand" in sys.argv or not classic_grid
+    if classic_grid:
+        WORLD_SCALE = 2
+        print("mode: classic-grid (WORLD_SCALE=2, 2006 MP band)")
+    else:
+        WORLD_SCALE = 1
+        print("mode: editor-layout (WORLD_SCALE=1, export cells are authority)")
     arg = args[0] if args else None
     core = B.build()
-    sectors = core["sectors"]
-    b2b = core["block_to_base"]
-    placements = load_placements(arg, from_generated=from_generated)
+    if classic_grid:
+        sectors = core["sectors"]
+        b2b = core["block_to_base"]
+    else:
+        # Export-only outdoor map: do not keep disconnected 2006 core tiles.
+        sectors = {}
+        b2b = {}
+        core["block_to_base"] = b2b
+        core["sectors"] = sectors
+    placements = load_placements(arg, from_generated=from_generated,
+                                 classic_grid=classic_grid)
     valid = valid_filenames()
     sector_key_by_base = {base: f"{s['x_block']},{s['y_block']},{s['layer']}"
                           for base, s in sectors.items()}
     seen_files = {}
-    # key -> winning placement dict (resolved after priority)
     pending = {}
+    haven1_place = None
 
     added = overridden = cleared = skipped = invalid = duplicate = name_conflict = 0
     out_of_band = crushed = 0
@@ -379,7 +384,7 @@ def main():
         if fname not in valid:
             invalid += 1
             continue
-        if not allow_expand and not in_engine_band(mp_x, mp_y, xb, yb):
+        if classic_grid and (not allow_expand) and not in_engine_band(mp_x, mp_y, xb, yb):
             out_of_band += 1
             continue
         if fname in seen_files:
@@ -387,11 +392,8 @@ def main():
             continue
         base = base_of(fname)
         owner = sector_key_by_base.get(base)
-        native = coords_from_filename(fname)
-        is_coord = native is not None
-        # Coordinate SECs already owned by core at another cell cannot move.
-        # Area SECs (haven1, etc.) may relocate.
-        if owner is not None and owner != key and is_coord:
+        # In classic mode, coordinate SECs cannot move off their core cell.
+        if classic_grid and owner is not None and owner != key and coords_from_filename(fname):
             name_conflict += 1
             continue
         seen_files[fname] = key
@@ -400,17 +402,17 @@ def main():
             "layer": layer, "xb": xb, "yb": yb, "key": key,
             "place_name": p.get("place_name"),
             "updated_by": p.get("updated_by"),
-            "prio": placement_priority(fname, mp_x, mp_y, layer),
+            "prio": placement_priority(fname),
+            "editor_col": p.get("editor_col"),
+            "editor_row": p.get("editor_row"),
         }
+        if base.lower() == "haven1":
+            haven1_place = cand
         prev = pending.get(key)
         if prev is not None:
             crushed += 1
             if cand["prio"] < prev["prio"]:
                 continue
-            if cand["prio"] == prev["prio"]:
-                # Same priority: prefer coordinate SEC, else later export row.
-                if prev.get("prio") == cand["prio"] and coords_from_filename(prev["filename"]):
-                    continue
         pending[key] = cand
 
     for key, cand in pending.items():
@@ -418,11 +420,9 @@ def main():
         fname = cand["filename"]
         mp_x, mp_y = cand["mp_x"], cand["mp_y"]
         layer, xb, yb = cand["layer"], cand["xb"], cand["yb"]
-        # If this area SEC was previously at another core key, free it.
         old_key = sector_key_by_base.get(base)
         if old_key is not None and old_key != key and old_key in b2b and b2b[old_key] == base:
             b2b.pop(old_key, None)
-            # leave orphan cleanup to overwrite below
         existed = key in b2b
         if existed:
             old_base = b2b[key]
@@ -431,7 +431,7 @@ def main():
         sector_key_by_base[base] = key
         prefix = MPX_TO_PREFIX.get(mp_x)
         sectors[base] = {
-            "filename": base + ".SEC",
+            "filename": fname if fname.upper().endswith(".SEC") else base + ".SEC",
             "prefix": prefix,
             "y_start": 2 + 32 * yb,
             "y_end": 2 + 32 * yb + 31,
@@ -450,54 +450,57 @@ def main():
         overridden += 1 if existed else 0
         added += 0 if existed else 1
 
-    # Server Player.set_initial prefers sector BASE NAME "EWGB194225b", then
-    # EWGB290321b, EWGB322353b, then any b-layer by max breathing room.
-    # If EWGB194225b is missing, spawn lands in a random huge sector (castle).
-    # Keep that key for spawn discovery, but load a Haven SEC biased ~13 cells
-    # south of the natural courtyard spawn (intra 14,16 -> ~27,16).
-    spawn_file = None
+    # Spawn alias: EWGB194225b at haven1's export cell, content = haven1_spawn.
     if "haven1.SEC" in valid:
         spawn_path = write_haven_spawn_sec()
-        if spawn_path and os.path.isfile(spawn_path):
-            spawn_file = SPAWN_SEC_NAME
-            valid.add(SPAWN_SEC_NAME)
+        spawn_file = SPAWN_SEC_NAME if spawn_path else "haven1.SEC"
+        if haven1_place:
+            sx, sy = haven1_place["mp_x"], haven1_place["mp_y"]
+            sxb, syb = haven1_place["xb"], haven1_place["yb"]
+            slayer = haven1_place["layer"]
         else:
-            spawn_file = "haven1.SEC"
-        spawn_key = "3,6,b"
+            sx, sy, sxb, syb, slayer = 60, 45, 3, 6, "b"
+        spawn_key = f"{sxb},{syb},{slayer}"
         if spawn_key in b2b and b2b[spawn_key] not in ("EWGB194225b", "haven1"):
             sectors.pop(b2b[spawn_key], None)
-        if "haven1" in sectors and b2b.get(spawn_key) == "haven1":
+        if "haven1" in sectors:
             sectors.pop("haven1", None)
-        elif "haven1" in sectors:
-            h = sectors.get("haven1")
-            if h and h.get("x_block") == 3 and h.get("y_block") == 6 and h.get("layer") == "b":
-                sectors.pop("haven1", None)
+            for k, v in list(b2b.items()):
+                if v == "haven1":
+                    b2b.pop(k, None)
         sectors["EWGB194225b"] = {
             "filename": spawn_file,
-            "prefix": "EWGB",
-            "y_start": 2 + 32 * 6,
-            "y_end": 2 + 32 * 6 + 31,
-            "layer": "b",
-            "x_block": 3,
-            "y_block": 6,
-            "mp_x": 60,
-            "mp_y": 45,
-            "mp_z": B.LAYER_TO_MPZ["b"],
+            "prefix": MPX_TO_PREFIX.get(sx) or "EWGB",
+            "y_start": 2 + 32 * syb,
+            "y_end": 2 + 32 * syb + 31,
+            "layer": slayer,
+            "x_block": sxb,
+            "y_block": syb,
+            "mp_x": sx,
+            "mp_y": sy,
+            "mp_z": B.LAYER_TO_MPZ[slayer],
             "place_name": "W Haven",
             "status": "community-placed",
             "provenance": (
                 "spawn key EWGB194225b -> " + spawn_file +
-                " (2011 Haven; intra biased south for set_initial breathing-room)"
+                " at export haven1 cell MP(%d,%d)" % (sx, sy)
             ),
         }
         b2b[spawn_key] = "EWGB194225b"
         sector_key_by_base["EWGB194225b"] = spawn_key
         sector_key_by_base.pop("haven1", None)
 
-    max_yb = max((s["y_block"] for s in sectors.values()), default=0)
-    # Keep ranges covering all placed blocks but never shrink below core needs.
-    core["y_axis_ranges"] = [[2 + 32 * i, 33 + 32 * i] for i in range(max_yb + 1)]
-    core["_meta"]["title"] = "MRA world map (core + unified Floor 0, compiled)"
+    ybs = [s["y_block"] for s in sectors.values()]
+    max_yb = max(ybs) if ybs else 0
+    min_yb = min(ybs) if ybs else 0
+    # y_axis_ranges is indexed by y_block; pad from 0..max even if min>0.
+    core["y_axis_ranges"] = [[2 + 32 * i, 33 + 32 * i] for i in range(max(max_yb, 0) + 1)]
+    if min_yb < 0:
+        print(f"WARNING: negative y_block={min_yb}; server may not index it")
+    core["_meta"]["title"] = (
+        "MRA world map (editor-layout 1:1)" if not classic_grid
+        else "MRA world map (classic-grid + unified Floor 0)"
+    )
     core["_meta"]["stats"] = {
         "sectors_placed": len(sectors),
         "block_to_base_entries": len(b2b),
@@ -511,6 +514,8 @@ def main():
         "placements_name_conflict": name_conflict,
         "placements_out_of_band": out_of_band,
         "placements_crushed": crushed,
+        "world_scale": WORLD_SCALE,
+        "classic_grid": classic_grid,
         "allow_expand": allow_expand,
     }
     core.pop("holes", None)
@@ -527,7 +532,7 @@ def main():
     print(f"  invalid filenames:    {invalid}")
     print(f"  duplicate filenames:  {duplicate}")
     print(f"  name conflicts:       {name_conflict}")
-    print(f"  out of engine band:   {out_of_band} (editor-only / parked)")
+    print(f"  out of engine band:   {out_of_band}")
     print(f"  crushed same-MP:      {crushed}")
     if "EWGB194225b" in sectors:
         h = sectors["EWGB194225b"]
