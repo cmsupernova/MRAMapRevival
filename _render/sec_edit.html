@@ -167,6 +167,7 @@ let mapCtx=null;                                            // {col,row,level,ne
 let showCtx=true;
 let centerPreview=null;                                     // optional tile PNG under blank edit
 let secLoaded=false;
+let centerLoadPromise=null;                                 // dedupe concurrent center SEC loads
 const neighborImgs={};                                      // side -> HTMLImageElement|null
 
 
@@ -517,13 +518,20 @@ function ensurePaletteValue(kind, val){
 
 // Neighbor SEC bytes for eyedropping the rim
 const neighborData={}; // side -> Uint8Array|null
+/** Always return a detached copy so edits cannot alias IDB/network/neighbor buffers. */
+function copySecBuf(src){
+  if(!src) return null;
+  const view=src instanceof Uint8Array ? src : new Uint8Array(src);
+  if(view.length!==SIZE) return null;
+  return view.slice();
+}
 async function fetchSecBytes(fn){
   if(!fn) return null;
   try{
     const custom=await CustomSecs.get(fn);
     if(custom&&custom.bytes){
-      const buf=new Uint8Array(custom.bytes);
-      if(buf.length===SIZE) return buf;
+      const buf=copySecBuf(custom.bytes);
+      if(buf) return buf;
     }
   }catch(_e){}
   const rel=(window.SEC_PATHS||{})[fn];
@@ -534,8 +542,8 @@ async function fetchSecBytes(fn){
     try{
       const r=await fetch(url);
       if(!r.ok) continue;
-      const buf=new Uint8Array(await r.arrayBuffer());
-      if(buf.length===SIZE) return buf;
+      const buf=copySecBuf(await r.arrayBuffer());
+      if(buf) return buf;
     }catch(_e){}
   }
   return null;
@@ -607,16 +615,21 @@ function ensureEditable(){
 }
 async function ensureLoadedForEdit(){
   if(secLoaded) return true;
+  if(centerLoadPromise) return centerLoadPromise;
   const want=(mapCtx&&mapCtx.file)||null;
-  if(want){
-    document.getElementById('readout').textContent='Loading '+want+'...';
-    const ok=await tryFetchSec(want);
-    if(ok) return true;
-  }
-  // Fall back to editable blank buffer (create / missing file)
-  ensureEditable();
-  if(want) document.getElementById('readout').textContent='Could not auto-load '+want+'; painting a blank sector.';
-  return false;
+  centerLoadPromise=(async ()=>{
+    if(want){
+      document.getElementById('readout').textContent='Loading '+want+'...';
+      const ok=await tryFetchSec(want);
+      if(ok) return true;
+    }
+    // Fall back to editable blank buffer (create / missing file)
+    ensureEditable();
+    if(want) document.getElementById('readout').textContent='Could not auto-load '+want+'; painting a blank sector.';
+    return false;
+  })();
+  try{ return await centerLoadPromise; }
+  finally{ centerLoadPromise=null; }
 }
 
 function setModeTab(m){
@@ -749,9 +762,13 @@ function wallSlot(r,c,e){
   return ['W',off(r,c+1)];
 }
 function paint(r,c,erase){
+  if(r<0||c<0||r>=PLAY||c>=PLAY) return;
   const o=off(r,c);
-  if(mode==='terrain'){ data[o]=erase?0:sel.terrain; return; }
-  if(mode==='object'){ data[o+1]=erase?0:sel.object; return; }
+  if(mode==='terrain'){ data[o]=erase?0:(sel.terrain|0); return; }
+  if(mode==='object'){ data[o+1]=erase?0:(sel.object|0); return; }
+  // S/E edges are stored on the south/east neighbor cell (pad row/col 32 is valid)
+  if(edge==='S'&&r+1>PLAY) return;
+  if(edge==='E'&&c+1>PLAY) return;
   const [side,no]=wallSlot(r,c,edge);
   if(mode==='wall'){ const t=erase?0:sel.wall;
     side==='N'?setNorthWall(no,t):setWestWall(no,t);
@@ -761,16 +778,27 @@ function paint(r,c,erase){
                 if(side==='W'&&!westWall(no)) setWestWall(no,sel.wall||1); }
     side==='N'?setNorthDoor(no,t):setWestDoor(no,t); }
 }
-let painting=false, eraseMode=false;
+let painting=false, eraseMode=false, mouseButtons=0, paintStrokeId=0;
+function syncMouseButtons(e){
+  if(typeof e.buttons==='number') mouseButtons=e.buttons;
+}
+function stopPaintStroke(){ painting=false; }
+window.addEventListener('mousedown',syncMouseButtons,true);
+window.addEventListener('mousemove',syncMouseButtons,true);
+window.addEventListener('mouseup',e=>{ syncMouseButtons(e); if(!mouseButtons) stopPaintStroke(); },true);
+window.addEventListener('blur',()=>{ mouseButtons=0; stopPaintStroke(); });
 cv.addEventListener('contextmenu',e=>e.preventDefault());
 cv.addEventListener('mousedown',e=>{
   canvasFocus='main';
+  const wantErase=(e.button===2);
+  const strokeId=++paintStrokeId;
   (async ()=>{
     try{
       const p=cellAt(e);
       if(linkPick && p && (linkPick==='from' || linkPick==='to-work')){
         e.preventDefault();
         if(!secLoaded) await ensureLoadedForEdit();
+        if(strokeId!==paintStrokeId) return;
         applyLinkPick(linkPick==='from'?'from':'to', {
           filename: filename,
           col: mapCtx?mapCtx.col:null,
@@ -783,6 +811,7 @@ cv.addEventListener('mousedown',e=>{
       if(e.altKey || tool==='drop'){
         e.preventDefault();
         if(!secLoaded) await ensureLoadedForEdit();
+        if(strokeId!==paintStrokeId) return;
         eyedropAtHit(hitTest(e));
         setTool('paint');
         return;
@@ -796,6 +825,7 @@ cv.addEventListener('mousedown',e=>{
           selection=null; selDrag=null; draw(); return;
         }
         if(!secLoaded) await ensureLoadedForEdit();
+        if(strokeId!==paintStrokeId) return;
         if(selection && pointInSel(p[0],p[1],selection)){
           selDrag={kind:'move', start:p, cur:p, grab:p};
         } else {
@@ -805,22 +835,32 @@ cv.addEventListener('mousedown',e=>{
         draw();
         return;
       }
-      // paint
+      // paint — never leave painting=true if the button was released during async load
       if(!secLoaded) await ensureLoadedForEdit();
       else ensureEditable();
-      painting=true; eraseMode=(e.button===2);
+      if(strokeId!==paintStrokeId) return;
+      eraseMode=wantErase;
       paint(p[0],p[1],eraseMode); draw();
+      // Only continue the stroke while the initiating button is still held
+      const held=wantErase ? (mouseButtons&2) : (mouseButtons&1);
+      painting=!!held;
     }catch(err){
       console.error(err);
+      stopPaintStroke();
       document.getElementById('readout').textContent='Editor error: '+(err&&err.message||err);
       setTool('paint');
     }
   })();
 });
 cv.addEventListener('mousemove',e=>{
+  syncMouseButtons(e);
   const p=cellAt(e); if(p) showReadout(p[0],p[1]);
   if(selDrag&&p){ selDrag.cur=p; draw(); return; }
-  if(painting&&p && secLoaded){ paint(p[0],p[1],eraseMode); draw(); }
+  if(!mouseButtons){ stopPaintStroke(); return; }
+  if(painting&&p && secLoaded){
+    eraseMode=!!(mouseButtons&2);
+    paint(p[0],p[1],eraseMode); draw();
+  }
 });
 window.addEventListener('mouseup',()=>{
   if(selDrag){
@@ -834,7 +874,7 @@ window.addEventListener('mouseup',()=>{
     selDrag=null;
     draw();
   }
-  painting=false;
+  stopPaintStroke();
 });
 window.addEventListener('keydown',e=>{
   if(e.target && (e.target.tagName==='INPUT'||e.target.tagName==='TEXTAREA'||e.target.tagName==='SELECT')) return;
@@ -1305,8 +1345,9 @@ function setFilename(fn, label){
   document.getElementById('fname').textContent=label||filename;
 }
 function applyBuffer(buf, fn){
-  if(buf.length!==SIZE){ alert('Expected '+SIZE+' bytes (33x33x6), got '+buf.length+'. Not a valid .SEC.'); return false; }
-  data=buf; secLoaded=true; setFilename(fn); draw(); updateCtxBar(); return true;
+  const copy=copySecBuf(buf);
+  if(!copy){ alert('Expected '+SIZE+' bytes (33x33x6), got '+(buf&&buf.length)+'. Not a valid .SEC.'); return false; }
+  data=copy; secLoaded=true; setFilename(fn); draw(); updateCtxBar(); return true;
 }
 function loadCenterPreview(fn){
   if(!fn){ centerPreview=null; return; }
@@ -1508,12 +1549,17 @@ document.getElementById('showctx').onchange=e=>{ showCtx=!!e.target.checked; res
     } else if(ctx.file){
       loadCenterPreview(ctx.file);
       setFilename(ctx.file, 'loading '+ctx.file+'...');
-      const ok=await tryFetchSec(ctx.file);
-      if(!ok){
-        secLoaded=false;
-        setFilename(ctx.file,
-          ctx.file+' - preview only; pick the .SEC file above to edit bytes (serve repo root to auto-load)');
-      }
+      centerLoadPromise=(async ()=>{
+        const ok=await tryFetchSec(ctx.file);
+        if(!ok){
+          secLoaded=false;
+          setFilename(ctx.file,
+            ctx.file+' - preview only; pick the .SEC file above to edit bytes (serve repo root to auto-load)');
+        }
+        return ok;
+      })();
+      try{ await centerLoadPromise; }
+      finally{ centerLoadPromise=null; }
     }
     loadNeighborImages();
     loadNeighborData();
@@ -1525,8 +1571,13 @@ document.getElementById('showctx').onchange=e=>{ showCtx=!!e.target.checked; res
     const fn=q.get('file');
     loadCenterPreview(fn);
     setFilename(fn, 'loading '+fn+'...');
-    const ok=await tryFetchSec(fn);
-    if(!ok){ secLoaded=false; setFilename(fn, fn+' - use file picker'); }
+    centerLoadPromise=(async ()=>{
+      const ok=await tryFetchSec(fn);
+      if(!ok){ secLoaded=false; setFilename(fn, fn+' - use file picker'); }
+      return ok;
+    })();
+    try{ await centerLoadPromise; }
+    finally{ centerLoadPromise=null; }
   }
   resize();
 })();
