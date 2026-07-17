@@ -64,7 +64,7 @@
   <div class="left">
     <div id="ctxbar" class="ctxbar"></div>
     <div class="stage"><canvas id="cv"></canvas></div>
-    <div class="hint" id="toolhint">Paint: left-drag paints, right-drag erases. Eyedropper: click a cell to pick the current tab type. Select: drag a box, then drag inside it to move; Del clears; Esc deselects.</div>
+    <div class="hint" id="toolhint">Eyedropper: click Eyedropper (or press I), then click a cell in the blue box OR on a neighbor edge. Status line below shows what was picked. Paint with B. Alt+click also eyedrops.</div>
     <div id="readout" class="hint"></div>
   </div>
   <div class="right">
@@ -363,30 +363,161 @@ document.querySelectorAll('#tools button').forEach(b=>{
 });
 setTool('paint');
 
+function nameOf(kind, val){
+  const list=kind==='terrain'?TERRAIN:kind==='object'?OBJECTS:kind==='wall'?WALLS:DOORS;
+  const hit=list.find(x=>x[0]===val);
+  return hit?hit[1]:('id '+val+' (0x'+Number(val).toString(16)+')');
+}
+function ensurePaletteValue(kind, val){
+  const list=kind==='terrain'?TERRAIN:kind==='object'?OBJECTS:kind==='wall'?WALLS:DOORS;
+  if(!list.some(x=>x[0]===val)){
+    list.unshift([val, 'Picked 0x'+Number(val).toString(16)+' (not in list)', null]);
+  }
+}
+function setModeTab(m){
+  mode=m;
+  [...tabsEl.children].forEach(x=>x.classList.remove('on'));
+  const idx={terrain:0,wall:1,door:2,object:3}[m];
+  if(tabsEl.children[idx]) tabsEl.children[idx].classList.add('on');
+  edgeWrap.style.display=(m==='wall'||m==='door')?'flex':'none';
+}
+
+// Neighbor SEC bytes for eyedropping the rim
+const neighborData={}; // side -> Uint8Array|null
+async function fetchSecBytes(fn){
+  if(!fn) return null;
+  try{
+    const custom=await CustomSecs.get(fn);
+    if(custom&&custom.bytes){
+      const buf=new Uint8Array(custom.bytes);
+      if(buf.length===SIZE) return buf;
+    }
+  }catch(_e){}
+  const rel=(window.SEC_PATHS||{})[fn];
+  const tries=[];
+  if(rel) tries.push(rel);
+  tries.push('../_maps_unzip/MAPS/'+fn);
+  for(const url of tries){
+    try{
+      const r=await fetch(url);
+      if(!r.ok) continue;
+      const buf=new Uint8Array(await r.arrayBuffer());
+      if(buf.length===SIZE) return buf;
+    }catch(_e){}
+  }
+  return null;
+}
+async function loadNeighborData(){
+  const n=(mapCtx&&mapCtx.neighbors)||{};
+  await Promise.all(['n','s','e','w','ne','nw','se','sw'].map(async side=>{
+    neighborData[side]=n[side]?await fetchSecBytes(n[side]):null;
+  }));
+}
+
+/** Hit-test including neighbor rim. Returns {buf,r,c,zone} or null. */
+function hitTest(ev){
+  const b=cv.getBoundingClientRect();
+  if(b.width<=0||b.height<=0) return null;
+  const x=(ev.clientX-b.left)*(cv.width/b.width);
+  const y=(ev.clientY-b.top)*(cv.height/b.height);
+  const gc=Math.floor(x/scale), gr=Math.floor(y/scale);
+  const ox=origin(), oy=origin();
+  const total=totalCells();
+  if(gr<0||gc<0||gr>=total||gc>=total) return null;
+
+  // No map context: only the playfield
+  if(!(showCtx&&mapCtx)){
+    if(gr>=PLAY||gc>=PLAY) return null;
+    if(!secLoaded) return {buf:null, r:gr, c:gc, zone:'center-unloaded'};
+    return {buf:data, r:gr, c:gc, zone:'center'};
+  }
+
+  const inC=gc>=MARGIN&&gc<MARGIN+PLAY;
+  const inR=gr>=MARGIN&&gr<MARGIN+PLAY;
+  if(inC&&inR){
+    if(!secLoaded) return {buf:null, r:gr-MARGIN, c:gc-MARGIN, zone:'center-unloaded'};
+    return {buf:data, r:gr-MARGIN, c:gc-MARGIN, zone:'center'};
+  }
+  // Map rim cell -> neighbor local cell
+  let side=null, lr=0, lc=0;
+  if(gr<MARGIN && inC){ side='n'; lr=PLAY-MARGIN+gr; lc=gc-MARGIN; }
+  else if(gr>=MARGIN+PLAY && inC){ side='s'; lr=gr-(MARGIN+PLAY); lc=gc-MARGIN; }
+  else if(gc<MARGIN && inR){ side='w'; lr=gr-MARGIN; lc=PLAY-MARGIN+gc; }
+  else if(gc>=MARGIN+PLAY && inR){ side='e'; lr=gr-MARGIN; lc=gc-(MARGIN+PLAY); }
+  else if(gr<MARGIN && gc<MARGIN){ side='nw'; lr=PLAY-MARGIN+gr; lc=PLAY-MARGIN+gc; }
+  else if(gr<MARGIN && gc>=MARGIN+PLAY){ side='ne'; lr=PLAY-MARGIN+gr; lc=gc-(MARGIN+PLAY); }
+  else if(gr>=MARGIN+PLAY && gc<MARGIN){ side='sw'; lr=gr-(MARGIN+PLAY); lc=PLAY-MARGIN+gc; }
+  else if(gr>=MARGIN+PLAY && gc>=MARGIN+PLAY){ side='se'; lr=gr-(MARGIN+PLAY); lc=gc-(MARGIN+PLAY); }
+  if(!side) return null;
+  lr=Math.max(0,Math.min(PLAY-1,lr));
+  lc=Math.max(0,Math.min(PLAY-1,lc));
+  const buf=neighborData[side]||null;
+  return {buf, r:lr, c:lc, zone:'neighbor-'+side, side};
+}
+
+function cellAt(ev){
+  const h=hitTest(ev);
+  if(!h||h.zone==='center-unloaded') return null;
+  if(h.zone!=='center') return null;
+  return [h.r,h.c];
+}
+
+function eyedropAtHit(hit){
+  if(!hit){
+    document.getElementById('readout').textContent='Eyedropper: click inside the sector (or a neighbor edge).';
+    return;
+  }
+  if(hit.zone==='center-unloaded' || !hit.buf){
+    document.getElementById('readout').textContent=
+      'Eyedropper: that SEC is not loaded as bytes yet (preview only). Use Browse to open the .SEC, or serve the repo root so it auto-loads.';
+    alert('Cannot eyedrop: SEC bytes are not loaded.\n\nIf you opened this from the map, use Browse to pick the .SEC file (or serve the repo from its root so auto-load works).\n\nNeighbor edges also need their .SEC files reachable to sample.');
+    return;
+  }
+  const src=hit.buf;
+  const o=(hit.r*GRID+hit.c)*CELL;
+  const terr=src[o], obj=src[o+1];
+  const nw=src[o+2]|(src[o+3]<<8);
+  const nWall=nw&0x1f, wWall=(nw>>5)&0x1f, nDoor=(nw>>10)&0x0f, wDoor=(src[o+4]>>1)&0x0f;
+
+  // Always capture terrain + object so paint has something useful
+  sel.terrain=terr;
+  sel.object=obj;
+  // Sample wall/door for the currently chosen edge radio
+  if(edge==='N'||edge==='S'){ sel.wall=nWall; sel.door=nDoor; }
+  else { sel.wall=wWall; sel.door=wDoor; }
+
+  // Prefer the tab the user is on; if terrain tab and they clicked an object-heavy cell, still set terrain
+  if(mode==='object') setModeTab('object');
+  else if(mode==='wall') setModeTab('wall');
+  else if(mode==='door') setModeTab('door');
+  else setModeTab('terrain');
+
+  ensurePaletteValue(mode, sel[mode]);
+  buildPalette();
+  scrollPaletteToSel();
+
+  const where=hit.zone.startsWith('neighbor')?('neighbor '+hit.side.toUpperCase()):'center';
+  const msg='Picked '+nameOf('terrain',terr)+' (0x'+terr.toString(16)+')'
+    +(obj?(' + '+nameOf('object',obj)):'')
+    +' from '+where+' r'+hit.r+' c'+hit.c
+    +' — now painting with that on the '+mode+' tab.';
+  document.getElementById('readout').textContent=msg;
+  // brief flash
+  const ox=origin()*scale, oy=origin()*scale;
+  if(hit.zone==='center'){
+    ctx.save();
+    ctx.strokeStyle='#fff'; ctx.lineWidth=2;
+    ctx.strokeRect(ox+hit.c*scale+1, oy+hit.r*scale+1, scale-2, scale-2);
+    ctx.restore();
+  }
+}
+
 function scrollPaletteToSel(){
-  const on=palEl.querySelector('.pi.on');
+  const on=palEl&&palEl.querySelector('.pi.on');
   if(on) on.scrollIntoView({block:'nearest'});
 }
 function eyedropAt(r,c){
-  const o=off(r,c);
-  if(mode==='terrain'){ sel.terrain=data[o]; }
-  else if(mode==='object'){ sel.object=data[o+1]; }
-  else if(mode==='wall'){
-    const [side,no]=wallSlot(r,c,edge);
-    sel.wall=side==='N'?northWall(no):westWall(no);
-  } else if(mode==='door'){
-    const [side,no]=wallSlot(r,c,edge);
-    sel.door=side==='N'?northDoor(no):westDoor(no);
-  }
-  buildPalette();
-  scrollPaletteToSel();
-  showReadout(r,c);
-  const label=mode==='terrain'?('terrain 0x'+sel.terrain.toString(16))
-    : mode==='object'?('object 0x'+sel.object.toString(16))
-    : mode==='wall'?('wall '+sel.wall)
-    : ('door '+sel.door);
-  document.getElementById('readout').textContent=
-    `picked ${label} from r${r} c${c}  (still on ${mode} tab)`;
+  eyedropAtHit({buf:data, r, c, zone:'center'});
 }
 
 function copyRect(rect){
@@ -429,13 +560,6 @@ function moveSelection(dr,dc){
 }
 
 // ---- painting ------------------------------------------------------------
-function cellAt(ev){
-  const b=cv.getBoundingClientRect();
-  const ox=origin(), oy=origin();
-  const c=Math.floor((ev.clientX-b.left)/scale)-ox;
-  const r=Math.floor((ev.clientY-b.top)/scale)-oy;
-  return (r>=0&&r<PLAY&&c>=0&&c<PLAY)?[r,c]:null;
-}
 function wallSlot(r,c,e){
   if(e==='N') return ['N',off(r,c)];
   if(e==='W') return ['W',off(r,c)];
@@ -458,13 +582,14 @@ function paint(r,c,erase){
 let painting=false, eraseMode=false;
 cv.addEventListener('contextmenu',e=>e.preventDefault());
 cv.addEventListener('mousedown',e=>{
-  const p=cellAt(e); if(!p) return;
-  // Alt+click always eyedrops
+  // Eyedropper / Alt+click: works on center AND neighbor rim
   if(e.altKey || tool==='drop'){
-    eyedropAt(p[0],p[1]);
+    e.preventDefault();
+    eyedropAtHit(hitTest(e));
     if(tool==='drop') setTool('paint');
     return;
   }
+  const p=cellAt(e); if(!p) return;
   if(tool==='select'){
     if(e.button===2){
       selection=null; selDrag=null; draw(); return;
@@ -802,6 +927,7 @@ document.getElementById('showctx').onchange=e=>{ showCtx=!!e.target.checked; res
       }
     }
     loadNeighborImages();
+    loadNeighborData();
     updateCtxBar();
     const back=document.getElementById('backmap');
     back.href='sec_map.html';
