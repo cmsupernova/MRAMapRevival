@@ -495,8 +495,11 @@ function openSecEditor(c,r,mode){
     neighbors: neighborFilenames(c,r,FLOOR),
     openedAt: Date.now()
   };
-  try{ sessionStorage.setItem('mra_sec_edit_ctx', JSON.stringify(ctx)); }catch(_e){}
-  location.href='sec_edit.html';
+  const payload=JSON.stringify(ctx);
+  try{ sessionStorage.setItem('mra_sec_edit_ctx', payload); }catch(_e){}
+  try{ localStorage.setItem('mra_sec_edit_ctx', payload); }catch(_e){}
+  // Put context in the URL hash so it survives even when storage is blocked/cached.
+  location.href='sec_edit.html?from=map&v=3#'+encodeURIComponent(payload);
 }
 function openEditor(c,r,evt){
   const p=effective(c,r,FLOOR);
