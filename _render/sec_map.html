@@ -181,14 +181,16 @@ function saveLocal(){
 }
 loadLocal();
 
-function setOverride(c,r,lv, rec){
+function setOverride(c,r,lv, rec, opts){
   const k = key(c,r,lv);
   overrides[k] = rec;
-  saveLocal();
-  renderCell(c,r);
-  markUsed();
-  scheduleReview();
-  DB.upsert(c,r,lv, rec?rec.filename:CLEARED);
+  if(!(opts&&opts.silent)){
+    saveLocal();
+    renderCell(c,r);
+    markUsed();
+    scheduleReview();
+  }
+  if(!(opts&&opts.skipDb)) DB.upsert(c,r,lv, rec?rec.filename:CLEARED);
 }
 function clearOverride(c,r,lv){
   const k = key(c,r,lv);
@@ -351,27 +353,68 @@ function assemblyGroup(sx,sy){
     const p=effective(x,y,FLOOR); return p&&files.has(p.filename);
   });
 }
+/** Move a set of cells as one transaction. Never clear-then-placeAt piecemeal:
+ *  that could drop tiles on duplicate prompts or late CLEARED sync echoes. */
 function moveCells(cells,dx,dy){
   if(!dx&&!dy) return;
+  if(!cells||!cells.length) return;
   const inGroup=new Set(cells.map(([x,y])=>x+','+y));
+  const destSet=new Set();
   for(const [x,y] of cells){
     const nx=x+dx, ny=y+dy;
     if(nx<0||ny<0||nx>=W||ny>=H){ alert('That move runs off the canvas.'); return; }
+    destSet.add(nx+','+ny);
     const t=effective(nx,ny,FLOOR);
     if(t&&!inGroup.has(nx+','+ny)){ alert('That spot is occupied.'); return; }
   }
-  const recs=cells.map(([x,y])=>[x,y,effective(x,y,FLOOR)]);
-  recs.forEach(([x,y])=> setOverride(x,y,FLOOR,{filename:CLEARED}));
-  recs.forEach(([x,y,rec])=>{
-    if(!rec) return;
-    placeAt(x+dx,y+dy,FLOOR,rec.filename, Object.assign({},rec,{col:x+dx,row:y+dy,level:FLOOR}));
+  // Snapshot deep copies BEFORE any mutation
+  const recs=[];
+  for(const [x,y] of cells){
+    const rec=effective(x,y,FLOOR);
+    if(!rec||!rec.filename||rec.filename===CLEARED){
+      alert('Move cancelled - a piece in the group disappeared.');
+      return;
+    }
+    recs.push({x,y, rec:Object.assign({},rec)});
+  }
+  // Quiet realtime so CLEARED upserts cannot race back and wipe placed tiles
+  DB.quietUntil=Date.now()+4000;
+  // Write destinations first, then clear vacated sources not covered by a dest
+  recs.forEach(({x,y,rec})=>{
+    const nx=x+dx, ny=y+dy;
+    overrides[key(nx,ny,FLOOR)]=Object.assign({},rec,{
+      filename:rec.filename,
+      col:nx, row:ny, level:FLOOR,
+      png:rec.png||tilePng(rec.filename),
+      generated:false,
+      source:rec.source||'override',
+      confidence:rec.confidence||'override',
+      block_id:rec.block_id||null
+    });
+  });
+  recs.forEach(({x,y})=>{
+    if(!destSet.has(x+','+y)){
+      overrides[key(x,y,FLOOR)]={filename:CLEARED};
+    }
   });
   let moved=false;
   PORTALS.forEach(p=>{
     const [fx,fy]=p.from.split(',').map(Number);
     if(inGroup.has(fx+','+fy)){ p.from=(fx+dx)+','+(fy+dy); moved=true; }
   });
-  if(moved) saveLocal();
+  saveLocal();
+  // Sync final cell states only (destinations + vacated)
+  const touched=new Set();
+  recs.forEach(({x,y})=>{
+    touched.add(key(x,y,FLOOR));
+    touched.add(key(x+dx,y+dy,FLOOR));
+  });
+  touched.forEach(k=>{
+    const [c,r,lv]=k.split(',').map(Number);
+    const o=overrides[k];
+    if(o&&o.filename&&o.filename!==CLEARED) DB.upsert(c,r,lv,o.filename);
+    else DB.upsert(c,r,lv,CLEARED);
+  });
   refreshCells(); markUsed(); scheduleReview();
 }
 function stampBlock(id,c,r){
@@ -800,7 +843,7 @@ const TABLE = "placements";
 const NS = "unified";
 function cellId(c,r,lv){ return NS+':'+c+','+r+','+lv; }
 const DB = {
-  client:null, ready:false, name:'anon',
+  client:null, ready:false, name:'anon', quietUntil:0,
   cfg(){ return {
     url: localStorage.getItem('mra_url') || SUPABASE_URL,
     key: localStorage.getItem('mra_key') || SUPABASE_ANON_KEY,
@@ -827,6 +870,8 @@ const DB = {
   },
   applyRemote(row){
     if(!row||!row.cell) return;
+    // Ignore echoes during local assembly moves so CLEARED cannot wipe just-placed tiles
+    if(this.quietUntil && Date.now()<this.quietUntil) return;
     const rest=row.cell.slice(NS.length+1); // c,r,level
     const [c,r,lv]=rest.split(',').map(Number);
     if(row.filename==null){ delete overrides[key(c,r,lv)]; }
