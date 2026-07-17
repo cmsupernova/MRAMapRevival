@@ -116,6 +116,7 @@ const COLS = [...Array(W).keys()], ROWS = [...Array(H).keys()];
 const CELLS = {};
 let FLOOR = 0, SHOWLABELS = false, ZOOM = 100;
 let SHOWGUIDES = true;
+let extraLevels = []; // user-added floors not yet in generated data (e.g. Floor +2)
 
 // Generated base + local overrides. Key: "col,row,level"
 const generated = {};
@@ -140,10 +141,19 @@ function floorLabel(lv){
   return (U.floor_labels&&U.floor_labels[String(lv)]) || (lv===0?'Floor 0':('Floor '+(lv>0?'+':'')+lv));
 }
 function allLevels(){
-  const s = new Set([...(U.levels||[0]), FLOOR]);
+  const s = new Set([...(U.levels||[0]), FLOOR, ...(extraLevels||[])]);
   Object.keys(generated).forEach(k=>s.add(+k.split(',')[2]));
   Object.keys(overrides).forEach(k=>{ if(overrides[k]!==undefined) s.add(+k.split(',')[2]); });
   return [...s].sort((a,b)=>a-b);
+}
+function addFloor(delta){
+  const lv = (allLevels().length
+    ? (delta>0 ? Math.max(...allLevels())+1 : Math.min(...allLevels())-1)
+    : delta);
+  if(!extraLevels.includes(lv)) extraLevels.push(lv);
+  FLOOR=lv;
+  saveLocal();
+  rebuildFloors(); refreshCells(); scheduleReview();
 }
 function key(c,r,lv){ return c+','+r+','+(lv==null?FLOOR:lv); }
 function effective(c,r,lv){
@@ -172,11 +182,12 @@ function loadLocal(){
     PORTALS = Array.isArray(o.portals)?o.portals:[];
     IGNORED = (o.ignored&&typeof o.ignored==='object')?o.ignored:{};
     acceptedStacks = (o.acceptedStacks&&typeof o.acceptedStacks==='object')?o.acceptedStacks:{};
-  }catch(e){ overrides={}; INTERIORS=[]; PORTALS=[]; IGNORED={}; acceptedStacks={}; }
+    extraLevels = Array.isArray(o.extraLevels)?o.extraLevels.map(Number):[];
+  }catch(e){ overrides={}; INTERIORS=[]; PORTALS=[]; IGNORED={}; acceptedStacks={}; extraLevels=[]; }
 }
 function saveLocal(){
   localStorage.setItem(LS_KEY, JSON.stringify({
-    overrides, interiors:INTERIORS, portals:PORTALS, ignored:IGNORED, acceptedStacks
+    overrides, interiors:INTERIORS, portals:PORTALS, ignored:IGNORED, acceptedStacks, extraLevels
   }));
 }
 loadLocal();
@@ -315,13 +326,25 @@ function renderCell(c,r,el){
 function refreshCells(){ ROWS.forEach(r=>COLS.forEach(c=>renderCell(c,r))); }
 function rebuildFloors(){
   const el=document.getElementById('floors'); el.innerHTML='';
+  const down=document.createElement('button');
+  down.textContent='+ below';
+  down.title='Add a floor below the lowest (Floor -1, -2, ...)';
+  down.onclick=()=>addFloor(-1);
+  el.appendChild(down);
   allLevels().forEach(lv=>{
     const b=document.createElement('button'); b.textContent=floorLabel(lv);
     if(lv===FLOOR) b.classList.add('on');
-    if(lv===(U.surface_level||0)) b.title='surface';
+    if(lv===(U.surface_level||0)) b.title='surface world (walks from Haven etc.)';
+    else if(lv>0) b.title='above surface';
+    else b.title='below surface';
     b.onclick=()=>{ FLOOR=lv; rebuildFloors(); refreshCells(); scheduleReview(); };
     el.appendChild(b);
   });
+  const up=document.createElement('button');
+  up.textContent='+ above';
+  up.title='Add a floor above the highest (Floor +1, +2, ...)';
+  up.onclick=()=>addFloor(1);
+  el.appendChild(up);
 }
 
 // ---- move / assembly ----
