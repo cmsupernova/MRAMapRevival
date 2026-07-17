@@ -173,6 +173,34 @@ def canvas_to_world(col, row):
     return mp_x, mp_y
 
 
+def coords_from_filename(fname):
+    """Return (mp_x, mp_y, layer) from a coordinate SEC name, else None.
+
+    Editor canvas is 2x denser than the engine grid, so canvas_to_world()
+    often merges neighboring editor cells. Coordinate SECs must sit at their
+    filename-derived MP or they vanish under area SECs (sal3 over IOX, etc.).
+    """
+    m = B.FNAME_RE.match(fname)
+    if not m:
+        return None
+    prefix, digits, layer = m.group(1).upper(), m.group(2), m.group(3)
+    if prefix not in B.PREFIX_TO_MPX:
+        return None
+    if digits in B.YRANGE_TYPOS:
+        digits = B.YRANGE_TYPOS[digits]
+    ypair = B.split_yrange(digits)
+    if not ypair:
+        return None
+    ystart, _yend = ypair
+    mp_x = B.PREFIX_TO_MPX[prefix]
+    mp_y = B.mp_y_of(ystart)
+    # Unlayered coordinate files in Floor-0 exports play as outdoor 'b'.
+    layer = (layer or "b").lower()
+    if layer not in ("a", "b", "c"):
+        layer = "b"
+    return mp_x, mp_y, layer
+
+
 def fetch_supabase():
     url = f"{SUPABASE_URL}/rest/v1/placements?select=*&cell=like.unified:*"
     req = urllib.request.Request(url, headers={
@@ -196,16 +224,23 @@ def normalize_rows(raw):
                 if not fname or fname == CLEARED:
                     continue
                 if "col" in p and "row" in p:
-                    mp_x = p.get("mp_x")
-                    mp_y = p.get("mp_y")
-                    if mp_x is None or mp_y is None:
-                        mp_x, mp_y = canvas_to_world(int(p["col"]), int(p["row"]))
+                    native = coords_from_filename(fname)
+                    if native:
+                        mp_x, mp_y, layer = native
+                    else:
+                        mp_x = p.get("mp_x")
+                        mp_y = p.get("mp_y")
+                        if mp_x is None or mp_y is None:
+                            mp_x, mp_y = canvas_to_world(int(p["col"]), int(p["row"]))
+                        layer = LAYER_FROM_LEVEL.get(lv, "b")
                     rows.append({
                         "filename": fname,
                         "mp_x": int(mp_x), "mp_y": int(mp_y),
-                        "layer": LAYER_FROM_LEVEL.get(lv, "b"),
+                        "layer": layer,
                         "place_name": p.get("place_name"),
                         "updated_by": "unified-export",
+                        "editor_col": int(p["col"]),
+                        "editor_row": int(p["row"]),
                     })
                 elif "mp_x" in p:
                     rows.append(p)
@@ -282,15 +317,20 @@ def base_of(fname):
     return fname[:-4] if fname.upper().endswith(".SEC") else fname
 
 
-def placement_priority(fname):
+def placement_priority(fname, mp_x=None, mp_y=None, layer=None):
     base = base_of(fname).lower()
     if base in CELL_PRIORITY:
         return CELL_PRIORITY[base]
-    # Prefer 2011-style area names over coordinate SECs when both crush
-    # onto the same MP cell.
-    if not any(base.upper().startswith(p) for p in B.PREFIX_TO_MPX):
-        return 20
-    return 0
+    native = coords_from_filename(fname)
+    if native:
+        nmp_x, nmp_y, nlayer = native
+        # Coordinate SECs at their true MP beat area SECs that crushed onto them.
+        if (mp_x is None or int(mp_x) == nmp_x) and (mp_y is None or int(mp_y) == nmp_y):
+            if layer is None or layer == nlayer:
+                return 150
+        return 5
+    # Area / 2011 names
+    return 20
 
 
 def in_engine_band(mp_x, mp_y, xb, yb):
@@ -347,9 +387,10 @@ def main():
             continue
         base = base_of(fname)
         owner = sector_key_by_base.get(base)
+        native = coords_from_filename(fname)
+        is_coord = native is not None
         # Coordinate SECs already owned by core at another cell cannot move.
         # Area SECs (haven1, etc.) may relocate.
-        is_coord = any(base.upper().startswith(px) for px in B.PREFIX_TO_MPX)
         if owner is not None and owner != key and is_coord:
             name_conflict += 1
             continue
@@ -359,7 +400,7 @@ def main():
             "layer": layer, "xb": xb, "yb": yb, "key": key,
             "place_name": p.get("place_name"),
             "updated_by": p.get("updated_by"),
-            "prio": placement_priority(fname),
+            "prio": placement_priority(fname, mp_x, mp_y, layer),
         }
         prev = pending.get(key)
         if prev is not None:
@@ -367,8 +408,9 @@ def main():
             if cand["prio"] < prev["prio"]:
                 continue
             if cand["prio"] == prev["prio"]:
-                # Same priority: keep later export row (editor intent).
-                pass
+                # Same priority: prefer coordinate SEC, else later export row.
+                if prev.get("prio") == cand["prio"] and coords_from_filename(prev["filename"]):
+                    continue
         pending[key] = cand
 
     for key, cand in pending.items():
