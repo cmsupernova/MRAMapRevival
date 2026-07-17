@@ -394,8 +394,8 @@ async function fetchSecBytes(fn){
     }
   }catch(_e){}
   const rel=(window.SEC_PATHS||{})[fn];
-  const tries=[];
-  if(rel) tries.push(rel);
+  const tries=['secs/'+fn];
+  if(rel && rel!==tries[0]) tries.push(rel);
   tries.push('../_maps_unzip/MAPS/'+fn);
   for(const url of tries){
     try{
@@ -468,9 +468,16 @@ function eyedropAtHit(hit){
     return;
   }
   if(hit.zone==='center-unloaded' || !hit.buf){
-    document.getElementById('readout').textContent=
-      'Eyedropper: that SEC is not loaded as bytes yet (preview only). Use Browse to open the .SEC, or serve the repo root so it auto-loads.';
-    alert('Cannot eyedrop: SEC bytes are not loaded.\n\nIf you opened this from the map, use Browse to pick the .SEC file (or serve the repo from its root so auto-load works).\n\nNeighbor edges also need their .SEC files reachable to sample.');
+    const want=(mapCtx&&mapCtx.file)||filename;
+    document.getElementById('readout').textContent='Eyedropper: loading '+want+'...';
+    tryFetchSec(want).then(ok=>{
+      if(ok){
+        eyedropAtHit({buf:data, r:hit.r, c:hit.c, zone:'center'});
+      } else {
+        document.getElementById('readout').textContent=
+          'Eyedropper: still could not load '+want+' from secs/. Hard-refresh after deploy.';
+      }
+    });
     return;
   }
   const src=hit.buf;
@@ -479,14 +486,11 @@ function eyedropAtHit(hit){
   const nw=src[o+2]|(src[o+3]<<8);
   const nWall=nw&0x1f, wWall=(nw>>5)&0x1f, nDoor=(nw>>10)&0x0f, wDoor=(src[o+4]>>1)&0x0f;
 
-  // Always capture terrain + object so paint has something useful
   sel.terrain=terr;
   sel.object=obj;
-  // Sample wall/door for the currently chosen edge radio
   if(edge==='N'||edge==='S'){ sel.wall=nWall; sel.door=nDoor; }
   else { sel.wall=wWall; sel.door=wDoor; }
 
-  // Prefer the tab the user is on; if terrain tab and they clicked an object-heavy cell, still set terrain
   if(mode==='object') setModeTab('object');
   else if(mode==='wall') setModeTab('wall');
   else if(mode==='door') setModeTab('door');
@@ -497,14 +501,13 @@ function eyedropAtHit(hit){
   scrollPaletteToSel();
 
   const where=hit.zone.startsWith('neighbor')?('neighbor '+hit.side.toUpperCase()):'center';
-  const msg='Picked '+nameOf('terrain',terr)+' (0x'+terr.toString(16)+')'
+  document.getElementById('readout').textContent=
+    'Picked '+nameOf('terrain',terr)+' (0x'+terr.toString(16)+')'
     +(obj?(' + '+nameOf('object',obj)):'')
     +' from '+where+' r'+hit.r+' c'+hit.c
-    +' — now painting with that on the '+mode+' tab.';
-  document.getElementById('readout').textContent=msg;
-  // brief flash
-  const ox=origin()*scale, oy=origin()*scale;
+    +' — painting on the '+mode+' tab.';
   if(hit.zone==='center'){
+    const ox=origin()*scale, oy=origin()*scale;
     ctx.save();
     ctx.strokeStyle='#fff'; ctx.lineWidth=2;
     ctx.strokeRect(ox+hit.c*scale+1, oy+hit.r*scale+1, scale-2, scale-2);
@@ -756,29 +759,14 @@ function parseMapCtx(){
 }
 async function tryFetchSec(fn){
   if(!fn) return false;
+  const buf=await fetchSecBytes(fn);
+  if(!buf) return false;
+  if(!applyBuffer(buf, fn)) return false;
   try{
     const custom=await CustomSecs.get(fn);
-    if(custom && custom.bytes){
-      const buf=new Uint8Array(custom.bytes);
-      if(applyBuffer(buf, fn)){
-        if(custom.png){ const im=new Image(); im.onload=()=>draw(); im.src=custom.png; centerPreview=im; }
-        return true;
-      }
-    }
+    if(custom&&custom.png){ const im=new Image(); im.onload=()=>draw(); im.src=custom.png; centerPreview=im; }
   }catch(_e){}
-  const rel=(window.SEC_PATHS||{})[fn];
-  const tries=[];
-  if(rel) tries.push(rel);
-  tries.push('../_maps_unzip/MAPS/'+fn);
-  for(const url of tries){
-    try{
-      const r=await fetch(url);
-      if(!r.ok) continue;
-      const buf=new Uint8Array(await r.arrayBuffer());
-      if(applyBuffer(buf, fn)) return true;
-    }catch(_e){}
-  }
-  return false;
+  return true;
 }
 function updateCtxBar(){
   const bar=document.getElementById('ctxbar');

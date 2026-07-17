@@ -6,6 +6,9 @@
 *.MR0
 *.HLP
 *.SEC
+# Hosted SEC binaries for the web SEC editor (eyedropper / auto-load on Pages)
+!_render/secs/
+!_render/secs/**
 *.gif
 *.wav
 *.mid
