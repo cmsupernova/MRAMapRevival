@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <title>MRA SEC Map</title>
 <style>
-  :root { --cell: 60px; --bg:#16171c; --panel:#1f2128; --line:#2c2f38; --txt:#d7dae2; --accent:#5aa9ff; }
+  :root { --cell: 100px; --bg:#16171c; --panel:#1f2128; --line:#2c2f38; --txt:#d7dae2; --accent:#5aa9ff; }
   * { box-sizing: border-box; }
   body { margin:0; font:13px/1.4 system-ui,Segoe UI,Arial,sans-serif; background:var(--bg); color:var(--txt); }
   header { display:flex; gap:10px; align-items:center; padding:8px 12px; background:var(--panel); border-bottom:1px solid var(--line); position:sticky; top:0; z-index:20; flex-wrap:wrap; }
@@ -72,7 +72,7 @@
   <span class="sp"></span>
   <span class="floors" id="floors"></span>
   <span class="zoom">
-    <button id="zout">-</button><span id="zlvl" class="legend">60</span><button id="zin">+</button>
+    <button id="zout">-</button><span id="zlvl" class="legend">100</span><button id="zin">+</button>
   </span>
   <label class="legend"><input type="checkbox" id="guides" checked> guide names</label>
   <label class="legend"><input type="checkbox" id="labels"> labels</label>
@@ -114,7 +114,7 @@ const W = U.grid.w || 56, H = U.grid.h || 56;
 const CLEARED = '__cleared__';
 const COLS = [...Array(W).keys()], ROWS = [...Array(H).keys()];
 const CELLS = {};
-let FLOOR = 0, SHOWLABELS = false, ZOOM = 60;
+let FLOOR = 0, SHOWLABELS = false, ZOOM = 100;
 let SHOWGUIDES = true;
 
 // Generated base + local overrides. Key: "col,row,level"
