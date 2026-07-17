@@ -13,6 +13,11 @@
   a{ color:var(--accent); }
   button,select,input[type=file]{ background:#2a2d36; color:var(--txt); border:1px solid var(--line); border-radius:6px; padding:6px 10px; font-size:13px; }
   button:hover{ border-color:var(--accent); cursor:pointer; }
+  button.on{ border-color:var(--accent); background:#143; color:#fff; }
+  .tools{ display:flex; gap:4px; align-items:center; }
+  canvas.tool-drop{ cursor:cell; }
+  canvas.tool-select{ cursor:crosshair; }
+  canvas.tool-paint{ cursor:crosshair; }
   .wrap{ display:flex; height:calc(100vh - 50px); }
   .left{ flex:1; overflow:auto; padding:18px; display:flex; flex-direction:column; align-items:flex-start; gap:8px; }
   canvas{ background:#000; border:1px solid var(--line); image-rendering:pixelated; cursor:crosshair; }
@@ -41,6 +46,11 @@
   <label><input type="file" id="file" accept=".SEC,.sec" style="border:none;padding:0"></label>
   <span id="fname" class="stat">no file - editing a blank sector</span>
   <span class="sp"></span>
+  <span class="tools" id="tools">
+    <button type="button" data-tool="paint" class="on" title="Paint (B)">Paint</button>
+    <button type="button" data-tool="drop" title="Eyedropper (I) - click a cell to pick its type">Eyedropper</button>
+    <button type="button" data-tool="select" title="Select / move (V) - drag a box, then drag the box to move">Select</button>
+  </span>
   <span class="hint">zoom</span>
   <button id="zout">-</button><span id="zlvl" class="stat">16</span><button id="zin">+</button>
   <button id="newbtn">New blank</button>
@@ -54,7 +64,7 @@
   <div class="left">
     <div id="ctxbar" class="ctxbar"></div>
     <div class="stage"><canvas id="cv"></canvas></div>
-    <div class="hint">left-drag paints the selected item; right-drag erases. Dim rim = ~20% of bordering SECs (read-only) so you can match paths. Walls/doors sit on a cell edge (N/E/S/W) - E and S write to the neighbouring cell, matching the game.</div>
+    <div class="hint" id="toolhint">Paint: left-drag paints, right-drag erases. Eyedropper: click a cell to pick the current tab type. Select: drag a box, then drag inside it to move; Del clears; Esc deselects.</div>
     <div id="readout" class="hint"></div>
   </div>
   <div class="right">
@@ -292,13 +302,130 @@ function draw(){
     ctx.strokeStyle='rgba(90,169,255,.95)'; ctx.lineWidth=2;
     ctx.strokeRect(ox+0.5, oy+0.5, PLAY*scale-1, PLAY*scale-1);
     ctx.fillStyle='rgba(90,169,255,.12)';
-    // corner ticks so the rim is obvious even before neighbor images load
     const tick=Math.max(4, scale);
     ctx.fillRect(ox-tick, oy-tick, tick, tick*2);
     ctx.fillRect(ox+PLAY*scale, oy-tick, tick, tick*2);
     ctx.fillRect(ox-tick, oy+PLAY*scale-tick, tick, tick*2);
     ctx.fillRect(ox+PLAY*scale, oy+PLAY*scale-tick, tick, tick*2);
   }
+  drawSelectionOverlay(ox, oy);
+}
+
+function normRect(a,b){
+  if(!a||!b) return null;
+  return {
+    r0:Math.min(a[0],b[0]), c0:Math.min(a[1],b[1]),
+    r1:Math.max(a[0],b[0]), c1:Math.max(a[1],b[1])
+  };
+}
+function pointInSel(r,c,selRect){
+  if(!selRect) return false;
+  return r>=selRect.r0&&r<=selRect.r1&&c>=selRect.c0&&c<=selRect.c1;
+}
+function drawSelectionOverlay(ox,oy){
+  const live=selDrag&&selDrag.kind==='make'?normRect(selDrag.start,selDrag.cur):null;
+  const rect=live||selection;
+  if(!rect) return;
+  let dr=0, dc=0;
+  if(selDrag&&selDrag.kind==='move'&&selDrag.cur){
+    dr=selDrag.cur[0]-selDrag.start[0];
+    dc=selDrag.cur[1]-selDrag.start[1];
+  }
+  const x=ox+(rect.c0+dc)*scale, y=oy+(rect.r0+dr)*scale;
+  const w=(rect.c1-rect.c0+1)*scale, h=(rect.r1-rect.r0+1)*scale;
+  ctx.fillStyle='rgba(90,169,255,.18)';
+  ctx.fillRect(x,y,w,h);
+  ctx.strokeStyle='rgba(90,169,255,.95)';
+  ctx.lineWidth=2;
+  ctx.setLineDash([4,3]);
+  ctx.strokeRect(x+0.5,y+0.5,w-1,h-1);
+  ctx.setLineDash([]);
+}
+
+// ---- tools: paint / eyedropper / select ----------------------------------
+let tool='paint';
+let selection=null;           // {r0,c0,r1,c1}
+let selDrag=null;             // {kind:'make'|'move', start:[r,c], cur:[r,c], grab:[r,c]}
+let clip=null;                // {w,h,cells:Uint8Array[]}
+
+function setTool(t){
+  tool=t;
+  [...document.querySelectorAll('#tools button')].forEach(b=>{
+    b.classList.toggle('on', b.dataset.tool===t);
+  });
+  cv.classList.remove('tool-paint','tool-drop','tool-select');
+  cv.classList.add('tool-'+t);
+  if(t!=='select'){ selDrag=null; }
+  draw();
+}
+document.querySelectorAll('#tools button').forEach(b=>{
+  b.onclick=()=>setTool(b.dataset.tool);
+});
+setTool('paint');
+
+function scrollPaletteToSel(){
+  const on=palEl.querySelector('.pi.on');
+  if(on) on.scrollIntoView({block:'nearest'});
+}
+function eyedropAt(r,c){
+  const o=off(r,c);
+  if(mode==='terrain'){ sel.terrain=data[o]; }
+  else if(mode==='object'){ sel.object=data[o+1]; }
+  else if(mode==='wall'){
+    const [side,no]=wallSlot(r,c,edge);
+    sel.wall=side==='N'?northWall(no):westWall(no);
+  } else if(mode==='door'){
+    const [side,no]=wallSlot(r,c,edge);
+    sel.door=side==='N'?northDoor(no):westDoor(no);
+  }
+  buildPalette();
+  scrollPaletteToSel();
+  showReadout(r,c);
+  const label=mode==='terrain'?('terrain 0x'+sel.terrain.toString(16))
+    : mode==='object'?('object 0x'+sel.object.toString(16))
+    : mode==='wall'?('wall '+sel.wall)
+    : ('door '+sel.door);
+  document.getElementById('readout').textContent=
+    `picked ${label} from r${r} c${c}  (still on ${mode} tab)`;
+}
+
+function copyRect(rect){
+  const cells=[];
+  for(let r=rect.r0;r<=rect.r1;r++) for(let c=rect.c0;c<=rect.c1;c++){
+    const o=off(r,c);
+    cells.push(data.slice(o,o+CELL));
+  }
+  return {w:rect.c1-rect.c0+1, h:rect.r1-rect.r0+1, cells};
+}
+function clearRect(rect){
+  for(let r=rect.r0;r<=rect.r1;r++) for(let c=rect.c0;c<=rect.c1;c++){
+    const o=off(r,c);
+    for(let i=0;i<CELL;i++) data[o+i]=0;
+  }
+}
+function pasteRect(rect, blob, mergeClear){
+  let i=0;
+  for(let r=rect.r0;r<=rect.r1;r++) for(let c=rect.c0;c<=rect.c1;c++){
+    if(r<0||c<0||r>=PLAY||c>=PLAY){ i++; continue; }
+    const src=blob.cells[i++];
+    if(!src) continue;
+    const o=off(r,c);
+    if(mergeClear){ for(let k=0;k<CELL;k++) data[o+k]=0; }
+    for(let k=0;k<CELL;k++) data[o+k]=src[k];
+  }
+}
+function moveSelection(dr,dc){
+  if(!selection||(!dr&&!dc)) return;
+  const src=selection;
+  const dst={r0:src.r0+dr,c0:src.c0+dc,r1:src.r1+dr,c1:src.c1+dc};
+  if(dst.r0<0||dst.c0<0||dst.r1>=PLAY||dst.c1>=PLAY){
+    alert('Selection would move outside the sector.');
+    return;
+  }
+  const blob=copyRect(src);
+  clearRect(src);
+  pasteRect(dst, blob, true);
+  selection=dst;
 }
 
 // ---- painting ------------------------------------------------------------
@@ -309,12 +436,11 @@ function cellAt(ev){
   const r=Math.floor((ev.clientY-b.top)/scale)-oy;
   return (r>=0&&r<PLAY&&c>=0&&c<PLAY)?[r,c]:null;
 }
-// route an edge (N/E/S/W) to the canonical N/W field on this or the neighbour cell
 function wallSlot(r,c,e){
   if(e==='N') return ['N',off(r,c)];
   if(e==='W') return ['W',off(r,c)];
-  if(e==='S') return ['N',off(r+1,c)];   // south = north wall of the cell below (incl. pad row 32)
-  return ['W',off(r,c+1)];               // east  = west wall of the cell to the right (incl. pad col 32)
+  if(e==='S') return ['N',off(r+1,c)];
+  return ['W',off(r,c+1)];
 }
 function paint(r,c,erase){
   const o=off(r,c);
@@ -331,10 +457,78 @@ function paint(r,c,erase){
 }
 let painting=false, eraseMode=false;
 cv.addEventListener('contextmenu',e=>e.preventDefault());
-cv.addEventListener('mousedown',e=>{ const p=cellAt(e); if(!p) return; painting=true; eraseMode=(e.button===2);
-  paint(p[0],p[1],eraseMode); draw(); });
-cv.addEventListener('mousemove',e=>{ const p=cellAt(e); if(p) showReadout(p[0],p[1]); if(painting&&p){ paint(p[0],p[1],eraseMode); draw(); } });
-window.addEventListener('mouseup',()=>painting=false);
+cv.addEventListener('mousedown',e=>{
+  const p=cellAt(e); if(!p) return;
+  // Alt+click always eyedrops
+  if(e.altKey || tool==='drop'){
+    eyedropAt(p[0],p[1]);
+    if(tool==='drop') setTool('paint');
+    return;
+  }
+  if(tool==='select'){
+    if(e.button===2){
+      selection=null; selDrag=null; draw(); return;
+    }
+    if(selection && pointInSel(p[0],p[1],selection)){
+      selDrag={kind:'move', start:p, cur:p, grab:p};
+    } else {
+      selection=null;
+      selDrag={kind:'make', start:p, cur:p};
+    }
+    draw();
+    return;
+  }
+  // paint
+  painting=true; eraseMode=(e.button===2);
+  paint(p[0],p[1],eraseMode); draw();
+});
+cv.addEventListener('mousemove',e=>{
+  const p=cellAt(e); if(p) showReadout(p[0],p[1]);
+  if(selDrag&&p){ selDrag.cur=p; draw(); return; }
+  if(painting&&p){ paint(p[0],p[1],eraseMode); draw(); }
+});
+window.addEventListener('mouseup',()=>{
+  if(selDrag){
+    if(selDrag.kind==='make'){
+      selection=normRect(selDrag.start, selDrag.cur);
+    } else if(selDrag.kind==='move'&&selDrag.cur){
+      const dr=selDrag.cur[0]-selDrag.start[0];
+      const dc=selDrag.cur[1]-selDrag.start[1];
+      moveSelection(dr,dc);
+    }
+    selDrag=null;
+    draw();
+  }
+  painting=false;
+});
+window.addEventListener('keydown',e=>{
+  if(e.target && (e.target.tagName==='INPUT'||e.target.tagName==='TEXTAREA')) return;
+  const k=e.key.toLowerCase();
+  if(k==='b'){ setTool('paint'); return; }
+  if(k==='i'){ setTool('drop'); return; }
+  if(k==='v'){ setTool('select'); return; }
+  if(k==='escape'){ selection=null; selDrag=null; draw(); return; }
+  if((k==='delete'||k==='backspace') && selection){
+    e.preventDefault();
+    clearRect(selection); draw(); return;
+  }
+  if(e.ctrlKey&&k==='c'&&selection){
+    e.preventDefault(); clip=copyRect(selection); return;
+  }
+  if(e.ctrlKey&&k==='x'&&selection){
+    e.preventDefault(); clip=copyRect(selection); clearRect(selection); draw(); return;
+  }
+  if(e.ctrlKey&&k==='v'&&clip){
+    e.preventDefault();
+    const anchor=selection?{r0:selection.r0,c0:selection.c0}
+      :{r0:0,c0:0};
+    const dst={r0:anchor.r0,c0:anchor.c0,r1:anchor.r0+clip.h-1,c1:anchor.c0+clip.w-1};
+    if(dst.r1>=PLAY||dst.c1>=PLAY){ alert('Paste does not fit.'); return; }
+    pasteRect(dst, clip, true);
+    selection=dst;
+    draw();
+  }
+});
 function showReadout(r,c){ const o=off(r,c);
   document.getElementById('readout').textContent=
     `cell r${r} c${c}  terrain=0x${data[o].toString(16)}  object=0x${data[o+1].toString(16)}  Nwall=${northWall(o)} Wwall=${westWall(o)} Ndoor=${northDoor(o)} Wdoor=${westDoor(o)} entity=${data[o+5]}`; }
@@ -355,10 +549,10 @@ function buildPalette(){
             : mode==='object'?OBJECTS.map(o=>[o[0],o[1],null])
             : mode==='wall'?WALLS.map(w=>[w[0],w[1],[24,22,28]])
             : DOORS.map(d=>[d[0],d[1],DOOR_COLOR[d[0]]||[60,60,70]]);
-  palDesc.textContent = mode==='terrain'?'byte 0 - paint floor / ground'
-    : mode==='object'?'byte 1 - decorations & portals'
-    : mode==='wall'?'bytes 2-3 - wall on the chosen edge'
-    : 'door on chosen edge (auto-adds a wall if missing)';
+  palDesc.textContent = mode==='terrain'?'byte 0 - paint floor / ground (eyedropper picks this)'
+    : mode==='object'?'byte 1 - decorations & portals (eyedropper picks this)'
+    : mode==='wall'?'bytes 2-3 - wall on the chosen edge (eyedropper samples that edge)'
+    : 'door on chosen edge (eyedropper samples that edge)';
   list.forEach(([val,label,col])=>{
     const pi=document.createElement('div'); pi.className='pi'; if(val===sel[mode]) pi.classList.add('on');
     const sw=document.createElement('div'); sw.className='sw';
