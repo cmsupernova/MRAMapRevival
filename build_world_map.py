@@ -24,7 +24,9 @@ Output: world_map_built.json
 
 By default, editor cells that map outside the engine band (MP 45-80 x 15-80)
 are skipped so parked far-canvas assemblies do not become real geography.
-haven1 is pinned to the classic W Haven spawn cell (MP 60,45 / block 3,6,b).
+haven1.SEC is pinned as the spawn *content* under base name EWGB194225b
+(the server hardcodes that name in Player.set_initial; without it, spawn
+picks a random high-breathing-room sector).
 """
 import json
 import os
@@ -315,12 +317,23 @@ def main():
         overridden += 1 if existed else 0
         added += 0 if existed else 1
 
-    # Pin 2011 Haven spawn: haven1 at classic W Haven cell.
+    # Server Player.set_initial prefers sector BASE NAME "EWGB194225b", then
+    # EWGB290321b, EWGB322353b, then any b-layer by max breathing room.
+    # If EWGB194225b is missing, spawn lands in a random huge sector (castle).
+    # Keep that key for spawn discovery, but load 2011 haven1.SEC bytes.
     if "haven1.SEC" in valid:
         spawn_key = "3,6,b"
-        if spawn_key in b2b and b2b[spawn_key] != "haven1":
+        if spawn_key in b2b and b2b[spawn_key] not in ("EWGB194225b", "haven1"):
             sectors.pop(b2b[spawn_key], None)
-        sectors["haven1"] = {
+        # Drop a competing haven1 key at the same cell if present
+        if "haven1" in sectors and b2b.get(spawn_key) == "haven1":
+            sectors.pop("haven1", None)
+        elif "haven1" in sectors:
+            # haven1 may sit elsewhere; remove only if it claims spawn cell
+            h = sectors.get("haven1")
+            if h and h.get("x_block") == 3 and h.get("y_block") == 6 and h.get("layer") == "b":
+                sectors.pop("haven1", None)
+        sectors["EWGB194225b"] = {
             "filename": "haven1.SEC",
             "prefix": "EWGB",
             "y_start": 2 + 32 * 6,
@@ -333,10 +346,11 @@ def main():
             "mp_z": B.LAYER_TO_MPZ["b"],
             "place_name": "W Haven",
             "status": "community-placed",
-            "provenance": "pinned 2011 haven1 spawn (replaces EWGB194225b)",
+            "provenance": "spawn key EWGB194225b -> haven1.SEC (2011 Haven; server set_initial requires this base name)",
         }
-        b2b[spawn_key] = "haven1"
-        sector_key_by_base["haven1"] = spawn_key
+        b2b[spawn_key] = "EWGB194225b"
+        sector_key_by_base["EWGB194225b"] = spawn_key
+        sector_key_by_base.pop("haven1", None)
 
     max_yb = max((s["y_block"] for s in sectors.values()), default=0)
     # Keep ranges covering all placed blocks but never shrink below core needs.
@@ -373,9 +387,10 @@ def main():
     print(f"  name conflicts:       {name_conflict}")
     print(f"  out of engine band:   {out_of_band} (editor-only / parked)")
     print(f"  crushed same-MP:      {crushed}")
-    if "haven1" in sectors:
-        h = sectors["haven1"]
-        print(f"  spawn haven1:         MP({h['mp_x']},{h['mp_y']}) block {h['x_block']},{h['y_block']},{h['layer']}")
+    if "EWGB194225b" in sectors:
+        h = sectors["EWGB194225b"]
+        print(f"  spawn EWGB194225b:    MP({h['mp_x']},{h['mp_y']}) file={h['filename']} "
+              f"block {h['x_block']},{h['y_block']},{h['layer']}")
 
 
 if __name__ == "__main__":
