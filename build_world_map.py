@@ -19,7 +19,12 @@ Run:
   python build_world_map.py                         # pull unified from Supabase
   python build_world_map.py unified_map_export.json # use an exported file
   python build_world_map.py --from-generated         # use unified_map.json Floor 0
+  python build_world_map.py export.json --allow-expand  # allow MP outside 45-80/15-80
 Output: world_map_built.json
+
+By default, editor cells that map outside the engine band (MP 45-80 x 15-80)
+are skipped so parked far-canvas assemblies do not become real geography.
+haven1 is pinned to the classic W Haven spawn cell (MP 60,45 / block 3,6,b).
 """
 import json
 import os
@@ -39,10 +44,24 @@ SUPABASE_KEY = "sb_publishable_MjRmbztlv0wlOQXpTvoBlQ__BJobsxC"
 WORLD_OFF = 6
 WORLD_SCALE = 2
 
+# Engine-safe outdoor band (original WINMRA / 2006 prefix grid).
+# Editor canvas is larger and parks interiors/far assemblies outside this;
+# those must NOT become real MP coordinates or spawn/position math breaks.
+MP_X_MIN, MP_X_MAX = 45, 80
+MP_Y_MIN, MP_Y_MAX = 15, 80
+XB_MIN, XB_MAX = 0, 7
+YB_MIN, YB_MAX = 0, 13
+
 MPX_TO_XBLOCK = {v: k for k, v in
                  zip(B.PREFIX_TO_XBLOCK.values(), B.PREFIX_TO_MPX.values())}
 MPX_TO_PREFIX = {v: k for k, v in B.PREFIX_TO_MPX.items()}
 LAYER_FROM_LEVEL = {0: "b", -1: "a", 1: "c"}
+
+# When several editor cells crush onto one MP cell, prefer these bases.
+CELL_PRIORITY = {
+    "haven1": 100, "haven2": 90, "haven3": 90, "haven5": 90, "haven9": 90,
+    "sanctuary1": 80, "sanctuary2": 80, "sanctuary3": 80, "sanctuary4": 80,
+}
 
 
 def xblock_of_mpx(mp_x):
@@ -154,7 +173,11 @@ def load_placements(arg, from_generated=False):
 
 def valid_filenames():
     out = set()
-    for root in (B.MAPS_DIR, B.MAPSALL_DIR):
+    for root in (B.MAPS_DIR, B.MAPSALL_DIR,
+                 os.path.join(HERE, "_render", "secs"),
+                 os.path.join(HERE, "WINMRA", "MAPS")):
+        if not os.path.isdir(root):
+            continue
         for r, _d, fs in os.walk(root):
             for f in fs:
                 if f.upper().endswith(".SEC") and not f.startswith("._"):
@@ -162,9 +185,30 @@ def valid_filenames():
     return out
 
 
+def base_of(fname):
+    return fname[:-4] if fname.upper().endswith(".SEC") else fname
+
+
+def placement_priority(fname):
+    base = base_of(fname).lower()
+    if base in CELL_PRIORITY:
+        return CELL_PRIORITY[base]
+    # Prefer 2011-style area names over coordinate SECs when both crush
+    # onto the same MP cell.
+    if not any(base.upper().startswith(p) for p in B.PREFIX_TO_MPX):
+        return 20
+    return 0
+
+
+def in_engine_band(mp_x, mp_y, xb, yb):
+    return (MP_X_MIN <= mp_x <= MP_X_MAX and MP_Y_MIN <= mp_y <= MP_Y_MAX
+            and XB_MIN <= xb <= XB_MAX and YB_MIN <= yb <= YB_MAX)
+
+
 def main():
     args = [a for a in sys.argv[1:] if not a.startswith("-")]
     from_generated = "--from-generated" in sys.argv
+    allow_expand = "--allow-expand" in sys.argv
     arg = args[0] if args else None
     core = B.build()
     sectors = core["sectors"]
@@ -174,8 +218,11 @@ def main():
     sector_key_by_base = {base: f"{s['x_block']},{s['y_block']},{s['layer']}"
                           for base, s in sectors.items()}
     seen_files = {}
+    # key -> winning placement dict (resolved after priority)
+    pending = {}
 
     added = overridden = cleared = skipped = invalid = duplicate = name_conflict = 0
+    out_of_band = crushed = 0
     for p in placements:
         try:
             mp_x, mp_y = int(p["mp_x"]), int(p["mp_y"])
@@ -194,22 +241,58 @@ def main():
                 old = b2b.pop(key)
                 sectors.pop(old, None)
                 cleared += 1
+            pending.pop(key, None)
             continue
         if fname not in valid:
             invalid += 1
             continue
+        if not allow_expand and not in_engine_band(mp_x, mp_y, xb, yb):
+            out_of_band += 1
+            continue
         if fname in seen_files:
             duplicate += 1
             continue
-        seen_files[fname] = key
-        base = fname[:-4] if fname.upper().endswith(".SEC") else fname
+        base = base_of(fname)
         owner = sector_key_by_base.get(base)
-        if owner is not None and owner != key:
+        # Coordinate SECs already owned by core at another cell cannot move.
+        # Area SECs (haven1, etc.) may relocate.
+        is_coord = any(base.upper().startswith(px) for px in B.PREFIX_TO_MPX)
+        if owner is not None and owner != key and is_coord:
             name_conflict += 1
             continue
+        seen_files[fname] = key
+        cand = {
+            "filename": fname, "base": base, "mp_x": mp_x, "mp_y": mp_y,
+            "layer": layer, "xb": xb, "yb": yb, "key": key,
+            "place_name": p.get("place_name"),
+            "updated_by": p.get("updated_by"),
+            "prio": placement_priority(fname),
+        }
+        prev = pending.get(key)
+        if prev is not None:
+            crushed += 1
+            if cand["prio"] < prev["prio"]:
+                continue
+            if cand["prio"] == prev["prio"]:
+                # Same priority: keep later export row (editor intent).
+                pass
+        pending[key] = cand
+
+    for key, cand in pending.items():
+        base = cand["base"]
+        fname = cand["filename"]
+        mp_x, mp_y = cand["mp_x"], cand["mp_y"]
+        layer, xb, yb = cand["layer"], cand["xb"], cand["yb"]
+        # If this area SEC was previously at another core key, free it.
+        old_key = sector_key_by_base.get(base)
+        if old_key is not None and old_key != key and old_key in b2b and b2b[old_key] == base:
+            b2b.pop(old_key, None)
+            # leave orphan cleanup to overwrite below
         existed = key in b2b
         if existed:
-            sectors.pop(b2b[key], None)
+            old_base = b2b[key]
+            sectors.pop(old_base, None)
+            sector_key_by_base.pop(old_base, None)
         sector_key_by_base[base] = key
         prefix = MPX_TO_PREFIX.get(mp_x)
         sectors[base] = {
@@ -223,16 +306,40 @@ def main():
             "mp_x": mp_x,
             "mp_y": mp_y,
             "mp_z": B.LAYER_TO_MPZ.get(layer),
-            "place_name": p.get("place_name"),
+            "place_name": cand.get("place_name"),
             "status": "community-placed",
-            "provenance": "unified map Floor 0 (" + (p.get("updated_by") or "?") +
+            "provenance": "unified map Floor 0 (" + (cand.get("updated_by") or "?") +
                           ") compiled onto binary-grounded core",
         }
         b2b[key] = base
         overridden += 1 if existed else 0
         added += 0 if existed else 1
 
+    # Pin 2011 Haven spawn: haven1 at classic W Haven cell.
+    if "haven1.SEC" in valid:
+        spawn_key = "3,6,b"
+        if spawn_key in b2b and b2b[spawn_key] != "haven1":
+            sectors.pop(b2b[spawn_key], None)
+        sectors["haven1"] = {
+            "filename": "haven1.SEC",
+            "prefix": "EWGB",
+            "y_start": 2 + 32 * 6,
+            "y_end": 2 + 32 * 6 + 31,
+            "layer": "b",
+            "x_block": 3,
+            "y_block": 6,
+            "mp_x": 60,
+            "mp_y": 45,
+            "mp_z": B.LAYER_TO_MPZ["b"],
+            "place_name": "W Haven",
+            "status": "community-placed",
+            "provenance": "pinned 2011 haven1 spawn (replaces EWGB194225b)",
+        }
+        b2b[spawn_key] = "haven1"
+        sector_key_by_base["haven1"] = spawn_key
+
     max_yb = max((s["y_block"] for s in sectors.values()), default=0)
+    # Keep ranges covering all placed blocks but never shrink below core needs.
     core["y_axis_ranges"] = [[2 + 32 * i, 33 + 32 * i] for i in range(max_yb + 1)]
     core["_meta"]["title"] = "MRA world map (core + unified Floor 0, compiled)"
     core["_meta"]["stats"] = {
@@ -246,6 +353,9 @@ def main():
         "placements_invalid_filename": invalid,
         "placements_duplicate_filename": duplicate,
         "placements_name_conflict": name_conflict,
+        "placements_out_of_band": out_of_band,
+        "placements_crushed": crushed,
+        "allow_expand": allow_expand,
     }
     core.pop("holes", None)
 
@@ -261,6 +371,11 @@ def main():
     print(f"  invalid filenames:    {invalid}")
     print(f"  duplicate filenames:  {duplicate}")
     print(f"  name conflicts:       {name_conflict}")
+    print(f"  out of engine band:   {out_of_band} (editor-only / parked)")
+    print(f"  crushed same-MP:      {crushed}")
+    if "haven1" in sectors:
+        h = sectors["haven1"]
+        print(f"  spawn haven1:         MP({h['mp_x']},{h['mp_y']}) block {h['x_block']},{h['y_block']},{h['layer']}")
 
 
 if __name__ == "__main__":
