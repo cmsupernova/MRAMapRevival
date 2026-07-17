@@ -65,6 +65,97 @@ CELL_PRIORITY = {
     "sanctuary1": 80, "sanctuary2": 80, "sanctuary3": 80, "sanctuary4": 80,
 }
 
+# Server set_initial picks the cell with max "breathing room" inside the
+# preferred sector. Haven's natural winner is ~intra (14,16) (courtyard).
+# Bias a game-only SEC copy so spawn lands ~13 tiles south of that.
+SPAWN_SEC_NAME = "haven1_spawn.SEC"
+SPAWN_TARGET_ROW = 27
+SPAWN_TARGET_COL = 16
+SEC_GRID, SEC_PLAY, SEC_CELL = 33, 32, 6
+SEC_SIZE = SEC_GRID * SEC_GRID * SEC_CELL
+SEC_IMPASS = {0x00, 0x02, 0x03, 0x06, 0x07}
+
+
+def _sec_walkable(data, r, c):
+    if not (0 <= r < SEC_PLAY and 0 <= c < SEC_PLAY):
+        return False
+    return data[(r * SEC_GRID + c) * SEC_CELL] not in SEC_IMPASS
+
+
+def _sec_breathing(data, r, c):
+    mins = []
+    for dr, dc in ((-1, 0), (1, 0), (0, -1), (0, 1)):
+        n = 0
+        rr, cc = r + dr, c + dc
+        while _sec_walkable(data, rr, cc):
+            n += 1
+            rr += dr
+            cc += dc
+        mins.append(n)
+    return min(mins) if mins else 0
+
+
+def _sec_best_spawn(data):
+    best_sc = -1
+    best = []
+    for r in range(SEC_PLAY):
+        for c in range(SEC_PLAY):
+            if not _sec_walkable(data, r, c):
+                continue
+            sc = _sec_breathing(data, r, c)
+            if sc > best_sc:
+                best_sc = sc
+                best = [(r, c)]
+            elif sc == best_sc:
+                best.append((r, c))
+    return best_sc, best
+
+
+def find_haven1_bytes():
+    for root in (
+        os.path.join(HERE, "WINMRA", "MAPS"),
+        os.path.join(HERE, "_render", "secs"),
+        B.MAPSALL_DIR,
+        B.MAPS_DIR,
+    ):
+        if not root or not os.path.isdir(root):
+            continue
+        path = os.path.join(root, "haven1.SEC")
+        if os.path.isfile(path):
+            raw = open(path, "rb").read()
+            if len(raw) == SEC_SIZE:
+                return raw, path
+    return None, None
+
+
+def write_haven_spawn_sec():
+    """Write haven1_spawn.SEC biased so set_initial picks ~ (27,16)."""
+    raw, src_path = find_haven1_bytes()
+    if not raw:
+        return None
+    data = bytearray(raw)
+    # Iteratively mark current winners impassable until spawn is far enough south.
+    for _ in range(600):
+        _sc, cells = _sec_best_spawn(data)
+        if not cells:
+            break
+        r, c = cells[0]
+        if r >= SPAWN_TARGET_ROW and abs(c - SPAWN_TARGET_COL) <= 2:
+            break
+        if r < SPAWN_TARGET_ROW or abs(c - SPAWN_TARGET_COL) > 2:
+            data[(r * SEC_GRID + c) * SEC_CELL] = 0x02
+        else:
+            break
+    out_dir = os.path.join(HERE, "WINMRA", "MAPS")
+    os.makedirs(out_dir, exist_ok=True)
+    out_path = os.path.join(out_dir, SPAWN_SEC_NAME)
+    open(out_path, "wb").write(data)
+    sc, cells = _sec_best_spawn(data)
+    print(f"wrote {SPAWN_SEC_NAME} from {os.path.basename(src_path)} "
+          f"-> spawn intra {cells[0] if cells else '?'} (score {sc})")
+    return out_path
+
+
 
 def xblock_of_mpx(mp_x):
     if mp_x in MPX_TO_XBLOCK:
@@ -320,21 +411,27 @@ def main():
     # Server Player.set_initial prefers sector BASE NAME "EWGB194225b", then
     # EWGB290321b, EWGB322353b, then any b-layer by max breathing room.
     # If EWGB194225b is missing, spawn lands in a random huge sector (castle).
-    # Keep that key for spawn discovery, but load 2011 haven1.SEC bytes.
+    # Keep that key for spawn discovery, but load a Haven SEC biased ~13 cells
+    # south of the natural courtyard spawn (intra 14,16 -> ~27,16).
+    spawn_file = None
     if "haven1.SEC" in valid:
+        spawn_path = write_haven_spawn_sec()
+        if spawn_path and os.path.isfile(spawn_path):
+            spawn_file = SPAWN_SEC_NAME
+            valid.add(SPAWN_SEC_NAME)
+        else:
+            spawn_file = "haven1.SEC"
         spawn_key = "3,6,b"
         if spawn_key in b2b and b2b[spawn_key] not in ("EWGB194225b", "haven1"):
             sectors.pop(b2b[spawn_key], None)
-        # Drop a competing haven1 key at the same cell if present
         if "haven1" in sectors and b2b.get(spawn_key) == "haven1":
             sectors.pop("haven1", None)
         elif "haven1" in sectors:
-            # haven1 may sit elsewhere; remove only if it claims spawn cell
             h = sectors.get("haven1")
             if h and h.get("x_block") == 3 and h.get("y_block") == 6 and h.get("layer") == "b":
                 sectors.pop("haven1", None)
         sectors["EWGB194225b"] = {
-            "filename": "haven1.SEC",
+            "filename": spawn_file,
             "prefix": "EWGB",
             "y_start": 2 + 32 * 6,
             "y_end": 2 + 32 * 6 + 31,
@@ -346,7 +443,10 @@ def main():
             "mp_z": B.LAYER_TO_MPZ["b"],
             "place_name": "W Haven",
             "status": "community-placed",
-            "provenance": "spawn key EWGB194225b -> haven1.SEC (2011 Haven; server set_initial requires this base name)",
+            "provenance": (
+                "spawn key EWGB194225b -> " + spawn_file +
+                " (2011 Haven; intra biased south for set_initial breathing-room)"
+            ),
         }
         b2b[spawn_key] = "EWGB194225b"
         sector_key_by_base["EWGB194225b"] = spawn_key
