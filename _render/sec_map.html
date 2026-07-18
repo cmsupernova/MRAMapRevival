@@ -120,7 +120,7 @@ let FLOOR = 0, SHOWLABELS = false, ZOOM = 100;
 let SHOWGUIDES = true;
 // Engine only has altitude layers a/b/c. Editor floors are exactly those three.
 const ENGINE_LEVELS = [-1, 0, 1];
-const ENGINE_LAYER = {-1: 'a', 0: 'b', 1: 'c'};
+const ENGINE_LAYER = {'-1': 'a', '0': 'b', '1': 'c'};
 
 // Generated base + local overrides. Key: "col,row,level"
 const generated = {};
@@ -143,7 +143,7 @@ const BLOCK_BY_ID = {};
 ((window.BLOCKS&&BLOCKS.blocks)||[]).forEach(b=>{ if(b.pieces.length>=1) BLOCK_BY_ID[b.id]=b; });
 
 function floorLabel(lv){
-  const layer = ENGINE_LAYER[lv];
+  const layer = ENGINE_LAYER[String(lv)];
   if(lv === 0) return layer ? 'Floor 0 · layer '+layer+' (surface)' : 'Floor 0';
   const base = 'Floor '+(lv>0?'+':'')+lv;
   return layer ? base+' · layer '+layer : base;
