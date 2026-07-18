@@ -69,7 +69,7 @@
 <body>
 <header>
   <h1>MRA SEC Map</h1>
-  <span class="legend" id="legendtxt">One map. Floor 0 is the surface. Blue outline = 2011, green = 2006-only.</span>
+  <span class="legend" id="legendtxt">One map. Three floors only (engine layers a/b/c): -1 below, 0 surface, +1 above.</span>
   <span class="sp"></span>
   <span class="floors" id="floors"></span>
   <span class="zoom">
@@ -118,7 +118,9 @@ const COLS = [...Array(W).keys()], ROWS = [...Array(H).keys()];
 const CELLS = {};
 let FLOOR = 0, SHOWLABELS = false, ZOOM = 100;
 let SHOWGUIDES = true;
-let extraLevels = []; // user-added floors not yet in generated data (e.g. Floor +2)
+// Engine only has altitude layers a/b/c. Editor floors are exactly those three.
+const ENGINE_LEVELS = [-1, 0, 1];
+const ENGINE_LAYER = {-1: 'a', 0: 'b', 1: 'c'};
 
 // Generated base + local overrides. Key: "col,row,level"
 const generated = {};
@@ -141,22 +143,35 @@ const BLOCK_BY_ID = {};
 ((window.BLOCKS&&BLOCKS.blocks)||[]).forEach(b=>{ if(b.pieces.length>=1) BLOCK_BY_ID[b.id]=b; });
 
 function floorLabel(lv){
-  return (U.floor_labels&&U.floor_labels[String(lv)]) || (lv===0?'Floor 0':('Floor '+(lv>0?'+':'')+lv));
+  const layer = ENGINE_LAYER[lv];
+  if(lv === 0) return layer ? 'Floor 0 · layer '+layer+' (surface)' : 'Floor 0';
+  const base = 'Floor '+(lv>0?'+':'')+lv;
+  return layer ? base+' · layer '+layer : base;
 }
 function allLevels(){
-  const s = new Set([...(U.levels||[0]), FLOOR, ...(extraLevels||[])]);
-  Object.keys(generated).forEach(k=>s.add(+k.split(',')[2]));
-  Object.keys(overrides).forEach(k=>{ if(overrides[k]!==undefined) s.add(+k.split(',')[2]); });
-  return [...s].sort((a,b)=>a-b);
+  return ENGINE_LEVELS.slice();
 }
-function addFloor(delta){
-  const lv = (allLevels().length
-    ? (delta>0 ? Math.max(...allLevels())+1 : Math.min(...allLevels())-1)
-    : delta);
-  if(!extraLevels.includes(lv)) extraLevels.push(lv);
-  FLOOR=lv;
-  saveLocal();
-  rebuildFloors(); refreshCells(); scheduleReview();
+function clampFloor(lv){
+  const n = +lv;
+  if(ENGINE_LEVELS.indexOf(n) >= 0) return n;
+  return 0;
+}
+function countOffEnginePlacements(){
+  let n = 0;
+  const scan = (obj)=>{
+    Object.keys(obj||{}).forEach(k=>{
+      const parts = k.split(',');
+      if(parts.length < 3) return;
+      const lv = +parts[2];
+      if(ENGINE_LEVELS.indexOf(lv) < 0){
+        const rec = obj[k];
+        if(rec && rec.filename && rec.filename !== CLEARED) n++;
+      }
+    });
+  };
+  scan(generated);
+  scan(overrides);
+  return n;
 }
 function key(c,r,lv){ return c+','+r+','+(lv==null?FLOOR:lv); }
 function effective(c,r,lv){
@@ -186,8 +201,7 @@ function loadLocal(){
     TRAVEL_LINKS = Array.isArray(o.travelLinks)?o.travelLinks:(window.TravelLinks?TravelLinks.load():[]);
     IGNORED = (o.ignored&&typeof o.ignored==='object')?o.ignored:{};
     acceptedStacks = (o.acceptedStacks&&typeof o.acceptedStacks==='object')?o.acceptedStacks:{};
-    extraLevels = Array.isArray(o.extraLevels)?o.extraLevels.map(Number):[];
-  }catch(e){ overrides={}; INTERIORS=[]; PORTALS=[]; TRAVEL_LINKS=[]; IGNORED={}; acceptedStacks={}; extraLevels=[]; }
+  }catch(e){ overrides={}; INTERIORS=[]; PORTALS=[]; TRAVEL_LINKS=[]; IGNORED={}; acceptedStacks={}; }
 }
 function saveLocal(){
   let travelLinks = TRAVEL_LINKS;
@@ -202,10 +216,48 @@ function saveLocal(){
   TRAVEL_LINKS = travelLinks;
   localStorage.setItem(LS_KEY, JSON.stringify({
     overrides, interiors:INTERIORS, portals:PORTALS, travelLinks,
-    ignored:IGNORED, acceptedStacks, extraLevels
+    ignored:IGNORED, acceptedStacks
   }));
 }
 loadLocal();
+FLOOR = clampFloor(FLOOR);
+
+(function migrateOverflowFloors(){
+  // Old UI allowed Floor +/-2+. Engine only has a/b/c. Move leftovers onto a free
+  // engine floor at the same cell when possible so they stay visible/editable.
+  const bag = overrides;
+  const keys = Object.keys(bag||{});
+  let moved = 0;
+  keys.forEach(k=>{
+    const parts = k.split(',');
+    if(parts.length < 3) return;
+    const c = +parts[0], r = +parts[1], lv = +parts[2];
+    if(ENGINE_LEVELS.indexOf(lv) >= 0) return;
+    const rec = bag[k];
+    if(!rec || !rec.filename || rec.filename === CLEARED) return;
+    const prefer = lv > 0 ? [-1, 1, 0] : [1, -1, 0];
+    let dest = null;
+    for(const cand of prefer){
+      if(!effective(c, r, cand)){ dest = cand; break; }
+    }
+    if(dest == null) return;
+    bag[key(c, r, dest)] = Object.assign({}, rec, {col:c, row:r, level:dest});
+    delete bag[k];
+    moved++;
+  });
+  if(moved){
+    saveLocal();
+    console.warn('[map] Moved '+moved+' legacy floor +/-2+ placement(s) onto free -1/0/+1 slots.');
+  }
+})();
+
+(function warnOffEngineFloors(){
+  const n = countOffEnginePlacements();
+  if(!n) return;
+  console.warn('[map] '+n+' placement(s) on floors outside -1/0/+1 are hidden. Engine only has layers a/b/c.');
+  const el = document.getElementById('legendtxt');
+  if(el) el.textContent = 'One map. Three floors only (a/b/c). Note: '+n+' older placement(s) on Floor +/-2+ are still hidden.';
+})();
 
 function setOverride(c,r,lv, rec, opts){
   const k = key(c,r,lv);
@@ -231,6 +283,10 @@ function clearOverride(c,r,lv){
   else DB.remove(c,r,lv);
 }
 function placeAt(c,r,lv, fn, meta){
+  if(ENGINE_LEVELS.indexOf(+lv) < 0){
+    alert('Only floors -1, 0, and +1 exist in-game (engine layers a / b / c).');
+    return;
+  }
   if(fn===CLEARED){ setOverride(c,r,lv,{filename:CLEARED}); return; }
   // enforce no duplicate filenames across map
   const existing = placedByFilename();
@@ -348,25 +404,15 @@ function renderCell(c,r,el){
 function refreshCells(){ ROWS.forEach(r=>COLS.forEach(c=>renderCell(c,r))); }
 function rebuildFloors(){
   const el=document.getElementById('floors'); el.innerHTML='';
-  const down=document.createElement('button');
-  down.textContent='+ below';
-  down.title='Add a floor below the lowest (Floor -1, -2, ...)';
-  down.onclick=()=>addFloor(-1);
-  el.appendChild(down);
-  allLevels().forEach(lv=>{
+  ENGINE_LEVELS.forEach(lv=>{
     const b=document.createElement('button'); b.textContent=floorLabel(lv);
     if(lv===FLOOR) b.classList.add('on');
-    if(lv===(U.surface_level||0)) b.title='surface world (walks from Haven etc.)';
-    else if(lv>0) b.title='above surface';
-    else b.title='below surface';
+    if(lv===0) b.title='Surface world (engine layer b). Walks from Haven etc.';
+    else if(lv>0) b.title='Above surface (engine layer c). Only three layers exist in-game.';
+    else b.title='Below surface (engine layer a). Only three layers exist in-game.';
     b.onclick=()=>{ FLOOR=lv; rebuildFloors(); refreshCells(); scheduleReview(); };
     el.appendChild(b);
   });
-  const up=document.createElement('button');
-  up.textContent='+ above';
-  up.title='Add a floor above the highest (Floor +1, +2, ...)';
-  up.onclick=()=>addFloor(1);
-  el.appendChild(up);
 }
 
 // ---- move / assembly ----
@@ -856,23 +902,50 @@ document.getElementById('resetgen').onclick=()=>{
 // ---- export / import ----
 document.getElementById('export').onclick=()=>{
   const placements=[];
-  allLevels().forEach(lv=>{
-    for(let r=0;r<H;r++) for(let c=0;c<W;c++){
-      const p=effective(c,r,lv);
-      if(p&&p.filename!==CLEARED) placements.push({
-        filename:p.filename, col:c, row:r, level:lv,
-        source:p.source, confidence:p.confidence, block_id:p.block_id||null,
-        place_name:p.place_name||null, generated:!!p.generated
-      });
-    }
+  const seen=new Set();
+  function pushPlacement(c,r,lv,p){
+    if(!p||!p.filename||p.filename===CLEARED) return;
+    const k=c+','+r+','+lv;
+    if(seen.has(k)) return;
+    seen.add(k);
+    placements.push({
+      filename:p.filename, col:c, row:r, level:lv,
+      source:p.source, confidence:p.confidence, block_id:p.block_id||null,
+      place_name:p.place_name||null, generated:!!p.generated
+    });
+  }
+  // Engine floors first
+  ENGINE_LEVELS.forEach(lv=>{
+    for(let r=0;r<H;r++) for(let c=0;c<W;c++) pushPlacement(c,r,lv, effective(c,r,lv));
   });
+  // Preserve any legacy off-engine leftovers so re-export does not silently delete them
+  function scanBag(bag){
+    Object.keys(bag||{}).forEach(k=>{
+      const parts=k.split(',');
+      if(parts.length<3) return;
+      const c=+parts[0], r=+parts[1], lv=+parts[2];
+      if(ENGINE_LEVELS.indexOf(lv)>=0) return;
+      const p=bag[k];
+      if(p&&p.filename&&p.filename!==CLEARED) pushPlacement(c,r,lv,p);
+    });
+  }
+  scanBag(overrides);
+  scanBag(generated);
+  const off=placements.filter(p=>ENGINE_LEVELS.indexOf(+p.level)<0).length;
   const out={
     dataset:'unified', version:1, grid:{w:W,h:H}, surface_level:U.surface_level||0,
+    levels:ENGINE_LEVELS.slice(),
+    floor_labels:{
+      '-1':'Floor -1 · layer a',
+      '0':'Floor 0 · layer b (surface)',
+      '1':'Floor +1 · layer c'
+    },
     placements, portals:PORTALS, travelLinks:(window.TravelLinks?TravelLinks.load():TRAVEL_LINKS),
     ignored:Object.keys(IGNORED), interiors:INTERIORS,
     acceptedStacks:Object.keys(acceptedStacks),
     overrides:overrides,
-    _note:'Authoritative unified multi-floor map export. Floor 0 is surface. travelLinks are custom named falls/stairs/warps.'
+    _note:'Unified map export. Engine supports exactly 3 floors (-1/0/+1 = layers a/b/c). travelLinks are custom falls/stairs/warps.'
+      +(off?(' WARNING: '+off+' legacy placement(s) remain on floors outside -1/0/+1.'):'')
   };
   const blob=new Blob([JSON.stringify(out,null,1)],{type:'application/json'});
   const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='unified_map_export.json'; a.click();
@@ -991,7 +1064,7 @@ rebuildFloors(); buildGrid(); buildPalette(); renderReview(); DB.connect();
   const pending=CustomSecs.takePendingPlace();
   if(pending&&pending.filename!=null&&pending.col!=null){
     if(pending.png) CUSTOM_PNG[pending.filename]=pending.png;
-    FLOOR=+(pending.level||0);
+    FLOOR=clampFloor(pending.level||0);
     placeAt(pending.col, pending.row, pending.level, pending.filename, {
       source:'custom', confidence:'custom',
       png: CUSTOM_PNG[pending.filename]||pending.png||tilePng(pending.filename),

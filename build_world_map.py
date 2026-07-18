@@ -11,9 +11,8 @@ Server.bat so step-on teleports work in-game.
 
 Editor floors map onto engine altitude layers at the same canvas cell:
   level -1 -> layer a,  level 0 -> b,  level +1 -> c.
-Extra floors (|level| > 1) pack onto any free a/b/c slot at that same
-cell (e.g. kokastop at +2 uses layer a when b/c are taken). If all three
-layers are full, the placement is skipped.
+The map editor only offers those three floors. Legacy exports with |level|>1
+still pack onto a free a/b/c slot at that cell when possible.
 
 Placement sources (first that yields rows wins):
   1. a JSON file argument - unified_map_export.json OR legacy area_placements
