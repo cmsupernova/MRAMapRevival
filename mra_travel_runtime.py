@@ -226,6 +226,9 @@ def try_travel_link(world, player, stub_ns):
             "[travel]",
             f"Teleport {base} r{r}c{c} -> {dest_base} ({world_x},{world_y},{layer})",
         )
+    elif log:
+        # Always one short line so console shows links firing without probe spam.
+        log("[travel]", f"{base} r{r}c{c} -> {dest_base}")
     player.x = world_x
     player.y = world_y
     player.layer = layer
@@ -266,7 +269,8 @@ def run_stub_main(ns):
 
     print("============================================================")
     print("MRA Stub Server  + travel links")
-    print("Close any other MRA_Server*.exe so this owns 1109/1111.")
+    print("Close any OTHER MRA_Server*.exe first (old instances keep the")
+    print("port and ignore new world_map.json / travelLinks).")
     print("============================================================")
 
     _exe_dir, _meipass = _MRA_BASE_DIR()
