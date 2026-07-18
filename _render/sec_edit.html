@@ -236,6 +236,32 @@ function terrColor(v){ if(TERRAIN_COLOR[v]) return TERRAIN_COLOR[v];
   const p=val*(1-s), q=val*(1-f*s), t=val*(1-(1-f)*s);
   const [r,g,b]=[[val,t,p],[q,val,p],[p,val,t],[p,q,val],[t,p,val],[val,p,q]][i%6];
   return [Math.round(r*255),Math.round(g*255),Math.round(b*255)]; }
+function wallEdgeColor(wallT, doorT){
+  if(doorT) return DOOR_COLOR[doorT]||[205,160,70];
+  if(wallT===31) return [255,80,220]; // flower-bed walls are nearly invisible in SCBART
+  if(wallT===9) return [80,200,200];
+  if(wallT===1) return [40,180,180];
+  return [240,240,250];
+}
+/** Always draw a thick edge bar. Sparse wall sprites alone are easy to miss. */
+function paintWallEdge(g, x, y, s, wallT, doorT, edge){
+  if(!(wallT||doorT)) return;
+  const ws=wallT?WALLSPR[wallT+'|'+edge]:null;
+  const ds=doorT?DOORSPR[doorT+'|'+edge]:null;
+  if(ready(ws)) g.drawImage(ws, x, y, s, s);
+  if(ready(ds)) g.drawImage(ds, x, y, s, s);
+  const t=Math.max(3, Math.round(s*0.22));
+  const k=wallEdgeColor(wallT, doorT);
+  g.fillStyle=`rgb(${k[0]},${k[1]},${k[2]})`;
+  if(edge==='N') g.fillRect(x, y, s, t);
+  else if(edge==='S') g.fillRect(x, y+s-t, s, t);
+  else if(edge==='W') g.fillRect(x, y, t, s);
+  else g.fillRect(x+s-t, y, t, s);
+  if(wallT===31){
+    g.fillStyle='rgba(255,80,220,.25)';
+    g.fillRect(x, y, s, s);
+  }
+}
 
 /** CLEAR (0) and No-see-through (2) are near-black and vanish on the #000 canvas.
  *  Draw a loud hatch so voids are obvious in the editor (game still shows them as blanks). */
@@ -310,22 +336,10 @@ function drawSecCell(buf, r, c, dx, dy, alpha){
       ctx.beginPath(); ctx.arc(dx+scale/2, dy+scale/2, Math.max(1.5,scale*0.16), 0, 7); ctx.fill();
     }
   }
-  const t=Math.max(2, Math.round(scale*0.18));
   const wbits=buf[o+2]|(buf[o+3]<<8);
   const nW=wbits&0x1f, wW=(wbits>>5)&0x1f, nD=(wbits>>10)&0x0f, wD=(buf[o+4]>>1)&0x0f;
-  function edgeLine(wallT, doorT, which){
-    if(!(wallT||doorT)) return;
-    let drew=false;
-    if(wallT){ const ws=WALLSPR[wallT+'|'+which]; if(ready(ws)){ ctx.drawImage(ws,dx,dy,scale,scale); drew=true; } }
-    if(doorT){ const ds=DOORSPR[doorT+'|'+which]; if(ready(ds)){ ctx.drawImage(ds,dx,dy,scale,scale); drew=true; } }
-    if(drew) return;
-    const k=doorT?(DOOR_COLOR[doorT]||[205,160,70]):[225,225,235];
-    ctx.fillStyle=`rgb(${k[0]},${k[1]},${k[2]})`;
-    if(which==='N') ctx.fillRect(dx,dy,scale,t);
-    else if(which==='W') ctx.fillRect(dx,dy,t,scale);
-  }
-  edgeLine(nW, nD, 'N');
-  edgeLine(wW, wD, 'W');
+  paintWallEdge(ctx, dx, dy, scale, nW, nD, 'N');
+  paintWallEdge(ctx, dx, dy, scale, wW, wD, 'W');
   ctx.globalAlpha=prev;
 }
 /** Prefer real SEC bytes for neighbor rims; fall back to PNG strips. */
@@ -430,19 +444,11 @@ function draw(){
         else { ctx.fillStyle = (data[o+1]>=1&&data[o+1]<=4)?'rgba(60,230,230,.95)':'rgba(230,210,120,.95)';
           ctx.beginPath(); ctx.arc(x+scale/2,y+scale/2,Math.max(1.5,scale*0.16),0,7); ctx.fill(); } }
     }
-    // walls + doors on top. real edge art when available, else colored lines.
-    const t=Math.max(2,Math.round(scale*0.18));
+    // walls + doors on top — always draw thick visible bars (sprites alone are sparse)
     function drawEdge(x,y,wallT,doorT,edge){
-      if(!(wallT||doorT)) return; let drew=false;
-      if(wallT){ const ws=WALLSPR[wallT+'|'+edge]; if(ready(ws)){ ctx.drawImage(ws,x,y,scale,scale); drew=true; } }
-      if(doorT){ const ds=DOORSPR[doorT+'|'+edge]; if(ready(ds)){ ctx.drawImage(ds,x,y,scale,scale); drew=true; } }
-      if(drew) return;
-      const k=doorT?(DOOR_COLOR[doorT]||[205,160,70]):[225,225,235];
-      ctx.fillStyle=`rgb(${k[0]},${k[1]},${k[2]})`;
-      if(edge==='N') ctx.fillRect(x,y,scale,t); else if(edge==='S') ctx.fillRect(x,y+scale-t,scale,t);
-      else if(edge==='W') ctx.fillRect(x,y,t,scale); else ctx.fillRect(x+scale-t,y,t,scale);
+      paintWallEdge(ctx, x, y, scale, wallT, doorT, edge);
     }
-    for(let r=0;r<PLAY;r++) for(let c=0;c<PLAY;c++){
+  for(let r=0;r<PLAY;r++) for(let c=0;c<PLAY;c++){
       const o=off(r,c), x=ox+c*scale, y=oy+r*scale;
       drawEdge(x,y,northWall(o),northDoor(o),'N');
       drawEdge(x,y,westWall(o),westDoor(o),'W');
@@ -1096,20 +1102,8 @@ function drawRefCell(buf,r,c,dx,dy){
   }
   const nw=buf[o+2]|(buf[o+3]<<8);
   const nWall=nw&0x1f, wWall=(nw>>5)&0x1f, nDoor=(nw>>10)&0x0f, wDoor=(buf[o+4]>>1)&0x0f;
-  const t=Math.max(1,Math.round(refScale*0.18));
-  function edge(x,y,wallT,doorT,dir){
-    if(!(wallT||doorT)) return;
-    let drew=false;
-    if(wallT){ const ws=WALLSPR[wallT+'|'+dir]; if(ready(ws)){ refCtx.drawImage(ws,x,y,refScale,refScale); drew=true; } }
-    if(doorT){ const ds=DOORSPR[doorT+'|'+dir]; if(ready(ds)){ refCtx.drawImage(ds,x,y,refScale,refScale); drew=true; } }
-    if(drew) return;
-    const k=doorT?(DOOR_COLOR[doorT]||[205,160,70]):[225,225,235];
-    refCtx.fillStyle=`rgb(${k[0]},${k[1]},${k[2]})`;
-    if(dir==='N') refCtx.fillRect(x,y,refScale,t);
-    else if(dir==='W') refCtx.fillRect(x,y,t,refScale);
-  }
-  edge(dx,dy,nWall,nDoor,'N');
-  edge(dx,dy,wWall,wDoor,'W');
+  paintWallEdge(refCtx, dx, dy, refScale, nWall, nDoor, 'N');
+  paintWallEdge(refCtx, dx, dy, refScale, wWall, wDoor, 'W');
 }
 
 function drawRef(){
@@ -1469,17 +1463,8 @@ function renderCenterPng(){
       else { g.fillStyle=(data[o+1]>=1&&data[o+1]<=4)?'rgba(60,230,230,.95)':'rgba(230,210,120,.95)';
         g.beginPath(); g.arc(x+s/2,y+s/2,Math.max(1.2,s*0.16),0,7); g.fill(); } }
   }
-  const t=Math.max(1,Math.round(s*0.18));
   function drawEdge(x,y,wallT,doorT,edge){
-    if(!(wallT||doorT)) return;
-    let drew=false;
-    if(wallT){ const ws=WALLSPR[wallT+'|'+edge]; if(ready(ws)){ g.drawImage(ws,x,y,s,s); drew=true; } }
-    if(doorT){ const ds=DOORSPR[doorT+'|'+edge]; if(ready(ds)){ g.drawImage(ds,x,y,s,s); drew=true; } }
-    if(drew) return;
-    const k=doorT?(DOOR_COLOR[doorT]||[205,160,70]):[225,225,235];
-    g.fillStyle=`rgb(${k[0]},${k[1]},${k[2]})`;
-    if(edge==='N') g.fillRect(x,y,s,t); else if(edge==='S') g.fillRect(x,y+s-t,s,t);
-    else if(edge==='W') g.fillRect(x,y,t,s); else g.fillRect(x+s-t,y,t,s);
+    paintWallEdge(g, x, y, s, wallT, doorT, edge);
   }
   for(let r=0;r<PLAY;r++) for(let c=0;c<PLAY;c++){
     const o=off(r,c), x=c*s, y=r*s;

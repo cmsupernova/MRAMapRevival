@@ -25,8 +25,8 @@ Run:
 Output: world_map_built.json
 
 Spawn: server set_initial requires base name EWGB194225b. We place that key
-at wherever haven1 sits in the export, loading haven1_spawn.SEC (south-biased
-intra cell).
+at wherever haven1 sits in the export, loading haven1_spawn.SEC (clean copy
+of haven1 - do not stamp 0x02 bias tiles; those render as teal blanks).
 """
 import json
 import os
@@ -70,6 +70,10 @@ SPAWN_TARGET_COL = 16
 SEC_GRID, SEC_PLAY, SEC_CELL = 33, 32, 6
 SEC_SIZE = SEC_GRID * SEC_GRID * SEC_CELL
 SEC_IMPASS = {0x00, 0x02, 0x03, 0x06, 0x07}
+# NOTE: do NOT stamp terrain 0x02 into haven1_spawn to bias set_initial.
+# In SARTA.256, 0x02 is the fire/wrong row - the client draws solid teal
+# impassable tiles. The editor opens haven1.SEC (clean), so those blanks
+# were invisible there while wrecking haven1_spawn in-game.
 
 
 
@@ -126,30 +130,24 @@ def find_haven1_bytes():
 
 
 def write_haven_spawn_sec():
-    """Write haven1_spawn.SEC biased so set_initial picks ~ (27,16)."""
+    """Write haven1_spawn.SEC as a clean copy of haven1 for the EWGB194225b key.
+
+    Older builds stamped terrain 0x02 over dozens of cells to shove set_initial
+    south. That made solid teal impassable tiles in-game (SARTA maps 0x02 badly)
+    while the SEC editor still showed clean haven1.SEC. Keep the spawn alias
+    file, but never corrupt tile bytes again.
+    """
     raw, src_path = find_haven1_bytes()
     if not raw:
         return None
-    data = bytearray(raw)
-    # Iteratively mark current winners impassable until spawn is far enough south.
-    for _ in range(600):
-        _sc, cells = _sec_best_spawn(data)
-        if not cells:
-            break
-        r, c = cells[0]
-        if r >= SPAWN_TARGET_ROW and abs(c - SPAWN_TARGET_COL) <= 2:
-            break
-        if r < SPAWN_TARGET_ROW or abs(c - SPAWN_TARGET_COL) > 2:
-            data[(r * SEC_GRID + c) * SEC_CELL] = 0x02
-        else:
-            break
     out_dir = os.path.join(HERE, "WINMRA", "MAPS")
     os.makedirs(out_dir, exist_ok=True)
     out_path = os.path.join(out_dir, SPAWN_SEC_NAME)
-    open(out_path, "wb").write(data)
-    sc, cells = _sec_best_spawn(data)
-    print(f"wrote {SPAWN_SEC_NAME} from {os.path.basename(src_path)} "
-          f"-> spawn intra {cells[0] if cells else '?'} (score {sc})")
+    open(out_path, "wb").write(raw)
+    sc, cells = _sec_best_spawn(raw)
+    print(f"wrote {SPAWN_SEC_NAME} (clean copy of {os.path.basename(src_path)}) "
+          f"-> set_initial will pick breathing-room spawn "
+          f"{cells[0] if cells else '?'} (score {sc})")
     return out_path
 
 
