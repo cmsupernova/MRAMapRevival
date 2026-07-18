@@ -95,11 +95,12 @@
     <div class="right">
       <div class="tabs" id="tabs"></div>
       <div id="edgewrap" class="edgesel" style="display:none">
-        edge:
+        paint edge:
         <label><input type="radio" name="edge" value="N" checked> N</label>
         <label><input type="radio" name="edge" value="E"> E</label>
         <label><input type="radio" name="edge" value="S"> S</label>
         <label><input type="radio" name="edge" value="W"> W</label>
+        <span class="hint" style="margin-left:6px">Left-click paints that edge. Right-click erases the nearest edge.</span>
       </div>
       <div id="palpanel">
         <div id="paldesc" class="small"></div>
@@ -444,18 +445,34 @@ function draw(){
         else { ctx.fillStyle = (data[o+1]>=1&&data[o+1]<=4)?'rgba(60,230,230,.95)':'rgba(230,210,120,.95)';
           ctx.beginPath(); ctx.arc(x+scale/2,y+scale/2,Math.max(1.5,scale*0.16),0,7); ctx.fill(); } }
     }
-    // walls + doors on top — always draw thick visible bars (sprites alone are sparse)
-    function drawEdge(x,y,wallT,doorT,edge){
-      paintWallEdge(ctx, x, y, scale, wallT, doorT, edge);
+    // walls + doors: draw all 4 edges on each cell (S/E read from neighbor storage)
+    function drawEdge(x,y,wallT,doorT,dir){
+      paintWallEdge(ctx, x, y, scale, wallT, doorT, dir);
     }
-  for(let r=0;r<PLAY;r++) for(let c=0;c<PLAY;c++){
-      const o=off(r,c), x=ox+c*scale, y=oy+r*scale;
+    for(let r=0;r<PLAY;r++) for(let c=0;c<PLAY;c++){
+      const x=ox+c*scale, y=oy+r*scale;
+      const o=off(r,c);
       drawEdge(x,y,northWall(o),northDoor(o),'N');
       drawEdge(x,y,westWall(o),westDoor(o),'W');
+      // S edge of this cell = N wall stored on the cell below (pad row 32 ok)
+      const oS=off(r+1,c);
+      drawEdge(x,y,northWall(oS),northDoor(oS),'S');
+      // E edge of this cell = W wall stored on the cell to the right (pad col 32 ok)
+      const oE=off(r,c+1);
+      drawEdge(x,y,westWall(oE),westDoor(oE),'E');
     }
-    // boundary walls live on pad row/col 32 (shared S/E edges of the sector)
-    for(let r=0;r<PLAY;r++){ const o=off(r,32); drawEdge(ox+(PLAY-1)*scale,oy+r*scale,westWall(o),westDoor(o),'E'); }
-    for(let c=0;c<PLAY;c++){ const o=off(32,c); drawEdge(ox+c*scale,oy+(PLAY-1)*scale,northWall(o),northDoor(o),'S'); }
+  }
+  // hover preview: which edge will be painted (toggle) or erased (nearest)
+  if(hoverCell && hoverEdge && (mode==='wall'||mode==='door') && tool==='paint'){
+    const [hr,hc]=hoverCell;
+    const hx=ox+hc*scale, hy=oy+hr*scale;
+    const t=Math.max(3, Math.round(scale*0.28));
+    const erasing=!!(mouseButtons&2)||eraseMode;
+    ctx.fillStyle=erasing ? 'rgba(255,80,80,.85)' : 'rgba(255,220,60,.9)';
+    if(hoverEdge==='N') ctx.fillRect(hx, hy, scale, t);
+    else if(hoverEdge==='S') ctx.fillRect(hx, hy+scale-t, scale, t);
+    else if(hoverEdge==='W') ctx.fillRect(hx, hy, t, scale);
+    else ctx.fillRect(hx+scale-t, hy, t, scale);
   }
   // grid (editable area only)
   ctx.strokeStyle='rgba(255,255,255,.05)'; ctx.lineWidth=1;
@@ -678,14 +695,13 @@ function eyedropAtHit(hit){
       document.getElementById('readout').textContent='Eyedropper: no SEC bytes at that cell yet.';
       return;
     }
-    const o=(r*GRID+c)*CELL;
+    const o=off(r,c);
     const terr=src[o], obj=src[o+1];
-    const nw=src[o+2]|(src[o+3]<<8);
-    const nWall=nw&0x1f, wWall=(nw>>5)&0x1f, nDoor=(nw>>10)&0x0f, wDoor=(src[o+4]>>1)&0x0f;
+    const hitEdge=wallAtEdgeBuf(src, r, c, edge);
     sel.terrain=terr;
     sel.object=obj;
-    if(edge==='N'||edge==='S'){ sel.wall=nWall; sel.door=nDoor; }
-    else { sel.wall=wWall; sel.door=wDoor; }
+    sel.wall=hitEdge.wall;
+    sel.door=hitEdge.door;
     if(mode!=='object' && mode!=='wall' && mode!=='door') setModeTab('terrain');
     else setModeTab(mode);
     ensurePaletteValue(mode, sel[mode]);
@@ -696,6 +712,7 @@ function eyedropAtHit(hit){
     document.getElementById('readout').textContent=
       'Picked '+nameOf('terrain',terr)+' (0x'+terr.toString(16)+')'
       +(obj?(' + '+nameOf('object',obj)):'')
+      +' + '+edge+'-edge wall='+hitEdge.wall+' door='+hitEdge.door
       +' from '+where+' r'+r+' c'+c;
     if(zone==='center' || zone==='center-unloaded'){
       const ox=origin()*scale, oy=origin()*scale;
@@ -779,30 +796,74 @@ function moveSelection(dr,dc){
 }
 
 // ---- painting ------------------------------------------------------------
+/** SEC only stores N and W per cell. S of (r,c) lives as N on (r+1,c); E as W on (r,c+1). */
 function wallSlot(r,c,e){
-  if(e==='N') return ['N',off(r,c)];
-  if(e==='W') return ['W',off(r,c)];
-  if(e==='S') return ['N',off(r+1,c)];
-  return ['W',off(r,c+1)];
+  if(e==='N') return ['N', r, c];
+  if(e==='W') return ['W', r, c];
+  if(e==='S') return ['N', r+1, c];
+  return ['W', r, c+1]; // E
 }
-function paint(r,c,erase){
+function wallAtEdge(r,c,e){
+  return wallAtEdgeBuf(data, r, c, e);
+}
+function wallAtEdgeBuf(buf, r, c, e){
+  const [side,rr,cc]=wallSlot(r,c,e);
+  if(!buf || rr<0||cc<0||rr>PLAY||cc>PLAY) return {side, rr, cc, wall:0, door:0, o:-1};
+  const o=(rr*GRID+cc)*CELL;
+  const nw=buf[o+2]|(buf[o+3]<<8);
+  return {
+    side, rr, cc, o,
+    wall: side==='N' ? (nw&0x1f) : ((nw>>5)&0x1f),
+    door: side==='N' ? ((nw>>10)&0x0f) : ((buf[o+4]>>1)&0x0f)
+  };
+}
+/** Which edge of this cell is closest to the pointer (for erase / hover). */
+function nearestEdgeInCell(ev, r, c){
+  const b=cv.getBoundingClientRect();
+  const ox=origin()*scale, oy=origin()*scale;
+  const x=(ev.clientX-b.left)*(cv.width/b.width) - (ox+c*scale);
+  const y=(ev.clientY-b.top)*(cv.height/b.height) - (oy+r*scale);
+  const dN=y, dS=scale-y, dW=x, dE=scale-x;
+  const m=Math.min(dN,dS,dW,dE);
+  if(m===dN) return 'N';
+  if(m===dS) return 'S';
+  if(m===dW) return 'W';
+  return 'E';
+}
+function setWallOnSlot(side, o, t){
+  if(o<0) return;
+  if(side==='N') setNorthWall(o,t); else setWestWall(o,t);
+}
+function setDoorOnSlot(side, o, t){
+  if(o<0) return;
+  if(side==='N') setNorthDoor(o,t); else setWestDoor(o,t);
+}
+function paint(r,c,erase,edgeOverride){
   if(r<0||c<0||r>=PLAY||c>=PLAY) return;
   const o=off(r,c);
   if(mode==='terrain'){ data[o]=erase?0:(sel.terrain|0); return; }
   if(mode==='object'){ data[o+1]=erase?0:(sel.object|0); return; }
-  // S/E edges are stored on the south/east neighbor cell (pad row/col 32 is valid)
-  if(edge==='S'&&r+1>PLAY) return;
-  if(edge==='E'&&c+1>PLAY) return;
-  const [side,no]=wallSlot(r,c,edge);
-  if(mode==='wall'){ const t=erase?0:sel.wall;
-    side==='N'?setNorthWall(no,t):setWestWall(no,t);
-    if(erase){ side==='N'?setNorthDoor(no,0):setWestDoor(no,0); } }
-  else if(mode==='door'){ const t=erase?0:sel.door;
-    if(!erase){ if(side==='N'&&!northWall(no)) setNorthWall(no,sel.wall||1);
-                if(side==='W'&&!westWall(no)) setWestWall(no,sel.wall||1); }
-    side==='N'?setNorthDoor(no,t):setWestDoor(no,t); }
+  const e = edgeOverride || edge;
+  // S/E may write pad row/col 32; anything past that is invalid
+  if(e==='S'&&r+1>PLAY) return;
+  if(e==='E'&&c+1>PLAY) return;
+  const hit=wallAtEdge(r,c,e);
+  if(hit.o<0) return;
+  if(mode==='wall'){
+    setWallOnSlot(hit.side, hit.o, erase?0:(sel.wall|0));
+    if(erase) setDoorOnSlot(hit.side, hit.o, 0);
+  } else if(mode==='door'){
+    if(!erase){
+      if(hit.side==='N'&&!northWall(hit.o)) setNorthWall(hit.o, sel.wall||1);
+      if(hit.side==='W'&&!westWall(hit.o)) setWestWall(hit.o, sel.wall||1);
+    }
+    setDoorOnSlot(hit.side, hit.o, erase?0:(sel.door|0));
+  }
 }
 let painting=false, eraseMode=false, mouseButtons=0, paintStrokeId=0;
+let hoverCell=null; // [r,c] or null
+let hoverEdge=null; // 'N'|'E'|'S'|'W' while wall/door tool
+let paintStrokeEdge=null; // edge locked for current drag stroke
 function syncMouseButtons(e){
   if(typeof e.buttons==='number') mouseButtons=e.buttons;
 }
@@ -864,10 +925,14 @@ cv.addEventListener('mousedown',e=>{
       else ensureEditable();
       if(strokeId!==paintStrokeId) return;
       eraseMode=wantErase;
-      paint(p[0],p[1],eraseMode); draw();
+      // Right-click erases the nearest edge (so S/E walls are removable).
+      // Left-click paints using the N/E/S/W toggle.
+      const useEdge=wantErase ? nearestEdgeInCell(e, p[0], p[1]) : edge;
+      paint(p[0],p[1],eraseMode, useEdge); draw();
       // Only continue the stroke while the initiating button is still held
       const held=wantErase ? (mouseButtons&2) : (mouseButtons&1);
       painting=!!held;
+      paintStrokeEdge=useEdge;
     }catch(err){
       console.error(err);
       stopPaintStroke();
@@ -878,13 +943,27 @@ cv.addEventListener('mousedown',e=>{
 });
 cv.addEventListener('mousemove',e=>{
   syncMouseButtons(e);
-  const p=cellAt(e); if(p) showReadout(p[0],p[1]);
+  const p=cellAt(e);
+  if(p){
+    showReadout(p[0],p[1]);
+    if((mode==='wall'||mode==='door') && tool==='paint'){
+      hoverCell=p;
+      hoverEdge=(mouseButtons&2) || eraseMode
+        ? nearestEdgeInCell(e, p[0], p[1])
+        : edge;
+    } else { hoverCell=null; hoverEdge=null; }
+  } else { hoverCell=null; hoverEdge=null; }
   if(selDrag&&p){ selDrag.cur=p; draw(); return; }
-  if(!mouseButtons){ stopPaintStroke(); return; }
+  if(!mouseButtons){ stopPaintStroke(); paintStrokeEdge=null; draw(); return; }
   if(painting&&p && secLoaded){
     eraseMode=!!(mouseButtons&2);
-    paint(p[0],p[1],eraseMode); draw();
+    const useEdge=eraseMode
+      ? nearestEdgeInCell(e, p[0], p[1])
+      : (paintStrokeEdge||edge);
+    paint(p[0],p[1],eraseMode, useEdge); draw();
+    return;
   }
+  draw();
 });
 window.addEventListener('mouseup',()=>{
   if(selDrag){
@@ -899,6 +978,7 @@ window.addEventListener('mouseup',()=>{
     draw();
   }
   stopPaintStroke();
+  paintStrokeEdge=null;
 });
 window.addEventListener('keydown',e=>{
   if(e.target && (e.target.tagName==='INPUT'||e.target.tagName==='TEXTAREA'||e.target.tagName==='SELECT')) return;
@@ -943,8 +1023,12 @@ window.addEventListener('keydown',e=>{
 function showReadout(r,c){ const o=off(r,c);
   const terr=data[o];
   const voidNote=isVoidTerrain(terr)?(terr===2?'  [VOID: No see through]':'  [VOID: CLEAR]') : '';
+  const n=wallAtEdge(r,c,'N'), s=wallAtEdge(r,c,'S'), e=wallAtEdge(r,c,'E'), w=wallAtEdge(r,c,'W');
   document.getElementById('readout').textContent=
-    `cell r${r} c${c}  terrain=0x${terr.toString(16)}  object=0x${data[o+1].toString(16)}  Nwall=${northWall(o)} Wwall=${westWall(o)} Ndoor=${northDoor(o)} Wdoor=${westDoor(o)} entity=${data[o+5]}`+voidNote; }
+    `cell r${r} c${c}  terr=0x${terr.toString(16)}  obj=0x${data[o+1].toString(16)}`
+    +`  walls N=${n.wall} E=${e.wall} S=${s.wall} W=${w.wall}`
+    +`  doors N=${n.door} E=${e.door} S=${s.door} W=${w.door}`
+    +`  entity=${data[o+5]}`+voidNote; }
 
 // ---- UI: tabs + palettes -------------------------------------------------
 const tabsEl=document.getElementById('tabs'), palEl=document.getElementById('pal'),
@@ -976,7 +1060,11 @@ function showRightTab(which){
   lb.onclick=()=>showRightTab('links');
   tabsEl.appendChild(lb);
 }
-document.querySelectorAll('input[name=edge]').forEach(r=>r.onchange=e=>edge=e.target.value);
+document.querySelectorAll('input[name=edge]').forEach(r=>r.onchange=e=>{
+  edge=e.target.value;
+  if(hoverCell) hoverEdge=edge;
+  draw();
+});
 function buildPalette(){
   palEl.innerHTML='';
   const list = mode==='terrain'?TERRAIN.map(t=>[t[0],t[1],t[2]])
@@ -985,8 +1073,8 @@ function buildPalette(){
             : DOORS.map(d=>[d[0],d[1],DOOR_COLOR[d[0]]||[60,60,70]]);
   palDesc.textContent = mode==='terrain'?'byte 0 - paint floor / ground (eyedropper picks this)'
     : mode==='object'?'byte 1 - decorations & portals (eyedropper picks this)'
-    : mode==='wall'?'bytes 2-3 - wall on the chosen edge (eyedropper samples that edge)'
-    : 'door on chosen edge (eyedropper samples that edge)';
+    : mode==='wall'?'Wall on the N/E/S/W edge of the cell you click. Yellow preview = paint edge. Right-click erases nearest edge.'
+    : 'Door on the chosen edge (right-click erases nearest edge)';
   list.forEach(([val,label,col])=>{
     const pi=document.createElement('div'); pi.className='pi'; if(val===sel[mode]) pi.classList.add('on');
     const sw=document.createElement('div'); sw.className='sw';
@@ -1463,16 +1551,17 @@ function renderCenterPng(){
       else { g.fillStyle=(data[o+1]>=1&&data[o+1]<=4)?'rgba(60,230,230,.95)':'rgba(230,210,120,.95)';
         g.beginPath(); g.arc(x+s/2,y+s/2,Math.max(1.2,s*0.16),0,7); g.fill(); } }
   }
-  function drawEdge(x,y,wallT,doorT,edge){
-    paintWallEdge(g, x, y, s, wallT, doorT, edge);
+  function drawEdge(x,y,wallT,doorT,dir){
+    paintWallEdge(g, x, y, s, wallT, doorT, dir);
   }
   for(let r=0;r<PLAY;r++) for(let c=0;c<PLAY;c++){
     const o=off(r,c), x=c*s, y=r*s;
     drawEdge(x,y,northWall(o),northDoor(o),'N');
     drawEdge(x,y,westWall(o),westDoor(o),'W');
+    const oS=off(r+1,c), oE=off(r,c+1);
+    drawEdge(x,y,northWall(oS),northDoor(oS),'S');
+    drawEdge(x,y,westWall(oE),westDoor(oE),'E');
   }
-  for(let r=0;r<PLAY;r++){ const o=off(r,32); drawEdge((PLAY-1)*s,r*s,westWall(o),westDoor(o),'E'); }
-  for(let c=0;c<PLAY;c++){ const o=off(32,c); drawEdge(c*s,(PLAY-1)*s,northWall(o),northDoor(o),'S'); }
   return out.toDataURL('image/png');
 }
 function normalizeSecName(name){
