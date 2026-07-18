@@ -9,7 +9,9 @@ Also copies editor `travelLinks` into the output (and travel_links.json). The
 stock MRA_Server.exe ignores them; use run_mra_server.py / Run MRA Travel
 Server.bat so step-on teleports work in-game.
 
-Non-zero floors are interiors and are ignored here (see build_clusters.py).
+Editor floors map onto engine altitude layers at the same canvas cell:
+  level -1 -> layer a,  level 0 -> b,  level +1 -> c.
+Levels outside {-1,0,1} are skipped (engine only has three layers).
 
 Placement sources (first that yields rows wins):
   1. a JSON file argument - unified_map_export.json OR legacy area_placements
@@ -253,17 +255,20 @@ def normalize_rows(raw, classic_grid=False):
     if isinstance(raw, dict):
         if "placements" in raw:
             rows = []
+            skipped_levels = 0
             for p in raw["placements"]:
                 lv = int(p.get("level", 0))
-                if lv != 0:
+                if lv not in LAYER_FROM_LEVEL:
+                    skipped_levels += 1
                     continue
                 fname = p.get("filename")
                 if not fname or fname == CLEARED:
                     continue
                 if "col" in p and "row" in p:
                     # Default: editor cell is authority (haven1 / sal3 / IOX mixed).
-                    # --classic-grid: 2006 coordinate names snap to filename MP.
-                    native = coords_from_filename(fname) if classic_grid else None
+                    # --classic-grid: 2006 coordinate names snap to filename MP
+                    # (surface layer only; stacked floors still use editor level).
+                    native = coords_from_filename(fname) if classic_grid and lv == 0 else None
                     if native:
                         mp_x, mp_y, layer = native
                     else:
@@ -271,7 +276,7 @@ def normalize_rows(raw, classic_grid=False):
                         mp_y = p.get("mp_y")
                         if mp_x is None or mp_y is None:
                             mp_x, mp_y = canvas_to_world(int(p["col"]), int(p["row"]))
-                        layer = LAYER_FROM_LEVEL.get(lv, "b")
+                        layer = LAYER_FROM_LEVEL[lv]
                     rows.append({
                         "filename": fname,
                         "mp_x": int(mp_x), "mp_y": int(mp_y),
@@ -280,9 +285,13 @@ def normalize_rows(raw, classic_grid=False):
                         "updated_by": "unified-export",
                         "editor_col": int(p["col"]),
                         "editor_row": int(p["row"]),
+                        "editor_level": lv,
                     })
                 elif "mp_x" in p:
                     rows.append(p)
+            if skipped_levels:
+                print(f"skipped {skipped_levels} placements on floors outside "
+                      f"{{{-1,0,1}}} (engine only has layers a/b/c)")
             return rows
         if "area_placements" in raw:
             return raw["area_placements"]
@@ -296,14 +305,16 @@ def normalize_rows(raw, classic_grid=False):
                 if len(parts) != 3:
                     continue
                 col, row, lv = map(int, parts)
-                if lv != 0:
+                if lv not in LAYER_FROM_LEVEL:
                     continue
                 mp_x, mp_y = canvas_to_world(col, row)
                 out.append({
                     "filename": p["filename"],
-                    "mp_x": mp_x, "mp_y": mp_y, "layer": "b",
+                    "mp_x": mp_x, "mp_y": mp_y,
+                    "layer": LAYER_FROM_LEVEL[lv],
                     "place_name": p.get("place_name"),
                     "updated_by": p.get("updated_by"),
+                    "editor_level": lv,
                 })
                 continue
             if ":" in cell:

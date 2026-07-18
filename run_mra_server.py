@@ -64,6 +64,8 @@ def start_servers(ns):
 
     print("============================================================")
     print("MRA Stub Server  + travel links")
+    print("IMPORTANT: close WINMRA\\MRA_Server.exe first (stock exe")
+    print("has no travelLinks). This process must own ports 1109/1111.")
     print("============================================================")
 
     _exe_dir, _meipass = _MRA_BASE_DIR()
