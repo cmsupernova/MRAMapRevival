@@ -10,8 +10,13 @@ from __future__ import annotations
 
 import json
 import os
+import threading
 
 LAYER_FROM_LEVEL = {0: "b", -1: "a", 1: "c"}
+
+
+def travel_debug():
+    return os.environ.get("MRA_TRAVEL_DEBUG", "0").strip() not in ("", "0", "false", "False")
 
 
 def _base_name(filename):
@@ -75,7 +80,7 @@ def load_travel_links(world_map_path, extra_paths=None):
 
 
 def build_index(links):
-    """Map (base, r, c) -> dest end dict. Bidirectional links register both ways."""
+    """Map (base_lower, r, c) -> dest end dict. Bidirectional links register both ways."""
     index = {}
     for link in links:
         if not isinstance(link, dict):
@@ -84,9 +89,11 @@ def build_index(links):
         to = _end_cell(link.get("to"))
         if not fr or not to:
             continue
-        index[fr] = link.get("to")
+        fb, fr_, fc = fr
+        tb, tr, tc = to
+        index[(fb.lower(), fr_, fc)] = link.get("to")
         if link.get("bidirectional"):
-            index[to] = link.get("from")
+            index[(tb.lower(), tr, tc)] = link.get("from")
     return index
 
 
@@ -106,7 +113,6 @@ def _intra_y(world, world_y, sec_play_dim):
         y_start, y_end = pair[0], pair[1]
         if y_start <= world_y <= y_end:
             return i, world_y - y_start
-    # Fallback if ranges are exclusive on end
     for i, pair in enumerate(world.y_axis_ranges):
         y_start = pair[0]
         if y_start <= world_y < y_start + sec_play_dim:
@@ -133,7 +139,7 @@ def resolve_dest_world(world, end, sec_play_dim, log=None):
         return None
     base, r, c = cell
     if not (0 <= r < sec_play_dim and 0 <= c < sec_play_dim):
-        if log:
+        if log and travel_debug():
             log("[travel]", f"Dest cell out of range {base} r{r}c{c}")
         return None
 
@@ -147,7 +153,7 @@ def resolve_dest_world(world, end, sec_play_dim, log=None):
                     base = k
                     break
     if not sec:
-        if log:
+        if log and travel_debug():
             log("[travel]", f"Dest sector not on world map: {base}")
         return None
 
@@ -167,7 +173,7 @@ def resolve_dest_world(world, end, sec_play_dim, log=None):
         layer = "b"
 
     if y_block < 0 or y_block >= len(world.y_axis_ranges):
-        if log:
+        if log and travel_debug():
             log("[travel]", f"Dest y_block {y_block} out of y_axis_ranges for {base}")
         return None
 
@@ -176,15 +182,14 @@ def resolve_dest_world(world, end, sec_play_dim, log=None):
     world_y = y_start + r
 
     if not world.lookup_base(x_block, y_block, layer):
-        # Layer letter may differ from filename suffix; try sector's own layer.
         layer = (sec.get("layer") or layer).lower()
         if not world.lookup_base(x_block, y_block, layer):
-            if log:
+            if log and travel_debug():
                 log("[travel]", f"No block entry for {base} at {x_block},{y_block},{layer}")
             return None
 
     if not world.load_sec(base):
-        if log:
+        if log and travel_debug():
             log("[travel]", f"Could not load SEC for {base}")
         return None
 
@@ -203,14 +208,8 @@ def try_travel_link(world, player, stub_ns):
     if not key:
         return False
 
-    # Case-insensitive base match
-    dest = index.get(key)
-    if dest is None:
-        base, r, c = key
-        for (b, rr, cc), d in index.items():
-            if rr == r and cc == c and b.lower() == base.lower():
-                dest = d
-                break
+    base, r, c = key
+    dest = index.get((base.lower(), r, c))
     if not dest:
         return False
 
@@ -222,11 +221,10 @@ def try_travel_link(world, player, stub_ns):
     if player.x == world_x and player.y == world_y and player.layer == layer:
         return False
 
-    if log:
+    if log and travel_debug():
         log(
             "[travel]",
-            f"Teleport {key[0]} r{key[1]}c{key[2]} -> {dest_base} "
-            f"({world_x},{world_y},{layer})",
+            f"Teleport {base} r{r}c{c} -> {dest_base} ({world_x},{world_y},{layer})",
         )
     player.x = world_x
     player.y = world_y
@@ -235,11 +233,7 @@ def try_travel_link(world, player, stub_ns):
 
 
 def install_hooks(stub_ns, world_map_path):
-    """Wrap maybe_layer_transition and attach links after WorldMap construction.
-
-    Call after stub module exec, before starting listen loops. Also wrap WorldMap
-    so every new world loads travel links automatically.
-    """
+    """Wrap maybe_layer_transition and attach links after WorldMap construction."""
     orig_layer = stub_ns["maybe_layer_transition"]
     OrigWorldMap = stub_ns["WorldMap"]
 
@@ -257,3 +251,64 @@ def install_hooks(stub_ns, world_map_path):
     stub_ns["maybe_layer_transition"] = maybe_layer_transition
     stub_ns["_travel_world_map_path"] = world_map_path
     return stub_ns
+
+
+def run_stub_main(ns):
+    """Start MRA/OGN listen loops using an already-loaded+patched stub namespace."""
+    os_mod = ns["os"]
+    log = ns["log"]
+    WorldMap = ns["WorldMap"]
+    _MRA_RESOLVE = ns["_MRA_RESOLVE"]
+    _MRA_BASE_DIR = ns["_MRA_BASE_DIR"]
+    server_thread = ns["server_thread"]
+    handle_mra = ns["handle_mra"]
+    _ogn_thread = ns["_ogn_thread"]
+
+    print("============================================================")
+    print("MRA Stub Server  + travel links")
+    print("Close any other MRA_Server*.exe so this owns 1109/1111.")
+    print("============================================================")
+
+    _exe_dir, _meipass = _MRA_BASE_DIR()
+    maps_dir = None
+    for base in (_exe_dir, _meipass):
+        if not base:
+            continue
+        for cand in ("MAPS", "maps", "."):
+            full = os_mod.path.join(base, cand)
+            if not os_mod.path.isdir(full):
+                continue
+            secs = [
+                f for f in os_mod.listdir(full)
+                if f.upper().endswith(".SEC")
+            ]
+            if secs:
+                maps_dir = full
+                break
+        if maps_dir:
+            break
+    if maps_dir is None:
+        maps_dir = _exe_dir
+
+    log("[world]", f"Maps dir: {maps_dir}")
+    world_map_path = _MRA_RESOLVE("world_map.json")
+    world = WorldMap(world_map_path, maps_dir)
+
+    ports_raw = os_mod.environ.get("MRA_PORTS", "1109,1111").replace(" ", "")
+    ports = [int(x) for x in ports_raw.split(",") if x]
+    for port in ports:
+        threading.Thread(
+            target=server_thread,
+            args=(world, port, "MRA", handle_mra),
+            daemon=True,
+        ).start()
+
+    threading.Thread(target=_ogn_thread, args=(22276,), daemon=True).start()
+
+    n = len(getattr(world, "travel_link_index", {}) or {})
+    print(f"Travel triggers armed: {n}")
+    print("Leave this window open. Client: MRA.EXE \"put >L>\"")
+    try:
+        threading.Event().wait()
+    except KeyboardInterrupt:
+        print("\nShutting down.")

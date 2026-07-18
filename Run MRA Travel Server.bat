@@ -1,9 +1,15 @@
 @echo off
-REM Travel-link aware MRA server (Python 3.14 stub + teleports).
-REM Use this instead of WINMRA\MRA_Server.exe when testing custom Links.
-REM Stock MRA_Server.exe ignores travelLinks.
-
+REM Prefer frozen travel server (stock speed). Falls back to Python 3.14 launcher.
 cd /d "%~dp0"
+
+if exist "WINMRA\MRA_Server_Travel.exe" (
+  echo Starting WINMRA\MRA_Server_Travel.exe
+  start "" "WINMRA\MRA_Server_Travel.exe"
+  exit /b 0
+)
+
+echo MRA_Server_Travel.exe not found — using Python launcher.
+echo Tip: py -3.14 patch_mra_server_travel.py
 where py >nul 2>&1
 if %ERRORLEVEL%==0 (
   py -3.14 run_mra_server.py
