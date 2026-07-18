@@ -11,7 +11,9 @@ Server.bat so step-on teleports work in-game.
 
 Editor floors map onto engine altitude layers at the same canvas cell:
   level -1 -> layer a,  level 0 -> b,  level +1 -> c.
-Levels outside {-1,0,1} are skipped (engine only has three layers).
+Extra floors (|level| > 1) pack onto any free a/b/c slot at that same
+cell (e.g. kokastop at +2 uses layer a when b/c are taken). If all three
+layers are full, the placement is skipped.
 
 Placement sources (first that yields rows wins):
   1. a JSON file argument - unified_map_export.json OR legacy area_placements
@@ -65,6 +67,31 @@ MPX_TO_XBLOCK = {v: k for k, v in
                  zip(B.PREFIX_TO_XBLOCK.values(), B.PREFIX_TO_MPX.values())}
 MPX_TO_PREFIX = {v: k for k, v in B.PREFIX_TO_MPX.items()}
 LAYER_FROM_LEVEL = {0: "b", -1: "a", 1: "c"}
+# Overflow floors (|level|>1): try these when preferred is missing/taken.
+OVERFLOW_LAYER_ORDER = ("a", "c", "b")
+
+
+def preferred_layer_for_level(lv):
+    return LAYER_FROM_LEVEL.get(int(lv))
+
+
+def pick_layer_for_cell(lv, xb, yb, occupied_keys):
+    """Choose an a/b/c layer at (xb,yb) that is not in occupied_keys.
+
+    Preferred mapping for -1/0/+1; overflow floors take any free slot.
+    """
+    preferred = preferred_layer_for_level(lv)
+    order = []
+    if preferred:
+        order.append(preferred)
+    for L in OVERFLOW_LAYER_ORDER:
+        if L not in order:
+            order.append(L)
+    for L in order:
+        key = f"{xb},{yb},{L}"
+        if key not in occupied_keys:
+            return L, key
+    return None, None
 
 CELL_PRIORITY = {
     "haven1": 100, "haven2": 90, "haven3": 90, "haven5": 90, "haven9": 90,
@@ -255,12 +282,8 @@ def normalize_rows(raw, classic_grid=False):
     if isinstance(raw, dict):
         if "placements" in raw:
             rows = []
-            skipped_levels = 0
             for p in raw["placements"]:
                 lv = int(p.get("level", 0))
-                if lv not in LAYER_FROM_LEVEL:
-                    skipped_levels += 1
-                    continue
                 fname = p.get("filename")
                 if not fname or fname == CLEARED:
                     continue
@@ -276,7 +299,8 @@ def normalize_rows(raw, classic_grid=False):
                         mp_y = p.get("mp_y")
                         if mp_x is None or mp_y is None:
                             mp_x, mp_y = canvas_to_world(int(p["col"]), int(p["row"]))
-                        layer = LAYER_FROM_LEVEL[lv]
+                        # Tentative; main() may reassign overflow floors to a free slot.
+                        layer = preferred_layer_for_level(lv) or "b"
                     rows.append({
                         "filename": fname,
                         "mp_x": int(mp_x), "mp_y": int(mp_y),
@@ -289,9 +313,6 @@ def normalize_rows(raw, classic_grid=False):
                     })
                 elif "mp_x" in p:
                     rows.append(p)
-            if skipped_levels:
-                print(f"skipped {skipped_levels} placements on floors outside "
-                      f"{{{-1,0,1}}} (engine only has layers a/b/c)")
             return rows
         if "area_placements" in raw:
             return raw["area_placements"]
@@ -305,13 +326,11 @@ def normalize_rows(raw, classic_grid=False):
                 if len(parts) != 3:
                     continue
                 col, row, lv = map(int, parts)
-                if lv not in LAYER_FROM_LEVEL:
-                    continue
                 mp_x, mp_y = canvas_to_world(col, row)
                 out.append({
                     "filename": p["filename"],
                     "mp_x": mp_x, "mp_y": mp_y,
-                    "layer": LAYER_FROM_LEVEL[lv],
+                    "layer": preferred_layer_for_level(lv) or "b",
                     "place_name": p.get("place_name"),
                     "updated_by": p.get("updated_by"),
                     "editor_level": lv,
@@ -423,6 +442,13 @@ def main():
         core["sectors"] = sectors
     placements = load_placements(arg, from_generated=from_generated,
                                  classic_grid=classic_grid)
+    # Preferred floors (-1/0/+1) claim layers first; overflow (|level|>1) packs leftovers.
+    def _place_sort_key(p):
+        lv = int(p.get("editor_level", 0) or 0)
+        preferred = 0 if lv in LAYER_FROM_LEVEL else 1
+        return (preferred, abs(lv), lv, -(placement_priority(p.get("filename") or "")))
+
+    placements = sorted(placements, key=_place_sort_key)
     valid = valid_filenames()
     sector_key_by_base = {base: f"{s['x_block']},{s['y_block']},{s['layer']}"
                           for base, s in sectors.items()}
@@ -432,21 +458,20 @@ def main():
     ewgb_placed = False
 
     added = overridden = cleared = skipped = invalid = duplicate = name_conflict = 0
-    out_of_band = crushed = 0
+    out_of_band = crushed = layer_full = 0
     for p in placements:
         try:
             mp_x, mp_y = int(p["mp_x"]), int(p["mp_y"])
-            layer = (p.get("layer") or "b").lower()
             fname = p["filename"]
         except (KeyError, TypeError, ValueError):
             skipped += 1
             continue
-        if layer not in ("a", "b", "c"):
-            skipped += 1
-            continue
+        lv = int(p.get("editor_level", 0) or 0)
         xb, yb = xblock_of_mpx(mp_x), yblock_of_mpy(mp_y)
-        key = f"{xb},{yb},{layer}"
         if fname == CLEARED:
+            # Clear preferred layer at this cell (surface wipe).
+            layer = (p.get("layer") or preferred_layer_for_level(lv) or "b").lower()
+            key = f"{xb},{yb},{layer}"
             if key in b2b:
                 old = b2b.pop(key)
                 sectors.pop(old, None)
@@ -462,6 +487,28 @@ def main():
         if fname in seen_files:
             duplicate += 1
             continue
+
+        occupied = set(pending.keys()) | set(b2b.keys())
+        # Classic surface snap may already fix layer via filename.
+        if classic_grid and lv == 0 and coords_from_filename(fname):
+            layer = (p.get("layer") or "b").lower()
+            if layer not in ("a", "b", "c"):
+                skipped += 1
+                continue
+            key = f"{xb},{yb},{layer}"
+            if key in occupied and pending.get(key, {}).get("filename") != fname:
+                # fall through to free-slot picker below
+                layer, key = pick_layer_for_cell(lv, xb, yb, occupied)
+            else:
+                pass
+        else:
+            layer, key = pick_layer_for_cell(lv, xb, yb, occupied)
+
+        if not layer or not key:
+            layer_full += 1
+            print(f"  skip {fname}: no free a/b/c layer at block {xb},{yb} (editor L{lv})")
+            continue
+
         base = base_of(fname)
         owner = sector_key_by_base.get(base)
         # In classic mode, coordinate SECs cannot move off their core cell.
@@ -477,6 +524,7 @@ def main():
             "prio": placement_priority(fname),
             "editor_col": p.get("editor_col"),
             "editor_row": p.get("editor_row"),
+            "editor_level": lv,
         }
         if base.lower() == "haven1":
             haven1_place = cand
@@ -595,6 +643,7 @@ def main():
         "placements_name_conflict": name_conflict,
         "placements_out_of_band": out_of_band,
         "placements_crushed": crushed,
+        "placements_layer_full": layer_full,
         "world_scale": WORLD_SCALE,
         "classic_grid": classic_grid,
         "allow_expand": allow_expand,
@@ -624,6 +673,7 @@ def main():
     print(f"  name conflicts:       {name_conflict}")
     print(f"  out of engine band:   {out_of_band}")
     print(f"  crushed same-MP:      {crushed}")
+    print(f"  no free layer slot:   {layer_full}")
     print(f"  travel links:         {len(travel_links)}")
     if "EWGB194225b" in sectors:
         h = sectors["EWGB194225b"]
