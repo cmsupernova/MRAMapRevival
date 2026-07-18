@@ -529,6 +529,9 @@ let tool='paint';
 let selection=null;           // {r0,c0,r1,c1}
 let selDrag=null;             // {kind:'make'|'move', start:[r,c], cur:[r,c], grab:[r,c]}
 let clip=null;                // {w,h,cells:Uint8Array[]}
+let hoverCell=null;           // [r,c] — must be declared before any draw() call
+let hoverEdge=null;           // 'N'|'E'|'S'|'W'
+let paintStrokeEdge=null;
 
 function setTool(t){
   tool=t;
@@ -861,9 +864,6 @@ function paint(r,c,erase,edgeOverride){
   }
 }
 let painting=false, eraseMode=false, mouseButtons=0, paintStrokeId=0;
-let hoverCell=null; // [r,c] or null
-let hoverEdge=null; // 'N'|'E'|'S'|'W' while wall/door tool
-let paintStrokeEdge=null; // edge locked for current drag stroke
 function syncMouseButtons(e){
   if(typeof e.buttons==='number') mouseButtons=e.buttons;
 }
