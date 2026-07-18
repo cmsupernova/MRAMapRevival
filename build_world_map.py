@@ -129,25 +129,64 @@ def find_haven1_bytes():
     return None, None
 
 
-def write_haven_spawn_sec():
-    """Write haven1_spawn.SEC as a clean copy of haven1 for the EWGB194225b key.
+def _sec_set_north_wall(data, r, c, t):
+    o = (r * SEC_GRID + c) * SEC_CELL
+    w = data[o + 2] | (data[o + 3] << 8)
+    w = (w & ~0x1F) | (t & 0x1F)
+    if t == 0:
+        w &= ~(0x0F << 10)  # clear north door too
+    data[o + 2] = w & 0xFF
+    data[o + 3] = (w >> 8) & 0xFF
 
-    Older builds stamped terrain 0x02 over dozens of cells to shove set_initial
-    south. That made solid teal impassable tiles in-game (SARTA maps 0x02 badly)
-    while the SEC editor still showed clean haven1.SEC. Keep the spawn alias
-    file, but never corrupt tile bytes again.
+
+def _sec_set_west_wall(data, r, c, t):
+    o = (r * SEC_GRID + c) * SEC_CELL
+    w = data[o + 2] | (data[o + 3] << 8)
+    w = (w & ~(0x1F << 5)) | ((t & 0x1F) << 5)
+    data[o + 2] = w & 0xFF
+    data[o + 3] = (w >> 8) & 0xFF
+    if t == 0:
+        data[o + 4] = data[o + 4] & ~0x1E  # clear west door
+
+
+def _sec_open_spawn_exits(data, cells):
+    """Flower-bed walls trap the breathing-room spawn; open exits on winners.
+
+    set_initial ignores walls when scoring, so it can pick a cell boxed in by
+    wall type 31. Clear only the four shared edges around each winner.
+    """
+    opened = []
+    for r, c in cells:
+        _sec_set_north_wall(data, r, c, 0)
+        _sec_set_west_wall(data, r, c, 0)
+        if r + 1 < SEC_PLAY:
+            _sec_set_north_wall(data, r + 1, c, 0)
+        if c + 1 < SEC_PLAY:
+            _sec_set_west_wall(data, r, c + 1, 0)
+        opened.append((r, c))
+    return opened
+
+
+def write_haven_spawn_sec():
+    """Write haven1_spawn.SEC for EWGB194225b.
+
+    Clean haven1 bytes (no 0x02 teal bias stamps). Opens walls on the
+    breathing-room spawn cell(s) so set_initial cannot drop the player into
+    a flower-bed cage.
     """
     raw, src_path = find_haven1_bytes()
     if not raw:
         return None
+    data = bytearray(raw)
+    sc, cells = _sec_best_spawn(data)
+    opened = _sec_open_spawn_exits(data, cells) if cells else []
     out_dir = os.path.join(HERE, "WINMRA", "MAPS")
     os.makedirs(out_dir, exist_ok=True)
     out_path = os.path.join(out_dir, SPAWN_SEC_NAME)
-    open(out_path, "wb").write(raw)
-    sc, cells = _sec_best_spawn(raw)
-    print(f"wrote {SPAWN_SEC_NAME} (clean copy of {os.path.basename(src_path)}) "
-          f"-> set_initial will pick breathing-room spawn "
-          f"{cells[0] if cells else '?'} (score {sc})")
+    open(out_path, "wb").write(data)
+    print(f"wrote {SPAWN_SEC_NAME} from {os.path.basename(src_path)} "
+          f"-> spawn {cells[0] if cells else '?'} (score {sc}); "
+          f"opened wall exits on {len(opened)} cell(s)")
     return out_path
 
 
