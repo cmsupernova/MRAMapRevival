@@ -24,9 +24,10 @@ Run:
   python build_world_map.py --from-generated
 Output: world_map_built.json
 
-Spawn: server set_initial requires base name EWGB194225b. We place that key
-at wherever haven1 sits in the export, loading haven1_spawn.SEC (clean copy
-of haven1 - do not stamp 0x02 bias tiles; those render as teal blanks).
+Spawn: server set_initial prefers base name EWGB194225b.
+  - If the export already places EWGB194225b.SEC, that file/cell is used as-is.
+  - Only if the export has haven1 (and no EWGB194225b) do we alias
+    EWGB194225b -> haven1_spawn.SEC at the haven1 cell.
 """
 import json
 import os
@@ -395,6 +396,7 @@ def main():
     seen_files = {}
     pending = {}
     haven1_place = None
+    ewgb_placed = False
 
     added = overridden = cleared = skipped = invalid = duplicate = name_conflict = 0
     out_of_band = crushed = 0
@@ -445,6 +447,8 @@ def main():
         }
         if base.lower() == "haven1":
             haven1_place = cand
+        if base == "EWGB194225b":
+            ewgb_placed = True
         prev = pending.get(key)
         if prev is not None:
             crushed += 1
@@ -487,16 +491,22 @@ def main():
         overridden += 1 if existed else 0
         added += 0 if existed else 1
 
-    # Spawn alias: EWGB194225b at haven1's export cell, content = haven1_spawn.
-    if "haven1.SEC" in valid:
+    # Spawn: prefer real EWGB194225b from the export. Only alias from haven1
+    # when the export uses haven1 and does not place EWGB194225b itself.
+    if ewgb_placed and "EWGB194225b" in sectors:
+        h = sectors["EWGB194225b"]
+        # Ensure filename points at the real SEC, not a leftover haven1_spawn.
+        h["filename"] = "EWGB194225b.SEC"
+        h["provenance"] = (
+            "export EWGB194225b.SEC (native spawn sector; no haven1 alias)"
+        )
+        print(f"spawn: using export EWGB194225b.SEC at MP({h['mp_x']},{h['mp_y']})")
+    elif haven1_place and "haven1.SEC" in valid:
         spawn_path = write_haven_spawn_sec()
         spawn_file = SPAWN_SEC_NAME if spawn_path else "haven1.SEC"
-        if haven1_place:
-            sx, sy = haven1_place["mp_x"], haven1_place["mp_y"]
-            sxb, syb = haven1_place["xb"], haven1_place["yb"]
-            slayer = haven1_place["layer"]
-        else:
-            sx, sy, sxb, syb, slayer = 60, 45, 3, 6, "b"
+        sx, sy = haven1_place["mp_x"], haven1_place["mp_y"]
+        sxb, syb = haven1_place["xb"], haven1_place["yb"]
+        slayer = haven1_place["layer"]
         spawn_key = f"{sxb},{syb},{slayer}"
         if spawn_key in b2b and b2b[spawn_key] not in ("EWGB194225b", "haven1"):
             sectors.pop(b2b[spawn_key], None)
@@ -526,6 +536,7 @@ def main():
         b2b[spawn_key] = "EWGB194225b"
         sector_key_by_base["EWGB194225b"] = spawn_key
         sector_key_by_base.pop("haven1", None)
+        print(f"spawn: aliased haven1 -> EWGB194225b ({spawn_file}) at MP({sx},{sy})")
 
     ybs = [s["y_block"] for s in sectors.values()]
     max_yb = max(ybs) if ybs else 0
