@@ -5,6 +5,10 @@ placements and lets the community override them. This folds Floor 0 placements
 onto the binary-grounded core (build_world_coords) and emits the engine schema
 mra_stub.py consumes (sectors / block_to_base / y_axis_ranges).
 
+Also copies editor `travelLinks` into the output (and travel_links.json). The
+stock MRA_Server.exe ignores them; use run_mra_server.py / Run MRA Travel
+Server.bat so step-on teleports work in-game.
+
 Non-zero floors are interiors and are ignored here (see build_clusters.py).
 
 Placement sources (first that yields rows wins):
@@ -310,6 +314,24 @@ def normalize_rows(raw, classic_grid=False):
     return []
 
 
+def _travel_links_from_raw(raw):
+    if not isinstance(raw, dict):
+        return []
+    links = raw.get("travelLinks") or raw.get("travel_links") or []
+    return links if isinstance(links, list) else []
+
+
+def load_travel_links(arg, from_generated=False):
+    """Pull editor travelLinks from the same source as placements (if present)."""
+    if from_generated and os.path.isfile(UNIFIED):
+        raw = json.load(open(UNIFIED, encoding="utf-8"))
+        return _travel_links_from_raw(raw)
+    if arg and os.path.isfile(arg):
+        raw = json.load(open(arg, encoding="utf-8"))
+        return _travel_links_from_raw(raw)
+    return []
+
+
 def load_placements(arg, from_generated=False, classic_grid=False):
     if from_generated and os.path.isfile(UNIFIED):
         raw = json.load(open(UNIFIED, encoding="utf-8"))
@@ -568,8 +590,17 @@ def main():
     }
     core.pop("holes", None)
 
+    travel_links = load_travel_links(arg, from_generated=from_generated)
+    core["travelLinks"] = travel_links
+    core["_meta"]["stats"]["travel_links"] = len(travel_links)
+
     with open(OUT, "w", encoding="utf-8") as fh:
         json.dump(core, fh, indent=1)
+
+    # Sidecar next to built map (and optional copy target for WINMRA).
+    travel_out = os.path.join(HERE, "travel_links.json")
+    with open(travel_out, "w", encoding="utf-8") as fh:
+        json.dump({"travelLinks": travel_links}, fh, indent=2)
 
     print(f"\nWrote {os.path.basename(OUT)}")
     print(f"  sectors total:        {len(sectors)}")
@@ -582,6 +613,7 @@ def main():
     print(f"  name conflicts:       {name_conflict}")
     print(f"  out of engine band:   {out_of_band}")
     print(f"  crushed same-MP:      {crushed}")
+    print(f"  travel links:         {len(travel_links)}")
     if "EWGB194225b" in sectors:
         h = sectors["EWGB194225b"]
         print(f"  spawn EWGB194225b:    MP({h['mp_x']},{h['mp_y']}) file={h['filename']} "
