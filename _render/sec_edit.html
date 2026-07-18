@@ -18,6 +18,9 @@
   canvas.tool-drop{ cursor:cell; }
   canvas.tool-select{ cursor:crosshair; }
   canvas.tool-paint{ cursor:crosshair; }
+  canvas.tool-fill{ cursor:cell; }
+  canvas.tool-stamp{ cursor:copy; }
+  button:disabled{ opacity:.45; cursor:default; }
   .wrap{ display:flex; flex-direction:column; height:calc(100vh - 50px); min-height:0; }
   .mainrow{ display:flex; flex:1; min-height:0; }
   .left{ flex:1; overflow:auto; padding:18px; display:flex; flex-direction:column; align-items:flex-start; gap:8px; }
@@ -72,9 +75,13 @@
   <span class="sp"></span>
   <span class="tools" id="tools">
     <button type="button" data-tool="paint" class="on" title="Paint (B)">Paint</button>
+    <button type="button" data-tool="fill" title="Flood fill (G) - Terrain/Object tabs. Click enclosed area">Fill</button>
     <button type="button" data-tool="drop" title="Eyedropper (I) - click a cell to pick its type">Eyedropper</button>
-    <button type="button" data-tool="select" title="Select / move (V) - drag a box, then drag the box to move">Select</button>
+    <button type="button" data-tool="select" title="Select / move (V) - drag box, Ctrl+C/X/V to copy cut paste">Select</button>
+    <button type="button" data-tool="stamp" title="Stamp (S) - click to paste clipboard repeatedly (copy a selection first)">Stamp</button>
   </span>
+  <button type="button" id="undo" title="Undo (Ctrl+Z)" disabled>Undo</button>
+  <button type="button" id="redo" title="Redo (Ctrl+Y)" disabled>Redo</button>
   <span class="hint">zoom</span>
   <button id="zout">-</button><span id="zlvl" class="stat">16</span><button id="zin">+</button>
   <button id="newbtn">New blank</button>
@@ -89,7 +96,7 @@
     <div class="left">
       <div id="ctxbar" class="ctxbar"></div>
       <div class="stage"><canvas id="cv"></canvas></div>
-      <div class="hint" id="toolhint">Center and neighbor edges load real .SEC data. Eyedropper samples live bytes. Use the reference dock below to clone from another SEC. Links tab tags custom falls/stairs/warps.</div>
+      <div class="hint" id="toolhint">Paint / Fill / Select / Stamp. Ctrl+Z undo, Ctrl+Y redo. Select a room then Ctrl+C and Stamp (S) to repeat it. Reference dock clones from another SEC. Links tab is for falls/stairs/warps.</div>
       <div id="readout" class="hint"></div>
     </div>
     <div class="right">
@@ -146,7 +153,7 @@
       </div>
       <div class="refstage">
         <div class="row">
-          <span class="hint">Select tool (V) works here too. Eyedropper samples reference. Ctrl+C copies from the focused canvas.</span>
+          <span class="hint">Select (V) + Ctrl+C copies. Stamp (S) or Ctrl+V pastes. Ctrl+Z undoes working-SEC edits.</span>
         </div>
         <canvas id="refcv" width="256" height="256"></canvas>
         <div class="hint" id="refreadout">Pick a SEC from the list to load it as a clone source.</div>
@@ -524,7 +531,7 @@ function drawSelectionOverlay(ox,oy){
   ctx.setLineDash([]);
 }
 
-// ---- tools: paint / eyedropper / select ----------------------------------
+// ---- tools: paint / fill / eyedropper / select / stamp -------------------
 let tool='paint';
 let selection=null;           // {r0,c0,r1,c1}
 let selDrag=null;             // {kind:'make'|'move', start:[r,c], cur:[r,c], grab:[r,c]}
@@ -533,12 +540,52 @@ let hoverCell=null;           // [r,c] — must be declared before any draw() ca
 let hoverEdge=null;           // 'N'|'E'|'S'|'W'
 let paintStrokeEdge=null;
 
+const HIST_MAX=50;
+let undoStack=[];
+let redoStack=[];
+let strokeHistPushed=false;
+
+function snapshotSec(){ return data.slice(0); }
+function updateHistButtons(){
+  const u=document.getElementById('undo'), r=document.getElementById('redo');
+  if(u) u.disabled=!undoStack.length;
+  if(r) r.disabled=!redoStack.length;
+}
+function resetHistory(){
+  undoStack.length=0; redoStack.length=0; strokeHistPushed=false;
+  updateHistButtons();
+}
+function pushHistory(){
+  undoStack.push(snapshotSec());
+  if(undoStack.length>HIST_MAX) undoStack.shift();
+  redoStack.length=0;
+  updateHistButtons();
+}
+function undoEdit(){
+  if(!undoStack.length) return;
+  redoStack.push(snapshotSec());
+  data.set(undoStack.pop());
+  centerPreview=null;
+  draw(); updateHistButtons();
+  document.getElementById('readout').textContent='Undo';
+}
+function redoEdit(){
+  if(!redoStack.length) return;
+  undoStack.push(snapshotSec());
+  data.set(redoStack.pop());
+  centerPreview=null;
+  draw(); updateHistButtons();
+  document.getElementById('readout').textContent='Redo';
+}
+document.getElementById('undo').onclick=()=>undoEdit();
+document.getElementById('redo').onclick=()=>redoEdit();
+
 function setTool(t){
   tool=t;
   [...document.querySelectorAll('#tools button')].forEach(b=>{
     b.classList.toggle('on', b.dataset.tool===t);
   });
-  cv.classList.remove('tool-paint','tool-drop','tool-select');
+  cv.classList.remove('tool-paint','tool-drop','tool-select','tool-fill','tool-stamp');
   cv.classList.add('tool-'+t);
   if(t!=='select'){ selDrag=null; }
   draw();
@@ -547,6 +594,7 @@ document.querySelectorAll('#tools button').forEach(b=>{
   b.onclick=()=>setTool(b.dataset.tool);
 });
 setTool('paint');
+updateHistButtons();
 
 function nameOf(kind, val){
   const list=kind==='terrain'?TERRAIN:kind==='object'?OBJECTS:kind==='wall'?WALLS:DOORS;
@@ -767,13 +815,15 @@ function copyRect(rect, buf){
   }
   return {w:rect.c1-rect.c0+1, h:rect.r1-rect.r0+1, cells};
 }
-function clearRect(rect){
+function clearRect(rect, opts){
+  if(!opts||!opts.noHist) pushHistory();
   for(let r=rect.r0;r<=rect.r1;r++) for(let c=rect.c0;c<=rect.c1;c++){
     const o=off(r,c);
     for(let i=0;i<CELL;i++) data[o+i]=0;
   }
 }
-function pasteRect(rect, blob, mergeClear){
+function pasteRect(rect, blob, mergeClear, opts){
+  if(!opts||!opts.noHist) pushHistory();
   let i=0;
   for(let r=rect.r0;r<=rect.r1;r++) for(let c=rect.c0;c<=rect.c1;c++){
     if(r<0||c<0||r>=PLAY||c>=PLAY){ i++; continue; }
@@ -793,9 +843,61 @@ function moveSelection(dr,dc){
     return;
   }
   const blob=copyRect(src);
-  clearRect(src);
-  pasteRect(dst, blob, true);
+  pushHistory();
+  clearRect(src, {noHist:true});
+  pasteRect(dst, blob, true, {noHist:true});
   selection=dst;
+}
+function floodFillAt(sr, sc, erase){
+  if(mode!=='terrain' && mode!=='object'){
+    document.getElementById('readout').textContent='Fill works on the Terrain or Object tabs (not walls/doors).';
+    return;
+  }
+  if(sr<0||sc<0||sr>=PLAY||sc>=PLAY) return;
+  ensureEditable();
+  const ch=mode==='terrain'?0:1;
+  const target=data[off(sr,sc)+ch];
+  const replace=erase?0:(mode==='terrain'?(sel.terrain|0):(sel.object|0));
+  if(target===replace){
+    document.getElementById('readout').textContent='Fill: already that value.';
+    return;
+  }
+  pushHistory();
+  const seen=new Uint8Array(PLAY*PLAY);
+  const stack=[[sr,sc]];
+  let n=0;
+  while(stack.length){
+    const [r,c]=stack.pop();
+    const key=r*PLAY+c;
+    if(seen[key]) continue;
+    seen[key]=1;
+    const o=off(r,c);
+    if(data[o+ch]!==target) continue;
+    data[o+ch]=replace;
+    n++;
+    if(r>0) stack.push([r-1,c]);
+    if(r<PLAY-1) stack.push([r+1,c]);
+    if(c>0) stack.push([r,c-1]);
+    if(c<PLAY-1) stack.push([r,c+1]);
+  }
+  document.getElementById('readout').textContent='Filled '+n+' cell(s).';
+  draw();
+}
+function stampAt(r,c){
+  if(!clip){
+    document.getElementById('readout').textContent='Stamp: copy a selection first (Select + Ctrl+C).';
+    return;
+  }
+  ensureEditable();
+  const dst={r0:r,c0:c,r1:r+clip.h-1,c1:c+clip.w-1};
+  if(dst.r1>=PLAY||dst.c1>=PLAY){
+    alert('Stamp does not fit at r'+r+' c'+c+' ('+clip.w+'x'+clip.h+').');
+    return;
+  }
+  pasteRect(dst, clip, true);
+  selection=dst;
+  document.getElementById('readout').textContent='Stamped '+clip.w+'x'+clip.h+' at r'+r+' c'+c+'. Click again to stamp more.';
+  draw();
 }
 
 // ---- painting ------------------------------------------------------------
@@ -867,7 +969,7 @@ let painting=false, eraseMode=false, mouseButtons=0, paintStrokeId=0;
 function syncMouseButtons(e){
   if(typeof e.buttons==='number') mouseButtons=e.buttons;
 }
-function stopPaintStroke(){ painting=false; }
+function stopPaintStroke(){ painting=false; strokeHistPushed=false; }
 window.addEventListener('mousedown',syncMouseButtons,true);
 window.addEventListener('mousemove',syncMouseButtons,true);
 window.addEventListener('mouseup',e=>{ syncMouseButtons(e); if(!mouseButtons) stopPaintStroke(); },true);
@@ -901,11 +1003,33 @@ cv.addEventListener('mousedown',e=>{
         setTool('paint');
         return;
       }
-      if(!p){
-        document.getElementById('readout').textContent='Click inside the blue editable box to paint.';
+      if(tool==='fill'){
+        e.preventDefault();
+        if(!p){
+          document.getElementById('readout').textContent='Fill: click inside the blue editable box.';
+          return;
+        }
+        if(!secLoaded) await ensureLoadedForEdit();
+        if(strokeId!==paintStrokeId) return;
+        floodFillAt(p[0], p[1], wantErase);
+        return;
+      }
+      if(tool==='stamp'){
+        e.preventDefault();
+        if(!p){
+          document.getElementById('readout').textContent='Stamp: click where the top-left of the clipboard should go.';
+          return;
+        }
+        if(!secLoaded) await ensureLoadedForEdit();
+        if(strokeId!==paintStrokeId) return;
+        stampAt(p[0], p[1]);
         return;
       }
       if(tool==='select'){
+        if(!p){
+          document.getElementById('readout').textContent='Select: drag inside the blue editable box.';
+          return;
+        }
         if(e.button===2){
           selection=null; selDrag=null; draw(); return;
         }
@@ -921,6 +1045,10 @@ cv.addEventListener('mousedown',e=>{
         return;
       }
       // paint — never leave painting=true if the button was released during async load
+      if(!p){
+        document.getElementById('readout').textContent='Click inside the blue editable box to paint.';
+        return;
+      }
       if(!secLoaded) await ensureLoadedForEdit();
       else ensureEditable();
       if(strokeId!==paintStrokeId) return;
@@ -928,6 +1056,7 @@ cv.addEventListener('mousedown',e=>{
       // Right-click erases the nearest edge (so S/E walls are removable).
       // Left-click paints using the N/E/S/W toggle.
       const useEdge=wantErase ? nearestEdgeInCell(e, p[0], p[1]) : edge;
+      if(!strokeHistPushed){ pushHistory(); strokeHistPushed=true; }
       paint(p[0],p[1],eraseMode, useEdge); draw();
       // Only continue the stroke while the initiating button is still held
       const held=wantErase ? (mouseButtons&2) : (mouseButtons&1);
@@ -983,9 +1112,13 @@ window.addEventListener('mouseup',()=>{
 window.addEventListener('keydown',e=>{
   if(e.target && (e.target.tagName==='INPUT'||e.target.tagName==='TEXTAREA'||e.target.tagName==='SELECT')) return;
   const k=e.key.toLowerCase();
+  if(e.ctrlKey&&k==='z'&&!e.shiftKey){ e.preventDefault(); undoEdit(); return; }
+  if((e.ctrlKey&&k==='y')||(e.ctrlKey&&e.shiftKey&&k==='z')){ e.preventDefault(); redoEdit(); return; }
   if(k==='b'){ setTool('paint'); return; }
+  if(k==='g'){ setTool('fill'); return; }
   if(k==='i'){ setTool('drop'); return; }
   if(k==='v'){ setTool('select'); return; }
+  if(k==='s'&&!e.ctrlKey){ setTool('stamp'); return; }
   if(k==='escape'){
     selection=null; selDrag=null;
     refSelection=null; refSelDrag=null;
@@ -999,13 +1132,22 @@ window.addEventListener('keydown',e=>{
   if(e.ctrlKey&&k==='c'){
     if(canvasFocus==='ref' && refSelection && refData){
       e.preventDefault(); clip=copyRect(refSelection, refData);
-      document.getElementById('refreadout').textContent='Copied '+clip.w+'x'+clip.h+' from reference';
+      document.getElementById('refreadout').textContent='Copied '+clip.w+'x'+clip.h+' from reference. Stamp (S) or Ctrl+V to place.';
       return;
     }
-    if(selection){ e.preventDefault(); clip=copyRect(selection); return; }
+    if(selection){
+      e.preventDefault();
+      clip=copyRect(selection);
+      document.getElementById('readout').textContent='Copied '+clip.w+'x'+clip.h+'. Stamp (S) or Ctrl+V to place.';
+      return;
+    }
   }
   if(e.ctrlKey&&k==='x'&&selection && canvasFocus==='main'){
-    e.preventDefault(); clip=copyRect(selection); clearRect(selection); draw(); return;
+    e.preventDefault();
+    clip=copyRect(selection);
+    clearRect(selection);
+    document.getElementById('readout').textContent='Cut '+clip.w+'x'+clip.h+'.';
+    draw(); return;
   }
   if(e.ctrlKey&&k==='v'&&clip){
     e.preventDefault();
@@ -1017,6 +1159,7 @@ window.addEventListener('keydown',e=>{
     pasteRect(dst, clip, true);
     selection=dst;
     canvasFocus='main';
+    document.getElementById('readout').textContent='Pasted '+clip.w+'x'+clip.h+'. Use Stamp (S) to repeat at click.';
     draw();
   }
 });
@@ -1450,7 +1593,7 @@ function setFilename(fn, label){
 function applyBuffer(buf, fn){
   const copy=copySecBuf(buf);
   if(!copy){ alert('Expected '+SIZE+' bytes (33x33x6), got '+(buf&&buf.length)+'. Not a valid .SEC.'); return false; }
-  data=copy; secLoaded=true; setFilename(fn); draw(); updateCtxBar(); return true;
+  data=copy; secLoaded=true; setFilename(fn); resetHistory(); draw(); updateCtxBar(); return true;
 }
 function loadCenterPreview(fn){
   if(!fn){ centerPreview=null; return; }
@@ -1615,6 +1758,7 @@ document.getElementById('newbtn').onclick=()=>{
   data=new Uint8Array(SIZE); secLoaded=true; centerPreview=null;
   const sug=(mapCtx&&mapCtx.suggestName)||'blank.SEC';
   setFilename(sug, mapCtx?'new sector for ('+mapCtx.col+','+mapCtx.row+') - '+sug:'no file - editing a blank sector');
+  resetHistory();
   draw();
 };
 document.getElementById('save').onclick=()=>downloadSec(filename);
@@ -1642,6 +1786,7 @@ document.getElementById('showctx').onchange=e=>{ showCtx=!!e.target.checked; res
       data=new Uint8Array(SIZE); secLoaded=true; centerPreview=null;
       setFilename(ctx.suggestName||'blank.SEC',
         'new sector @('+ctx.col+','+ctx.row+') Floor '+(ctx.level>0?'+':'')+ctx.level);
+      resetHistory();
     } else if(ctx.file){
       loadCenterPreview(ctx.file);
       setFilename(ctx.file, 'loading '+ctx.file+'...');
