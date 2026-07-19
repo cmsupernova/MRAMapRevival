@@ -329,6 +329,16 @@ function buildGrid(){
     COLS.forEach(c=>grid.appendChild(makeCell(c,r)));
   });
 }
+/** Center the gridpane on a map cell (default Haven-ish 26,16). */
+function scrollToCell(c, r){
+  const el = CELLS[c+','+r];
+  if(!el) return;
+  // Wait a frame so layout/zoom are applied.
+  requestAnimationFrame(()=>{
+    el.scrollIntoView({block:'center', inline:'center', behavior:'instant'});
+  });
+}
+const DEFAULT_VIEW_COL = 26, DEFAULT_VIEW_ROW = 16;
 function makeCell(c,r){
   const el=document.createElement('div'); el.className='cell'; el.dataset.c=c; el.dataset.r=r; CELLS[c+','+r]=el;
   el.addEventListener('dragover',e=>{e.preventDefault();el.classList.add('dragover');});
@@ -1049,6 +1059,7 @@ document.getElementById('legendtxt').textContent =
   'One map · '+(stats?(stats.by_source&&stats.by_source['2011']||0)+'×2011 + '+(stats.by_source&&stats.by_source['2006']||0)+'×2006':'')+
   ' · Floor 0 surface · blue=2011 green=2006';
 rebuildFloors(); buildGrid(); buildPalette(); renderReview(); DB.connect();
+scrollToCell(DEFAULT_VIEW_COL, DEFAULT_VIEW_ROW);
 
 (async function applyCustomSecSaves(){
   try{
@@ -1073,6 +1084,7 @@ rebuildFloors(); buildGrid(); buildPalette(); renderReview(); DB.connect();
     rebuildFloors();
     document.getElementById('legendtxt').textContent =
       'Placed '+pending.filename.replace('.SEC','')+' at ('+pending.col+','+pending.row+') '+floorLabel(FLOOR)+'.';
+    scrollToCell(pending.col, pending.row);
   }
   refreshCells();
   markUsed();
