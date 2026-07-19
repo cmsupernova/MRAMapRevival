@@ -230,9 +230,10 @@ function worldPos(sec,x){
   const p=sec.place;
   return p ? {r:(+p.row*32)+x.r,c:(+p.col*32)+x.c} : {r:x.r,c:x.c};
 }
-function pairCost(aSec,a,bSec,b){
+function pairCost(aSec,a,bSec,b,alignment){
   const ap=worldPos(aSec,a), bp=worldPos(bSec,b);
-  let cost=Math.abs(ap.r-bp.r)+Math.abs(ap.c-bp.c);
+  const ar=ap.r+(alignment?alignment.r:0), ac=ap.c+(alignment?alignment.c:0);
+  let cost=Math.abs(ar-bp.r)+Math.abs(ac-bp.c);
   const sa=edgeSide(a), sb=edgeSide(b);
   if(sa!==sb && sa!=='center' && sb!=='center') cost+=9;
   else if(sa!==sb) cost+=3;
@@ -257,17 +258,69 @@ function expectedSets(a,b){
   }
   return {lower:aLower?a:b,upper:aLower?b:a,aLower};
 }
-function greedyMatch(loSec,loEx,upSec,upEx){
+function alignmentHits(loSec,loEx,upSec,upEx,alignment){
   const pairs=[];
-  loEx.forEach((a,ai)=>upEx.forEach((b,bi)=>pairs.push({ai,bi,cost:pairCost(loSec,a,upSec,b)})));
+  loEx.forEach((a,ai)=>upEx.forEach((b,bi)=>{
+    const ap=worldPos(loSec,a),bp=worldPos(upSec,b);
+    const dist=Math.abs(ap.r+alignment.r-bp.r)+Math.abs(ap.c+alignment.c-bp.c);
+    if(dist<=1)pairs.push({ai,bi,dist});
+  }));
+  pairs.sort((x,y)=>x.dist-y.dist);
+  const usedA=new Set(),usedB=new Set(),hits=[];
+  pairs.forEach(p=>{
+    if(usedA.has(p.ai)||usedB.has(p.bi))return;
+    usedA.add(p.ai);usedB.add(p.bi);hits.push(p);
+  });
+  return hits;
+}
+function bestAlignment(loSec,loEx,upSec,upEx){
+  const offsets=new Map();
+  loEx.forEach(a=>upEx.forEach(b=>{
+    const ap=worldPos(loSec,a),bp=worldPos(upSec,b);
+    for(let dr=-1;dr<=1;dr++)for(let dc=-1;dc<=1;dc++){
+      if(Math.abs(dr)+Math.abs(dc)>1)continue;
+      const r=bp.r-ap.r-dr,c=bp.c-ap.c-dc;
+      offsets.set(r+','+c,{r,c});
+    }
+  }));
+  const ranked=[];
+  offsets.forEach(alignment=>{
+    const hits=alignmentHits(loSec,loEx,upSec,upEx,alignment);
+    if(!hits.length)return;
+    const totalDist=hits.reduce((n,h)=>n+h.dist,0);
+    const shape=hits.reduce((n,h)=>n+geometryPenalty(loSec,loEx[h.ai],upSec,upEx[h.bi]),0);
+    ranked.push({alignment,hits,totalDist,shape});
+  });
+  ranked.sort((a,b)=>b.hits.length-a.hits.length||a.totalDist-b.totalDist||a.shape-b.shape||
+    (Math.abs(a.alignment.r)+Math.abs(a.alignment.c))-(Math.abs(b.alignment.r)+Math.abs(b.alignment.c)));
+  if(!ranked.length)return null;
+  const best=ranked[0];
+  best.runner=0;
+  for(let i=1;i<ranked.length;i++){
+    const other=ranked[i];
+    if(Math.abs(other.alignment.r-best.alignment.r)+Math.abs(other.alignment.c-best.alignment.c)<=1)continue;
+    best.runner=other.hits.length;break;
+  }
+  return best;
+}
+function greedyMatch(loSec,loEx,upSec,upEx){
+  const best=bestAlignment(loSec,loEx,upSec,upEx);
+  const alignment=best?best.alignment:{r:0,c:0};
+  const groupN=best?best.hits.length:0,runner=best?best.runner:0;
+  const pairs=[];
+  loEx.forEach((a,ai)=>upEx.forEach((b,bi)=>pairs.push({ai,bi,cost:pairCost(loSec,a,upSec,b,alignment)})));
   pairs.sort((x,y)=>x.cost-y.cost);
   const usedA=new Set(),usedB=new Set(),out=[];
   for(const p of pairs){
     if(usedA.has(p.ai)||usedB.has(p.bi)) continue;
     usedA.add(p.ai); usedB.add(p.bi);
-    const choices=upEx.map((b,bi)=>({bi,cost:pairCost(loSec,loEx[p.ai],upSec,b)})).sort((x,y)=>x.cost-y.cost);
+    const choices=upEx.map((b,bi)=>({bi,cost:pairCost(loSec,loEx[p.ai],upSec,b,alignment)})).sort((x,y)=>x.cost-y.cost);
     const margin=choices.length>1?choices[1].cost-choices[0].cost:99;
-    out.push({lower:loEx[p.ai],upper:upEx[p.bi],cost:p.cost,confidence:confidence(p.cost,margin),selected:p.cost<=8.5});
+    let conf=confidence(p.cost,margin);
+    const strongGroup=groupN>=3&&(groupN-runner)>=Math.max(2,Math.floor(groupN*.25));
+    if((strongGroup||(groupN>=2&&runner===0))&&p.cost<=4.5)conf='high';
+    out.push({lower:loEx[p.ai],upper:upEx[p.bi],cost:p.cost,confidence:conf,selected:conf!=='low',
+      alignment,groupN,runner});
   }
   return out.sort((x,y)=>x.lower.r-y.lower.r||x.lower.c-y.lower.c);
 }
@@ -340,7 +393,7 @@ function renderRows(){
     dest.onchange=()=>{
       const opts=upper.transitions.filter(x=>x.kind==='down'||x.kind==='fall');
       c.upper=opts[+dest.value];
-      c.cost=pairCost(lower,c.lower,upper,c.upper);
+      c.cost=pairCost(lower,c.lower,upper,c.upper,c.alignment);
       c.confidence=confidence(c.cost,0);
       renderRows();redraw();updateSummary();
     };
@@ -383,6 +436,11 @@ async function scan(){
     if(!document.getElementById('prefix').value) document.getElementById('prefix').value=(baseName(lower.filename)+'_'+baseName(upper.filename)).replace(/[^a-z0-9_]+/gi,'_');
     const gap=lower.place&&upper.place?Math.abs(+lower.place.level-(+upper.place.level)):null;
     let note='Matched '+lo.length+' above cell(s) against '+hi.length+' below/fall cell(s). Gray markers are unmatched.';
+    if(candidates.length){
+      const c=candidates[0];
+      note+=' Best floor alignment: row '+(c.alignment.r>=0?'+':'')+c.alignment.r+', col '+(c.alignment.c>=0?'+':'')+c.alignment.c+
+        ' with '+c.groupN+' close pair(s).';
+    }
     if(gap!=null&&gap!==1) note+=' Warning: these SECs are '+gap+' floors apart; links usually join adjacent floors.';
     if(!loadedA.place||!loadedB.place) note+=' Warning: both SECs must be placed on the world map before export.';
     status.textContent=note;
