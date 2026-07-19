@@ -77,7 +77,7 @@
   <div class="options">
     <label>Floor relationship
       <select id="direction">
-        <option value="auto">Auto from world placement</option>
+        <option value="auto">Auto from transition geometry</option>
         <option value="aLower">A is lower, B is upper</option>
         <option value="aUpper">A is upper, B is lower</option>
       </select>
@@ -226,12 +226,11 @@ function edgeSide(x){
   const side=Object.keys(d).sort((a,b)=>d[a]-d[b])[0];
   return d[side]<=4?side:'center';
 }
-function worldPos(sec,x){
-  const p=sec.place;
-  return p ? {r:(+p.row*32)+x.r,c:(+p.col*32)+x.c} : {r:x.r,c:x.c};
+function matchPos(x){
+  return {r:x.r,c:x.c};
 }
 function pairCost(aSec,a,bSec,b,alignment){
-  const ap=worldPos(aSec,a), bp=worldPos(bSec,b);
+  const ap=matchPos(a), bp=matchPos(b);
   const ar=ap.r+(alignment?alignment.r:0), ac=ap.c+(alignment?alignment.c:0);
   let cost=Math.abs(ar-bp.r)+Math.abs(ac-bp.c);
   const sa=edgeSide(a), sb=edgeSide(b);
@@ -250,18 +249,29 @@ function expectedSets(a,b){
   let aLower;
   if(mode==='aLower') aLower=true;
   else if(mode==='aUpper') aLower=false;
-  else if(a.place&&b.place&&+a.place.level!==+b.place.level) aLower=+a.place.level<+b.place.level;
   else {
-    const at=scanTransitions(a,true), bt=scanTransitions(b,true);
-    const aUp=at.filter(x=>x.kind==='up').length, bUp=bt.filter(x=>x.kind==='up').length;
-    aLower=aUp>=bUp;
+    const score=(lo,up)=>{
+      const loEx=lo.transitions.filter(x=>x.kind==='up');
+      const upEx=up.transitions.filter(x=>x.kind==='down'||x.kind==='fall');
+      const best=bestAlignment(lo,loEx,up,upEx);
+      if(!best)return {matches:0,gap:0,coverage:0,totalDist:9999,shape:9999};
+      return {matches:best.hits.length,gap:best.hits.length-best.runner,
+        coverage:best.hits.length/Math.max(1,Math.min(loEx.length,upEx.length)),
+        totalDist:best.totalDist,shape:best.shape};
+    };
+    const ab=score(a,b),ba=score(b,a);
+    const rank=x=>[x.matches,x.gap,x.coverage,-x.totalDist,-x.shape];
+    const ar=rank(ab),br=rank(ba);
+    let cmp=0;
+    for(let i=0;i<ar.length;i++){if(ar[i]!==br[i]){cmp=ar[i]>br[i]?1:-1;break;}}
+    aLower=cmp>=0;
   }
   return {lower:aLower?a:b,upper:aLower?b:a,aLower};
 }
 function alignmentHits(loSec,loEx,upSec,upEx,alignment){
   const pairs=[];
   loEx.forEach((a,ai)=>upEx.forEach((b,bi)=>{
-    const ap=worldPos(loSec,a),bp=worldPos(upSec,b);
+    const ap=matchPos(a),bp=matchPos(b);
     const dist=Math.abs(ap.r+alignment.r-bp.r)+Math.abs(ap.c+alignment.c-bp.c);
     if(dist<=1)pairs.push({ai,bi,dist});
   }));
@@ -276,7 +286,7 @@ function alignmentHits(loSec,loEx,upSec,upEx,alignment){
 function bestAlignment(loSec,loEx,upSec,upEx){
   const offsets=new Map();
   loEx.forEach(a=>upEx.forEach(b=>{
-    const ap=worldPos(loSec,a),bp=worldPos(upSec,b);
+    const ap=matchPos(a),bp=matchPos(b);
     for(let dr=-1;dr<=1;dr++)for(let dc=-1;dc<=1;dc++){
       if(Math.abs(dr)+Math.abs(dc)>1)continue;
       const r=bp.r-ap.r-dr,c=bp.c-ap.c-dc;
@@ -326,7 +336,7 @@ function greedyMatch(loSec,loEx,upSec,upEx){
 }
 function placementText(sec){
   const p=sec&&sec.place;
-  return p?'@('+p.col+','+p.row+') L'+(+p.level>0?'+':'')+p.level:'not placed on current world map';
+  return p?'export destination @('+p.col+','+p.row+') L'+(+p.level>0?'+':'')+p.level:'not placed on current world map';
 }
 function endpoint(sec,x,label){
   const p=sec.place||{};
@@ -434,14 +444,13 @@ async function scan(){
     document.getElementById('metaA').textContent=placementText(loadedA);
     document.getElementById('metaB').textContent=placementText(loadedB);
     if(!document.getElementById('prefix').value) document.getElementById('prefix').value=(baseName(lower.filename)+'_'+baseName(upper.filename)).replace(/[^a-z0-9_]+/gi,'_');
-    const gap=lower.place&&upper.place?Math.abs(+lower.place.level-(+upper.place.level)):null;
     let note='Matched '+lo.length+' above cell(s) against '+hi.length+' below/fall cell(s). Gray markers are unmatched.';
     if(candidates.length){
       const c=candidates[0];
       note+=' Best floor alignment: row '+(c.alignment.r>=0?'+':'')+c.alignment.r+', col '+(c.alignment.c>=0?'+':'')+c.alignment.c+
         ' with '+c.groupN+' close pair(s).';
     }
-    if(gap!=null&&gap!==1) note+=' Warning: these SECs are '+gap+' floors apart; links usually join adjacent floors.';
+    note+=' World map X, Y, and Z placement were ignored while matching.';
     if(!loadedA.place||!loadedB.place) note+=' Warning: both SECs must be placed on the world map before export.';
     status.textContent=note;
     renderRows();redraw();
@@ -492,13 +501,6 @@ document.getElementById('high').onclick=()=>{candidates.forEach(c=>c.selected=c.
   const q=new URLSearchParams(location.search);
   if(q.get('a'))document.getElementById('fileA').value=q.get('a');
   if(q.get('b'))document.getElementById('fileB').value=q.get('b');
-  if(q.get('a')&&!q.get('b')){
-    const ap=placeFor(q.get('a'));
-    if(ap){
-      const near=effectivePlacements().filter(p=>p.filename&&+p.col===+ap.col&&+p.row===+ap.row&&Math.abs(+p.level-(+ap.level))===1);
-      if(near.length) document.getElementById('fileB').value=near[0].filename;
-    }
-  }
   if(document.getElementById('fileA').value&&document.getElementById('fileB').value)scan();
 })();
 </script>
