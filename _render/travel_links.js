@@ -71,6 +71,21 @@
     return n;
   }
 
+  function upsertMany(links) {
+    const list = load();
+    const saved = [];
+    (Array.isArray(links) ? links : []).forEach((link) => {
+      const n = normalizeLink(link);
+      if (!n) return;
+      const i = list.findIndex((x) => x.id === n.id);
+      if (i >= 0) list[i] = n;
+      else list.push(n);
+      saved.push(n);
+    });
+    if (saved.length) save(list);
+    return saved;
+  }
+
   function remove(id) {
     const list = load().filter((x) => x.id !== id);
     save(list);
@@ -122,6 +137,7 @@
     newId,
     normalizeLink,
     upsert,
+    upsertMany,
     remove,
     linksTouching,
     linksAtMapCell,

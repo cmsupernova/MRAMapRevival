@@ -83,6 +83,7 @@
   <button id="resetgen" title="Reload generated layout, clear local overrides">Reset to generated</button>
   <button id="export">Export</button>
   <button id="importbtn">Import</button><input id="importfile" type="file" accept=".json" style="display:none">
+  <a href="stair_match.html" class="legend">stair matcher</a>
   <a href="sec_cluster.html" class="legend">cluster detail</a>
   <a href="sec_edit.html" class="legend">SEC editor</a>
 </header>
@@ -708,6 +709,13 @@ function openEditor(c,r,evt){
       row.textContent='\u25B2 up r'+t.r+'c'+t.c+(sh?(' - '+sh.title):''); list.appendChild(row); });
     stairCells(p.filename,'down').forEach(t=>{ const row=document.createElement('div'); row.className='legend';
       row.textContent='\u25BC down r'+t.r+'c'+t.c; list.appendChild(row); });
+    if(sh){
+      const matchBtn=document.createElement('button');
+      matchBtn.textContent='Auto-match floor transitions';
+      matchBtn.style.cssText='width:100%;margin:6px 0;border-color:#5aa9ff';
+      matchBtn.onclick=()=>{ location.href='stair_match.html?a='+encodeURIComponent(p.filename); };
+      list.appendChild(matchBtn);
+    }
     const tls=(window.TravelLinks?TravelLinks.linksAtMapCell(c,r,FLOOR):[]);
     if(tls.length){
       const th=document.createElement('div'); th.className='legend'; th.style.marginTop='6px';

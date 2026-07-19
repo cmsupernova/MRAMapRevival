@@ -1,0 +1,448 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>MRA Stair Matcher</title>
+<style>
+  :root{ --bg:#16171c; --panel:#1f2128; --line:#343844; --txt:#d7dae2; --muted:#9aa0ad; --accent:#5aa9ff; }
+  *{ box-sizing:border-box; }
+  body{ margin:0; font:13px/1.4 system-ui,Segoe UI,Arial,sans-serif; background:var(--bg); color:var(--txt); }
+  header{ display:flex; gap:10px; align-items:center; padding:9px 12px; background:var(--panel); border-bottom:1px solid var(--line); flex-wrap:wrap; }
+  header h1{ font-size:16px; margin:0; }
+  header .sp{ flex:1; }
+  a{ color:var(--accent); }
+  button,input,select{ background:#292c35; color:var(--txt); border:1px solid var(--line); border-radius:6px; padding:7px 9px; font:inherit; }
+  button:hover{ border-color:var(--accent); cursor:pointer; }
+  button.primary{ border-color:var(--accent); background:#16344d; }
+  button:disabled{ opacity:.45; cursor:default; }
+  .wrap{ padding:14px; max-width:1500px; margin:auto; }
+  .controls{ display:grid; grid-template-columns:minmax(240px,1fr) minmax(240px,1fr) auto; gap:10px; align-items:end; background:var(--panel); border:1px solid var(--line); border-radius:8px; padding:12px; }
+  label{ display:flex; flex-direction:column; gap:4px; color:var(--muted); font-size:11px; }
+  label input,label select{ color:var(--txt); font-size:13px; }
+  .actions{ display:flex; gap:6px; flex-wrap:wrap; }
+  .options{ display:flex; gap:10px; flex-wrap:wrap; margin:9px 0; align-items:end; }
+  .options label{ min-width:170px; }
+  .status{ color:var(--muted); margin:8px 0; min-height:20px; }
+  .status.bad{ color:#ff9b9b; }
+  .views{ display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+  .view{ background:var(--panel); border:1px solid var(--line); border-radius:8px; padding:8px; min-width:0; }
+  .view h2{ font-size:13px; margin:0 0 6px; display:flex; justify-content:space-between; gap:8px; }
+  .stage{ position:relative; width:min(100%,560px); aspect-ratio:1; margin:auto; background:#08090c; overflow:hidden; border:1px solid #101116; }
+  .stage img{ width:100%; height:100%; display:block; image-rendering:auto; }
+  .markers{ position:absolute; inset:0; pointer-events:none; }
+  .mark{ position:absolute; width:22px; height:22px; margin:-11px 0 0 -11px; border:2px solid #fff; border-radius:50%; color:#fff; background:#111; font-size:10px; line-height:18px; font-weight:700; text-align:center; box-shadow:0 1px 5px #000; }
+  .mark.unmatched{ background:#4b4e58!important; border-color:#bbb!important; }
+  .legend{ font-size:11px; color:var(--muted); margin-top:6px; }
+  .review{ margin-top:12px; background:var(--panel); border:1px solid var(--line); border-radius:8px; padding:10px; }
+  .reviewhead{ display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-bottom:8px; }
+  .reviewhead strong{ font-size:14px; }
+  .reviewhead .sp{ flex:1; }
+  .rows{ display:flex; flex-direction:column; gap:5px; }
+  .row{ display:grid; grid-template-columns:28px 34px minmax(160px,1fr) 28px minmax(190px,1fr) 90px 34px; gap:7px; align-items:center; padding:6px; border:1px solid var(--line); border-radius:6px; background:#1a1c22; }
+  .num{ width:25px; height:25px; border-radius:50%; color:white; display:flex; align-items:center; justify-content:center; font-weight:700; }
+  .arrow{ text-align:center; color:var(--muted); }
+  .score{ font-size:10px; color:var(--muted); }
+  .score.high{ color:#67d67d; } .score.medium{ color:#e8c45b; } .score.low{ color:#ff8b8b; }
+  .row select{ min-width:0; width:100%; padding:5px; }
+  .empty{ color:var(--muted); padding:14px; text-align:center; }
+  @media(max-width:850px){
+    .controls,.views{ grid-template-columns:1fr; }
+    .row{ grid-template-columns:28px 30px 1fr; }
+    .row .dest,.row .score,.row .existing{ grid-column:3; }
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1>Stair / Floor Link Matcher</h1>
+  <span class="legend">Match terrain 0x05 (above) to 0x04 (below), with fall support.</span>
+  <span class="sp"></span>
+  <a href="sec_map.html">world map</a>
+  <a href="sec_edit.html">SEC editor</a>
+</header>
+<div class="wrap">
+  <div class="controls">
+    <label>SEC A
+      <input id="fileA" list="secNames" placeholder="Choose lower or upper SEC">
+    </label>
+    <label>SEC B
+      <input id="fileB" list="secNames" placeholder="Choose matching SEC">
+    </label>
+    <div class="actions">
+      <button id="swap">Swap</button>
+      <button id="scan" class="primary">Scan and match</button>
+    </div>
+  </div>
+  <datalist id="secNames"></datalist>
+  <div class="options">
+    <label>Floor relationship
+      <select id="direction">
+        <option value="auto">Auto from world placement</option>
+        <option value="aLower">A is lower, B is upper</option>
+        <option value="aUpper">A is upper, B is lower</option>
+      </select>
+    </label>
+    <label>Generated link name prefix
+      <input id="prefix" placeholder="e.g. unvil">
+    </label>
+    <label style="min-width:230px">
+      <span><input type="checkbox" id="includeFalls" checked> Include terrain falls (0x06 / 0x07)</span>
+    </label>
+  </div>
+  <div id="status" class="status">Choose two SECs. For a 3-floor stack, review one adjacent floor pair at a time.</div>
+
+  <div class="views">
+    <section class="view">
+      <h2><span id="titleA">SEC A</span><span id="countA" class="legend"></span></h2>
+      <div class="stage"><img id="imgA" alt=""><div id="marksA" class="markers"></div></div>
+      <div id="metaA" class="legend"></div>
+    </section>
+    <section class="view">
+      <h2><span id="titleB">SEC B</span><span id="countB" class="legend"></span></h2>
+      <div class="stage"><img id="imgB" alt=""><div id="marksB" class="markers"></div></div>
+      <div id="metaB" class="legend"></div>
+    </section>
+  </div>
+
+  <section class="review">
+    <div class="reviewhead">
+      <strong>Review proposed links</strong>
+      <span id="summary" class="legend">Nothing scanned yet.</span>
+      <span class="sp"></span>
+      <button id="all">Select all</button>
+      <button id="high">High confidence only</button>
+      <button id="approve" class="primary" disabled>Create approved travel links</button>
+    </div>
+    <div id="rows" class="rows"><div class="empty">Matches will appear here with the same number and color on both SECs.</div></div>
+  </section>
+</div>
+
+<script src="data.js"></script>
+<script src="unified_map.js"></script>
+<script src="sec_paths.js"></script>
+<script src="custom_secs.js"></script>
+<script src="travel_links.js"></script>
+<script>
+const GRID=33, PLAY=32, CELL=6, SIZE=GRID*GRID*CELL;
+const COLORS=['#45a3ff','#f06a6a','#67d67d','#c792ff','#e8c45b','#4ed6c8','#f28f45','#dc6ee8','#83a8ff','#91c94b','#ff70a6','#53c7ff','#d9a441','#8b8df5','#5ec68d','#ff8066','#62b6a8','#bc8cff','#d0b94e','#4cb8df'];
+const U=window.UNIFIED_MAP||{placements:[]};
+const LS_KEY='mra_unified_v1';
+let customByName=new Map();
+let placementByName=new Map();
+let loadedA=null, loadedB=null, lower=null, upper=null, candidates=[];
+
+function baseName(fn){ return String(fn||'').replace(/\.SEC$/i,''); }
+function canon(fn){
+  const want=String(fn||'').trim().toLowerCase();
+  return allNames().find(x=>x.toLowerCase()===want)||String(fn||'').trim();
+}
+function readBag(){ try{return JSON.parse(localStorage.getItem(LS_KEY)||'{}')||{};}catch(_e){return{};} }
+function effectivePlacements(){
+  const byCell={};
+  (U.placements||[]).forEach(p=>byCell[p.col+','+p.row+','+p.level]=Object.assign({},p));
+  const bag=readBag();
+  Object.entries(bag.overrides||{}).forEach(([k,p])=>{
+    if(!p||p.filename==='__cleared__') delete byCell[k];
+    else {
+      const [col,row,level]=k.split(',').map(Number);
+      byCell[k]=Object.assign({},p,{col,row,level});
+    }
+  });
+  return Object.values(byCell);
+}
+function rebuildPlacementIndex(){
+  placementByName=new Map();
+  effectivePlacements().forEach(p=>{
+    if(!p.filename) return;
+    const k=p.filename.toLowerCase();
+    if(!placementByName.has(k)) placementByName.set(k,[]);
+    placementByName.get(k).push(p);
+  });
+}
+function placeFor(fn){
+  const list=placementByName.get(String(fn||'').toLowerCase())||[];
+  return list[0]||null;
+}
+function allNames(){
+  const s=new Set(Object.keys(window.SEC_PATHS||{}));
+  ((window.MANIFEST&&MANIFEST.area)||[]).forEach(x=>s.add(x.filename));
+  ((window.MANIFEST&&MANIFEST.coordinate)||[]).forEach(x=>s.add(x.filename));
+  customByName.forEach((_v,k)=>s.add(k));
+  return [...s].sort((a,b)=>a.localeCompare(b));
+}
+function imageFor(fn){
+  const custom=customByName.get(fn);
+  if(custom&&custom.png) return custom.png;
+  const all=[...((window.MANIFEST&&MANIFEST.area)||[]),...((window.MANIFEST&&MANIFEST.coordinate)||[])];
+  const hit=all.find(x=>x.filename.toLowerCase()===fn.toLowerCase());
+  return hit&&hit.png ? hit.png : 'tiles/'+fn+'.png';
+}
+async function loadSec(fn){
+  fn=canon(fn);
+  const custom=customByName.get(fn);
+  if(custom&&custom.bytes){
+    const b=new Uint8Array(custom.bytes);
+    if(b.length===SIZE) return {filename:fn,bytes:b,place:placeFor(fn),png:imageFor(fn),custom:true};
+  }
+  const path=(window.SEC_PATHS||{})[fn]||'secs/'+fn;
+  const res=await fetch(path);
+  if(!res.ok) throw new Error('Could not load '+fn+' ('+res.status+')');
+  const b=new Uint8Array(await res.arrayBuffer());
+  if(b.length!==SIZE) throw new Error(fn+' is '+b.length+' bytes; expected '+SIZE);
+  return {filename:fn,bytes:b,place:placeFor(fn),png:imageFor(fn),custom:false};
+}
+function off(r,c){ return (r*GRID+c)*CELL; }
+function scanTransitions(sec,includeFalls){
+  const out=[];
+  for(let r=0;r<PLAY;r++) for(let c=0;c<PLAY;c++){
+    const o=off(r,c), t=sec.bytes[o], obj=sec.bytes[o+1];
+    if(t===5) out.push({r,c,kind:'up',terrain:t});
+    else if(t===4) out.push({r,c,kind:'down',terrain:t});
+    else if(includeFalls&&(t===6||t===7)) out.push({r,c,kind:'fall',terrain:t});
+    else if(includeFalls&&obj===7) out.push({r,c,kind:'fall',terrain:t,object:obj});
+  }
+  return out;
+}
+function passClass(sec,r,c){
+  if(r<0||c<0||r>=PLAY||c>=PLAY) return 0;
+  const o=off(r,c), t=sec.bytes[o];
+  if(t===0||t===2||t===3) return 1;
+  if(t>=4&&t<=7) return 3;
+  return 2;
+}
+function geometryPenalty(aSec,a,bSec,b){
+  let p=0;
+  for(let dr=-2;dr<=2;dr++) for(let dc=-2;dc<=2;dc++){
+    if(!dr&&!dc) continue;
+    if(passClass(aSec,a.r+dr,a.c+dc)!==passClass(bSec,b.r+dr,b.c+dc)) p+=0.35;
+    const ao=(a.r+dr>=0&&a.c+dc>=0&&a.r+dr<PLAY&&a.c+dc<PLAY)?off(a.r+dr,a.c+dc):-1;
+    const bo=(b.r+dr>=0&&b.c+dc>=0&&b.r+dr<PLAY&&b.c+dc<PLAY)?off(b.r+dr,b.c+dc):-1;
+    if(ao>=0&&bo>=0&&!!aSec.bytes[ao+1]!==!!bSec.bytes[bo+1]) p+=0.15;
+  }
+  return p;
+}
+function edgeSide(x){
+  const d={N:x.r,S:31-x.r,W:x.c,E:31-x.c};
+  const side=Object.keys(d).sort((a,b)=>d[a]-d[b])[0];
+  return d[side]<=4?side:'center';
+}
+function worldPos(sec,x){
+  const p=sec.place;
+  return p ? {r:(+p.row*32)+x.r,c:(+p.col*32)+x.c} : {r:x.r,c:x.c};
+}
+function pairCost(aSec,a,bSec,b){
+  const ap=worldPos(aSec,a), bp=worldPos(bSec,b);
+  let cost=Math.abs(ap.r-bp.r)+Math.abs(ap.c-bp.c);
+  const sa=edgeSide(a), sb=edgeSide(b);
+  if(sa!==sb && sa!=='center' && sb!=='center') cost+=9;
+  else if(sa!==sb) cost+=3;
+  cost+=geometryPenalty(aSec,a,bSec,b);
+  return cost;
+}
+function confidence(cost,margin){
+  if(cost<=3.5&&margin>=1) return 'high';
+  if(cost<=8.5) return 'medium';
+  return 'low';
+}
+function expectedSets(a,b){
+  const mode=document.getElementById('direction').value;
+  let aLower;
+  if(mode==='aLower') aLower=true;
+  else if(mode==='aUpper') aLower=false;
+  else if(a.place&&b.place&&+a.place.level!==+b.place.level) aLower=+a.place.level<+b.place.level;
+  else {
+    const at=scanTransitions(a,true), bt=scanTransitions(b,true);
+    const aUp=at.filter(x=>x.kind==='up').length, bUp=bt.filter(x=>x.kind==='up').length;
+    aLower=aUp>=bUp;
+  }
+  return {lower:aLower?a:b,upper:aLower?b:a,aLower};
+}
+function greedyMatch(loSec,loEx,upSec,upEx){
+  const pairs=[];
+  loEx.forEach((a,ai)=>upEx.forEach((b,bi)=>pairs.push({ai,bi,cost:pairCost(loSec,a,upSec,b)})));
+  pairs.sort((x,y)=>x.cost-y.cost);
+  const usedA=new Set(),usedB=new Set(),out=[];
+  for(const p of pairs){
+    if(usedA.has(p.ai)||usedB.has(p.bi)) continue;
+    usedA.add(p.ai); usedB.add(p.bi);
+    const choices=upEx.map((b,bi)=>({bi,cost:pairCost(loSec,loEx[p.ai],upSec,b)})).sort((x,y)=>x.cost-y.cost);
+    const margin=choices.length>1?choices[1].cost-choices[0].cost:99;
+    out.push({lower:loEx[p.ai],upper:upEx[p.bi],cost:p.cost,confidence:confidence(p.cost,margin),selected:p.cost<=8.5});
+  }
+  return out.sort((x,y)=>x.lower.r-y.lower.r||x.lower.c-y.lower.c);
+}
+function placementText(sec){
+  const p=sec&&sec.place;
+  return p?'@('+p.col+','+p.row+') L'+(+p.level>0?'+':'')+p.level:'not placed on current world map';
+}
+function endpoint(sec,x,label){
+  const p=sec.place||{};
+  return {name:label,filename:sec.filename,col:p.col!=null?+p.col:null,row:p.row!=null?+p.row:null,level:p.level!=null?+p.level:null,r:x.r,c:x.c};
+}
+function endKey(end){ return String(end.filename||'').toLowerCase()+':'+end.r+','+end.c; }
+function exactLinkExists(from,to){
+  const fk=endKey(from),tk=endKey(to);
+  return TravelLinks.load().some(L=>{
+    const a=endKey(L.from),b=endKey(L.to);
+    return (a===fk&&b===tk)||(L.bidirectional&&a===tk&&b===fk);
+  });
+}
+function triggerAlreadyUsed(end){
+  const k=endKey(end);
+  return TravelLinks.load().some(L=>endKey(L.from)===k||(L.bidirectional&&endKey(L.to)===k));
+}
+function marker(x,n,color,unmatched){
+  const d=document.createElement('div');
+  d.className='mark'+(unmatched?' unmatched':'');
+  d.textContent=n||'?';
+  d.style.left=((x.c+.5)/32*100)+'%';
+  d.style.top=((x.r+.5)/32*100)+'%';
+  d.style.background=color;
+  d.style.borderColor=color;
+  d.title=x.kind+' r'+x.r+'c'+x.c;
+  return d;
+}
+function redraw(){
+  const ma=document.getElementById('marksA'),mb=document.getElementById('marksB');
+  ma.innerHTML=''; mb.innerHTML='';
+  candidates.forEach((c,i)=>{
+    const color=COLORS[i%COLORS.length],n=i+1;
+    const aExit=lower===loadedA?c.lower:c.upper;
+    const bExit=lower===loadedA?c.upper:c.lower;
+    ma.appendChild(marker(aExit,n,color,false));
+    mb.appendChild(marker(bExit,n,color,false));
+  });
+  if(loadedA&&loadedB){
+    const usedA=new Set(candidates.map(c=>{const x=lower===loadedA?c.lower:c.upper;return x.r+','+x.c;}));
+    const usedB=new Set(candidates.map(c=>{const x=lower===loadedA?c.upper:c.lower;return x.r+','+x.c;}));
+    loadedA.activeTransitions.forEach(x=>{if(!usedA.has(x.r+','+x.c))ma.appendChild(marker(x,'',null,true));});
+    loadedB.activeTransitions.forEach(x=>{if(!usedB.has(x.r+','+x.c))mb.appendChild(marker(x,'',null,true));});
+  }
+}
+function destLabel(x){ return x.kind+' r'+x.r+'c'+x.c+' ['+edgeSide(x)+']'; }
+function renderRows(){
+  const rows=document.getElementById('rows');
+  rows.innerHTML='';
+  if(!candidates.length){ rows.innerHTML='<div class="empty">No compatible transition pairs found.</div>'; return; }
+  candidates.forEach((c,i)=>{
+    const color=COLORS[i%COLORS.length];
+    const row=document.createElement('div'); row.className='row';
+    const check=document.createElement('input'); check.type='checkbox'; check.checked=!!c.selected;
+    check.onchange=()=>{c.selected=check.checked;updateSummary();};
+    const num=document.createElement('div'); num.className='num';num.style.background=color;num.textContent=i+1;
+    const src=document.createElement('div'); src.textContent=destLabel(c.lower);
+    const arrow=document.createElement('div'); arrow.className='arrow';arrow.textContent=c.upper.kind==='fall'?'←':'↔';
+    const dest=document.createElement('select');dest.className='dest';
+    upper.transitions.filter(x=>x.kind==='down'||x.kind==='fall').forEach((x,idx)=>{
+      const o=document.createElement('option');o.value=idx;o.textContent=destLabel(x);
+      if(x===c.upper)o.selected=true;dest.appendChild(o);
+    });
+    dest.onchange=()=>{
+      const opts=upper.transitions.filter(x=>x.kind==='down'||x.kind==='fall');
+      c.upper=opts[+dest.value];
+      c.cost=pairCost(lower,c.lower,upper,c.upper);
+      c.confidence=confidence(c.cost,0);
+      renderRows();redraw();updateSummary();
+    };
+    const score=document.createElement('div');score.className='score '+c.confidence;score.textContent=c.confidence+' '+c.cost.toFixed(1);
+    const from=endpoint(lower,c.lower,'auto '+baseName(lower.filename));
+    const to=endpoint(upper,c.upper,'auto '+baseName(upper.filename));
+    const existing=document.createElement('div');existing.className='existing';
+    if(exactLinkExists(from,to)){existing.textContent='✓';existing.title='Exact link already exists';c.selected=false;check.checked=false;check.disabled=true;}
+    else if(triggerAlreadyUsed(from)||triggerAlreadyUsed(to)){existing.textContent='!';existing.title='One of these trigger cells is already linked';}
+    row.append(check,num,src,arrow,dest,score,existing);rows.appendChild(row);
+  });
+  updateSummary();
+}
+function updateSummary(){
+  const selected=candidates.filter(c=>c.selected).length;
+  document.getElementById('summary').textContent=candidates.length+' proposed, '+selected+' selected';
+  document.getElementById('approve').disabled=!selected;
+}
+async function scan(){
+  const status=document.getElementById('status');status.className='status';status.textContent='Loading SEC bytes...';
+  try{
+    rebuildPlacementIndex();
+    loadedA=await loadSec(document.getElementById('fileA').value);
+    loadedB=await loadSec(document.getElementById('fileB').value);
+    const includeFalls=document.getElementById('includeFalls').checked;
+    loadedA.transitions=scanTransitions(loadedA,includeFalls);
+    loadedB.transitions=scanTransitions(loadedB,includeFalls);
+    const rel=expectedSets(loadedA,loadedB);lower=rel.lower;upper=rel.upper;
+    const lo=lower.transitions.filter(x=>x.kind==='up');
+    const hi=upper.transitions.filter(x=>x.kind==='down'||x.kind==='fall');
+    loadedA.activeTransitions=loadedA===lower?lo:hi;
+    loadedB.activeTransitions=loadedB===lower?lo:hi;
+    candidates=greedyMatch(lower,lo,upper,hi);
+    document.getElementById('imgA').src=loadedA.png;document.getElementById('imgB').src=loadedB.png;
+    document.getElementById('titleA').textContent=loadedA.filename;document.getElementById('titleB').textContent=loadedB.filename;
+    document.getElementById('countA').textContent=loadedA.activeTransitions.length+' relevant transition cell(s)';
+    document.getElementById('countB').textContent=loadedB.activeTransitions.length+' relevant transition cell(s)';
+    document.getElementById('metaA').textContent=placementText(loadedA);
+    document.getElementById('metaB').textContent=placementText(loadedB);
+    if(!document.getElementById('prefix').value) document.getElementById('prefix').value=(baseName(lower.filename)+'_'+baseName(upper.filename)).replace(/[^a-z0-9_]+/gi,'_');
+    const gap=lower.place&&upper.place?Math.abs(+lower.place.level-(+upper.place.level)):null;
+    let note='Matched '+lo.length+' above cell(s) against '+hi.length+' below/fall cell(s). Gray markers are unmatched.';
+    if(gap!=null&&gap!==1) note+=' Warning: these SECs are '+gap+' floors apart; links usually join adjacent floors.';
+    if(!loadedA.place||!loadedB.place) note+=' Warning: both SECs must be placed on the world map before export.';
+    status.textContent=note;
+    renderRows();redraw();
+  }catch(err){
+    console.error(err);status.className='status bad';status.textContent=err&&err.message||String(err);
+  }
+}
+function approve(){
+  const prefix=(document.getElementById('prefix').value||'stairs').replace(/[^a-z0-9_]+/gi,'_');
+  const links=[];
+  candidates.forEach((c,i)=>{
+    if(!c.selected)return;
+    const lowerEnd=endpoint(lower,c.lower,prefix+' lower '+(i+1));
+    const upperEnd=endpoint(upper,c.upper,prefix+' upper '+(i+1));
+    if(exactLinkExists(lowerEnd,upperEnd))return;
+    const isFall=c.upper.kind==='fall';
+    links.push({
+      id:TravelLinks.newId(),
+      name:prefix+'_'+(i+1),
+      kind:isFall?'fall':'stair',
+      bidirectional:!isFall,
+      from:isFall?upperEnd:lowerEnd,
+      to:isFall?lowerEnd:upperEnd,
+      updated:Date.now()
+    });
+  });
+  const saved=TravelLinks.upsertMany(links);
+  document.getElementById('status').textContent='Created '+saved.length+' travel link(s). They will be included the next time you export the world map.';
+  renderRows();
+}
+document.getElementById('scan').onclick=scan;
+document.getElementById('swap').onclick=()=>{
+  const a=document.getElementById('fileA'),b=document.getElementById('fileB'),v=a.value;a.value=b.value;b.value=v;
+  const mode=document.getElementById('direction');if(mode.value==='aLower')mode.value='aUpper';else if(mode.value==='aUpper')mode.value='aLower';
+};
+document.getElementById('approve').onclick=approve;
+document.getElementById('all').onclick=()=>{candidates.forEach(c=>c.selected=true);renderRows();};
+document.getElementById('high').onclick=()=>{candidates.forEach(c=>c.selected=c.confidence==='high');renderRows();};
+
+(async function boot(){
+  try{
+    const custom=await CustomSecs.list();
+    (custom||[]).forEach(x=>{if(x&&x.filename)customByName.set(x.filename,x);});
+  }catch(e){console.warn(e);}
+  rebuildPlacementIndex();
+  const dl=document.getElementById('secNames');
+  allNames().forEach(fn=>{const o=document.createElement('option');o.value=fn;const p=placeFor(fn);o.label=p?fn+' @('+p.col+','+p.row+') L'+p.level:fn;dl.appendChild(o);});
+  const q=new URLSearchParams(location.search);
+  if(q.get('a'))document.getElementById('fileA').value=q.get('a');
+  if(q.get('b'))document.getElementById('fileB').value=q.get('b');
+  if(q.get('a')&&!q.get('b')){
+    const ap=placeFor(q.get('a'));
+    if(ap){
+      const near=effectivePlacements().filter(p=>p.filename&&+p.col===+ap.col&&+p.row===+ap.row&&Math.abs(+p.level-(+ap.level))===1);
+      if(near.length) document.getElementById('fileB').value=near[0].filename;
+    }
+  }
+  if(document.getElementById('fileA').value&&document.getElementById('fileB').value)scan();
+})();
+</script>
+</body>
+</html>
