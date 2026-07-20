@@ -354,6 +354,29 @@ def _travel_links_from_raw(raw):
     return links if isinstance(links, list) else []
 
 
+def travel_links_from_source_or_sidecar(raw):
+    """Honor an explicit export value; preserve sidecar links if key is absent."""
+    if isinstance(raw, dict) and (
+        "travelLinks" in raw or "travel_links" in raw
+    ):
+        return _travel_links_from_raw(raw), False
+    for path in (
+        os.path.join(HERE, "travel_links.json"),
+        os.path.join(HERE, "WINMRA", "travel_links.json"),
+    ):
+        if not os.path.isfile(path):
+            continue
+        try:
+            with open(path, "r", encoding="utf-8") as fh:
+                saved = json.load(fh)
+            links = _travel_links_from_raw(saved)
+            if links:
+                return links, True
+        except (OSError, ValueError):
+            continue
+    return [], False
+
+
 def load_travel_links(arg, from_generated=False):
     """Pull editor travelLinks from the same source as placements (if present)."""
     if from_generated and os.path.isfile(UNIFIED):
@@ -665,7 +688,9 @@ def main():
     core.pop("holes", None)
 
     source_raw = load_source_raw(arg, from_generated=from_generated)
-    travel_links = _travel_links_from_raw(source_raw)
+    travel_links, preserved_travel_links = travel_links_from_source_or_sidecar(
+        source_raw
+    )
     core["travelLinks"] = travel_links
     core["_meta"]["stats"]["travel_links"] = len(travel_links)
 
@@ -731,6 +756,8 @@ def main():
     print(f"  crushed same-MP:      {crushed}")
     print(f"  no free layer slot:   {layer_full}")
     print(f"  travel links:         {len(travel_links)}")
+    if preserved_travel_links:
+        print("  travel link source:   preserved existing sidecar (source omitted key)")
     print(f"  blue teleportals:     {tp_build.get('placed_blue_cells', 0)}")
     print(f"  teleportal rows:      {len(teleportal_registry.get('teleportals') or {})}")
     print(f"  teleportal labels:    {tp_build.get('grades', {})}")
