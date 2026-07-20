@@ -580,6 +580,7 @@ let selection=null;           // {r0,c0,r1,c1}
 let selDrag=null;             // {kind:'make'|'move', start:[r,c], cur:[r,c], grab:[r,c]}
 let clip=null;                // {w,h,cells:Uint8Array[]}
 let hoverCell=null;           // [r,c] — must be declared before any draw() call
+let tpFocusCell=null;         // Blue TP label focus highlight — must precede draw()
 let hoverEdge=null;           // 'N'|'E'|'S'|'W'
 let paintStrokeEdge=null;
 
@@ -1507,7 +1508,6 @@ document.getElementById('refsearch').addEventListener('input',e=>renderRefBrowse
 
 // ---- blue teleportal labels ----------------------------------------------
 let TP_LABELS=window.TeleportalLabels?TeleportalLabels.load():{};
-let tpFocusCell=null;
 
 function currentTpBase(){
   return window.TeleportalLabels?TeleportalLabels.base(filename):String(filename||'').replace(/\.SEC$/i,'');
