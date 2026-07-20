@@ -45,6 +45,11 @@
   .score.high{ color:#67d67d; } .score.medium{ color:#e8c45b; } .score.low{ color:#ff8b8b; }
   .row select{ min-width:0; width:100%; padding:5px; }
   .empty{ color:var(--muted); padding:14px; text-align:center; }
+  .existingbox{ margin-top:12px; background:var(--panel); border:1px solid var(--line); border-radius:8px; padding:10px; }
+  .existingbox h3{ margin:0 0 6px; font-size:13px; }
+  .exrow{ display:flex; gap:8px; align-items:flex-start; flex-wrap:wrap; padding:7px; border:1px solid var(--line); border-radius:6px; background:#1a1c22; margin:5px 0; font-size:12px; }
+  .exrow .meta{ color:var(--muted); flex:1; min-width:200px; }
+  .exrow .acts{ display:flex; gap:6px; }
   @media(max-width:850px){
     .controls,.views{ grid-template-columns:1fr; }
     .row{ grid-template-columns:28px 30px 1fr; }
@@ -90,6 +95,12 @@
     </label>
   </div>
   <div id="status" class="status">Choose two SECs. For a 3-floor stack, review one adjacent floor pair at a time.</div>
+
+  <div class="existingbox">
+    <h3>Existing links for A / B <span id="exCount" class="legend"></span></h3>
+    <div class="legend" style="margin-bottom:6px">Includes stair-matcher and manual links that touch either SEC. Delete mistakes here without scanning again.</div>
+    <div id="exList" class="empty">Pick SEC A or B to list saved travel links.</div>
+  </div>
 
   <div class="views">
     <section class="view">
@@ -472,6 +483,7 @@ function approve(){
       name:prefix+'_'+(i+1),
       kind:isFall?'fall':'stair',
       bidirectional:!isFall,
+      source:'stair_match',
       from:isFall?upperEnd:lowerEnd,
       to:isFall?lowerEnd:upperEnd,
       updated:Date.now()
@@ -480,15 +492,64 @@ function approve(){
   const saved=TravelLinks.upsertMany(links);
   document.getElementById('status').textContent='Created '+saved.length+' travel link(s). They will be included the next time you export the world map.';
   renderRows();
+  renderExistingLinks();
+}
+function renderExistingLinks(){
+  const box=document.getElementById('exList');
+  const countEl=document.getElementById('exCount');
+  const a=canon(document.getElementById('fileA').value);
+  const b=canon(document.getElementById('fileB').value);
+  const files=[a,b].filter(Boolean);
+  if(!files.length){
+    box.className='empty';
+    box.textContent='Pick SEC A or B to list saved travel links.';
+    countEl.textContent='';
+    return;
+  }
+  const list=TravelLinks.linksTouchingFiles(files);
+  list.sort((x,y)=>String(x.name||'').localeCompare(String(y.name||'')));
+  countEl.textContent='('+list.length+')';
+  if(!list.length){
+    box.className='empty';
+    box.textContent='No saved travel links touch '+files.map(baseName).join(' / ')+'.';
+    return;
+  }
+  box.className='';
+  box.innerHTML='';
+  list.forEach(L=>{
+    const row=document.createElement('div'); row.className='exrow';
+    const dir=L.bidirectional?'\u2194':'\u2192';
+    const src=TravelLinks.sourceLabel(L.source);
+    const head=document.createElement('div');
+    head.innerHTML='<strong>'+L.name+'</strong> <span class="legend">('+L.kind+', '+src+(L.bidirectional?', 2-way':', 1-way')+')</span>';
+    const meta=document.createElement('div'); meta.className='meta';
+    meta.textContent=TravelLinks.describeEnd(L.from)+' '+dir+' '+TravelLinks.describeEnd(L.to);
+    const acts=document.createElement('div'); acts.className='acts';
+    const del=document.createElement('button'); del.textContent='Delete';
+    del.onclick=()=>{
+      if(!confirm('Delete travel link "'+L.name+'"?')) return;
+      TravelLinks.remove(L.id);
+      renderExistingLinks();
+      renderRows();
+    };
+    acts.appendChild(del);
+    row.appendChild(head); row.appendChild(meta); row.appendChild(acts);
+    box.appendChild(row);
+  });
 }
 document.getElementById('scan').onclick=scan;
 document.getElementById('swap').onclick=()=>{
   const a=document.getElementById('fileA'),b=document.getElementById('fileB'),v=a.value;a.value=b.value;b.value=v;
   const mode=document.getElementById('direction');if(mode.value==='aLower')mode.value='aUpper';else if(mode.value==='aUpper')mode.value='aLower';
+  renderExistingLinks();
 };
 document.getElementById('approve').onclick=approve;
 document.getElementById('all').onclick=()=>{candidates.forEach(c=>c.selected=true);renderRows();};
 document.getElementById('high').onclick=()=>{candidates.forEach(c=>c.selected=c.confidence==='high');renderRows();};
+['fileA','fileB'].forEach(id=>{
+  document.getElementById(id).addEventListener('change', renderExistingLinks);
+  document.getElementById(id).addEventListener('input', renderExistingLinks);
+});
 
 (async function boot(){
   try{
@@ -501,6 +562,7 @@ document.getElementById('high').onclick=()=>{candidates.forEach(c=>c.selected=c.
   const q=new URLSearchParams(location.search);
   if(q.get('a'))document.getElementById('fileA').value=q.get('a');
   if(q.get('b'))document.getElementById('fileB').value=q.get('b');
+  renderExistingLinks();
   if(document.getElementById('fileA').value&&document.getElementById('fileB').value)scan();
 })();
 </script>

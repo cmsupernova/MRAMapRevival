@@ -1,6 +1,6 @@
 // Named custom travel / teleport links (holes, stairs, warps).
 // Sidecar metadata - destinations are NOT in .SEC bytes (CRT was lost).
-// Shared by sec_edit.html and sec_map.html; stored in mra_unified_v1.travelLinks.
+// Shared by sec_edit.html, sec_map.html, stair_match.html; stored in mra_unified_v1.travelLinks.
 (function (global) {
   const LS_KEY = 'mra_unified_v1';
 
@@ -54,6 +54,7 @@
       name: String(raw.name || '').trim() || (from.name && to.name ? from.name + '->' + to.name : 'unnamed'),
       kind: raw.kind || 'custom',
       bidirectional: !!raw.bidirectional,
+      source: raw.source || 'manual',
       from,
       to,
       updated: raw.updated || Date.now()
@@ -92,9 +93,22 @@
     return list;
   }
 
+  function filenameKey(fn) {
+    return String(fn || '')
+      .trim()
+      .replace(/\\/g, '/')
+      .split('/')
+      .pop()
+      .toLowerCase();
+  }
+
+  function endFilenameKey(end) {
+    return end ? filenameKey(end.filename) : '';
+  }
+
   function endMatches(end, opts) {
     if (!end || !opts) return false;
-    if (opts.filename && end.filename !== opts.filename) return false;
+    if (opts.filename && filenameKey(end.filename) !== filenameKey(opts.filename)) return false;
     if (opts.col != null && end.col != null && +end.col !== +opts.col) return false;
     if (opts.row != null && end.row != null && +end.row !== +opts.row) return false;
     if (opts.level != null && end.level != null && +end.level !== +opts.level) return false;
@@ -106,6 +120,20 @@
 
   function linksTouching(opts) {
     return load().filter((L) => endMatches(L.from, opts) || endMatches(L.to, opts));
+  }
+
+  function linksTouchingFiles(filenames) {
+    const keys = new Set(
+      (Array.isArray(filenames) ? filenames : [filenames])
+        .filter(Boolean)
+        .map(filenameKey)
+    );
+    if (!keys.size) return [];
+    return load().filter((L) => {
+      const a = endFilenameKey(L.from);
+      const b = endFilenameKey(L.to);
+      return (a && keys.has(a)) || (b && keys.has(b));
+    });
   }
 
   function linksAtMapCell(col, row, level) {
@@ -130,6 +158,12 @@
     return nm + ' · ' + fn + map + cell;
   }
 
+  function sourceLabel(src) {
+    if (src === 'stair_match') return 'stair matcher';
+    if (src === 'import') return 'imported';
+    return 'manual';
+  }
+
   global.TravelLinks = {
     LS_KEY,
     load,
@@ -139,9 +173,13 @@
     upsert,
     upsertMany,
     remove,
+    endMatches,
     linksTouching,
+    linksTouchingFiles,
     linksAtMapCell,
     describeEnd,
+    filenameKey,
+    sourceLabel,
     KINDS: [
       { id: 'custom', label: 'Custom' },
       { id: 'fall', label: 'Fall / hole' },

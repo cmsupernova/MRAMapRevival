@@ -64,6 +64,14 @@
   #hov { position:fixed; z-index:60; display:none; pointer-events:none; background:#111; border:1px solid var(--line); border-radius:6px; padding:4px; }
   #hov img { width:192px; height:192px; display:block; border-radius:4px; background:#000; }
   a { color:var(--accent); }
+  #tlmodal { display:none; position:fixed; inset:0; z-index:80; background:rgba(0,0,0,.55); align-items:center; justify-content:center; }
+  #tlmodal.on { display:flex; }
+  #tlbox { width:min(760px,94vw); max-height:84vh; overflow:auto; background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:12px 14px; }
+  #tlbox h2 { margin:0 0 8px; font-size:15px; }
+  #tlbox .tlrow { border:1px solid var(--line); border-radius:6px; padding:8px; margin:6px 0; background:#1a1c22; font-size:12px; }
+  #tlbox .tlrow .nm { font-weight:600; }
+  #tlbox .tlrow .meta { color:#9aa0ad; margin-top:3px; }
+  #tlbox .tlacts { display:flex; gap:6px; margin-top:6px; flex-wrap:wrap; }
 </style>
 </head>
 <body>
@@ -80,6 +88,7 @@
   <label class="legend" title="Drag keeps stamped assemblies separate"><input type="checkbox" id="moveassembly" checked> move by assembly</label>
   <label class="legend"><input type="checkbox" id="movepiece"> move single piece</label>
   <span id="sync" class="legend" style="cursor:pointer;color:#9aa0ad" title="click to set handle">local only</span>
+  <button id="travellinks" title="View / search / delete all travel links (manual + stair matcher)">Travel links</button>
   <button id="resetgen" title="Reload generated layout, clear local overrides">Reset to generated</button>
   <button id="export">Export</button>
   <button id="importbtn">Import</button><input id="importfile" type="file" accept=".json" style="display:none">
@@ -102,6 +111,33 @@
 </div>
 <div id="pop"></div>
 <div id="hov"></div>
+<div id="tlmodal">
+  <div id="tlbox">
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+      <h2 style="flex:1">Travel links</h2>
+      <button type="button" id="tlclose">Close</button>
+    </div>
+    <div class="legend" style="margin-bottom:8px">Manual links and stair-matcher links live here. Delete bad ones, or open a SEC to edit endpoints.</div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px">
+      <input id="tlfilter" type="search" placeholder="filter by name / SEC / kind..." style="flex:1;min-width:180px">
+      <select id="tlsource">
+        <option value="">All sources</option>
+        <option value="manual">Manual</option>
+        <option value="stair_match">Stair matcher</option>
+        <option value="import">Imported</option>
+      </select>
+      <select id="tlkind">
+        <option value="">All kinds</option>
+        <option value="custom">Custom</option>
+        <option value="stair">Stairs</option>
+        <option value="fall">Fall / hole</option>
+        <option value="warp">Warp</option>
+      </select>
+    </div>
+    <div id="tlcount" class="legend"></div>
+    <div id="tllist"></div>
+  </div>
+</div>
 
 <script src="data.js"></script>
 <script src="blocks.js"></script>
@@ -717,16 +753,33 @@ function openEditor(c,r,evt){
       list.appendChild(matchBtn);
     }
     const tls=(window.TravelLinks?TravelLinks.linksAtMapCell(c,r,FLOOR):[]);
-    if(tls.length){
+    // Also show all links that touch this SEC filename (stair matcher etc.), not only same map cell.
+    const byFile=(window.TravelLinks&&p)?TravelLinks.linksTouchingFiles([p.filename]):[];
+    const seenTl=new Set();
+    const allTl=[];
+    [...tls, ...byFile].forEach(L=>{ if(L&&L.id&&!seenTl.has(L.id)){ seenTl.add(L.id); allTl.push(L); } });
+    if(allTl.length){
       const th=document.createElement('div'); th.className='legend'; th.style.marginTop='6px';
-      th.textContent='Custom travel links:'; list.appendChild(th);
-      tls.forEach(L=>{
-        const row=document.createElement('div'); row.style.cssText='font-size:11px;padding:2px 0;';
+      th.textContent='Travel links on this SEC ('+allTl.length+'):'; list.appendChild(th);
+      allTl.forEach(L=>{
+        const row=document.createElement('div'); row.style.cssText='font-size:11px;padding:4px 0;border-top:1px solid #2c2f38';
         const dir=L.bidirectional?'\u2194':'\u2192';
-        row.textContent=L.name+' ('+L.kind+') '+dir;
+        const src=TravelLinks.sourceLabel(L.source);
+        const head=document.createElement('div');
+        head.textContent=L.name+' ('+L.kind+', '+src+(L.bidirectional?', 2-way':', 1-way')+')';
         const tip=document.createElement('div'); tip.className='legend';
-        tip.textContent=(window.TravelLinks?TravelLinks.describeEnd(L.from):'')+' '+dir+' '+(window.TravelLinks?TravelLinks.describeEnd(L.to):'');
-        list.appendChild(row); list.appendChild(tip);
+        tip.textContent=TravelLinks.describeEnd(L.from)+' '+dir+' '+TravelLinks.describeEnd(L.to);
+        const acts=document.createElement('div'); acts.style.cssText='display:flex;gap:6px;margin-top:3px';
+        const open=document.createElement('button'); open.textContent='Open SEC'; open.style.padding='2px 8px';
+        open.onclick=()=>openSecEditor(c,r,'edit');
+        const del=document.createElement('button'); del.textContent='Delete'; del.style.padding='2px 8px';
+        del.onclick=()=>{
+          if(!confirm('Delete travel link "'+L.name+'"?')) return;
+          TravelLinks.remove(L.id); saveLocal(); openEditor(c,r,evt); refreshCells();
+        };
+        acts.appendChild(open); acts.appendChild(del);
+        row.appendChild(head); row.appendChild(tip); row.appendChild(acts);
+        list.appendChild(row);
       });
     }
     pop.appendChild(list);
@@ -917,6 +970,79 @@ document.getElementById('resetgen').onclick=()=>{
   rebuildFloors(); refreshCells(); scheduleReview(); markUsed();
 };
 
+// ---- travel links manager ----
+function openTravelLinksModal(){
+  document.getElementById('tlmodal').classList.add('on');
+  renderTravelLinksModal();
+}
+function closeTravelLinksModal(){
+  document.getElementById('tlmodal').classList.remove('on');
+}
+function renderTravelLinksModal(){
+  const q=(document.getElementById('tlfilter').value||'').toLowerCase().trim();
+  const srcFilter=document.getElementById('tlsource').value;
+  const kindFilter=document.getElementById('tlkind').value;
+  let list=window.TravelLinks?TravelLinks.load():(TRAVEL_LINKS||[]);
+  list=list.filter(L=>{
+    if(srcFilter && (L.source||'manual')!==srcFilter) return false;
+    if(kindFilter && (L.kind||'custom')!==kindFilter) return false;
+    if(!q) return true;
+    const blob=[L.name,L.kind,L.source,
+      L.from&&L.from.filename,L.to&&L.to.filename,
+      L.from&&L.from.name,L.to&&L.to.name].join(' ').toLowerCase();
+    return blob.includes(q);
+  });
+  list.sort((a,b)=>String(a.name||'').localeCompare(String(b.name||'')));
+  document.getElementById('tlcount').textContent=list.length+' shown / '+(TravelLinks?TravelLinks.load().length:0)+' total';
+  const box=document.getElementById('tllist'); box.innerHTML='';
+  if(!list.length){
+    box.innerHTML='<div class="legend">No links match. Create some in the SEC editor Links tab or stair matcher, then Export.</div>';
+    return;
+  }
+  list.forEach(L=>{
+    const row=document.createElement('div'); row.className='tlrow';
+    const dir=L.bidirectional?'\u2194':'\u2192';
+    const src=TravelLinks.sourceLabel(L.source);
+    row.innerHTML='<div class="nm">'+L.name+' <span class="legend">('+L.kind+', '+src+(L.bidirectional?', 2-way':', 1-way')+')</span></div>'
+      +'<div class="meta">'+TravelLinks.describeEnd(L.from)+' '+dir+' '+TravelLinks.describeEnd(L.to)+'</div>';
+    const acts=document.createElement('div'); acts.className='tlacts';
+    const go=document.createElement('button'); go.textContent='Go to map cell';
+    go.onclick=()=>{
+      const end=L.from||L.to;
+      if(end&&end.col!=null&&end.row!=null){
+        FLOOR=clampFloor(end.level!=null?end.level:FLOOR);
+        rebuildFloors(); refreshCells();
+        scrollToCell(end.col, end.row);
+        closeTravelLinksModal();
+      } else alert('This link has no map col/row yet.');
+    };
+    const edit=document.createElement('button'); edit.textContent='Edit in SEC editor';
+    edit.onclick=()=>{
+      const end=L.from||L.to;
+      if(end&&end.col!=null&&end.row!=null){
+        FLOOR=clampFloor(end.level!=null?end.level:0);
+        openSecEditor(end.col, end.row, 'edit');
+      } else if(end&&end.filename){
+        location.href='sec_edit.html?file='+encodeURIComponent(end.filename);
+      } else alert('No SEC placement on this link.');
+    };
+    const del=document.createElement('button'); del.textContent='Delete';
+    del.onclick=()=>{
+      if(!confirm('Delete travel link "'+L.name+'"?')) return;
+      TravelLinks.remove(L.id); saveLocal(); renderTravelLinksModal(); refreshCells();
+    };
+    acts.appendChild(go); acts.appendChild(edit); acts.appendChild(del);
+    row.appendChild(acts); box.appendChild(row);
+  });
+}
+document.getElementById('travellinks').onclick=openTravelLinksModal;
+document.getElementById('tlclose').onclick=closeTravelLinksModal;
+document.getElementById('tlmodal').onclick=e=>{ if(e.target.id==='tlmodal') closeTravelLinksModal(); };
+['tlfilter','tlsource','tlkind'].forEach(id=>{
+  document.getElementById(id).addEventListener('input', renderTravelLinksModal);
+  document.getElementById(id).addEventListener('change', renderTravelLinksModal);
+});
+
 // ---- export / import ----
 document.getElementById('export').onclick=()=>{
   const placements=[];
@@ -983,7 +1109,12 @@ document.getElementById('importfile').addEventListener('change',e=>{
     }
     if(Array.isArray(o.portals)) PORTALS=o.portals;
     if(Array.isArray(o.travelLinks)){
-      TRAVEL_LINKS=o.travelLinks;
+      TRAVEL_LINKS=o.travelLinks.map(L=>{
+        const n=window.TravelLinks?TravelLinks.normalizeLink(L):L;
+        if(!n) return null;
+        if(!L.source) n.source='import';
+        return n;
+      }).filter(Boolean);
       if(window.TravelLinks) TravelLinks.save(TRAVEL_LINKS);
     }
     if(Array.isArray(o.ignored)){ IGNORED={}; o.ignored.forEach(k=>IGNORED[k]=true); }

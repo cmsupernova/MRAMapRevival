@@ -114,7 +114,7 @@
         <div class="pal" id="pal"></div>
       </div>
       <div id="linkpanel" style="display:none">
-        <div class="small">Tag two cells (working and/or reference SEC), name them, and link one-way or two-way. Stored with the map (not inside .SEC bytes).</div>
+        <div class="small">Travel links for the working SEC and reference SEC (manual + stair matcher). Stored with the map, not inside .SEC bytes.</div>
         <div class="linkform" id="linkform">
           <label>Link name<input id="lnName" placeholder="breedery"></label>
           <label>Kind<select id="lnKind"></select></label>
@@ -132,6 +132,13 @@
             <button type="button" id="lnSave" style="border-color:var(--accent)">Save link</button>
             <button type="button" id="lnClear">Clear form</button>
           </div>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:8px 0 4px">
+          <label class="hint" style="display:flex;gap:6px;align-items:center;margin:0">
+            <input type="checkbox" id="lnShowAll"> Show all links
+          </label>
+          <span class="hint" id="lnListCount"></span>
+          <a class="hint" href="stair_match.html" id="lnStairMatch">Stair matcher</a>
         </div>
         <div class="linklist" id="linklist"></div>
       </div>
@@ -1199,7 +1206,7 @@ function showRightTab(which){
 });
 {
   const lb=document.createElement('button'); lb.textContent='Links'; lb.dataset.rtab='links';
-  lb.title='Custom travel / teleport / fall links';
+  lb.title='Travel links for this SEC (manual + stair matcher)';
   lb.onclick=()=>showRightTab('links');
   tabsEl.appendChild(lb);
 }
@@ -1310,6 +1317,7 @@ async function loadReference(fn){
   document.getElementById('refreadout').textContent='Reference loaded. Select a region, then Copy from ref / Clone onto working.';
   renderRefBrowser(document.getElementById('refsearch').value);
   drawRef();
+  if(rightTab==='links') refreshLinkList();
 }
 
 function drawRefCell(buf,r,c,dx,dy){
@@ -1516,11 +1524,13 @@ document.getElementById('lnSave').onclick=()=>{
   draftTo.name=(document.getElementById('lnToName').value||'').trim()||draftTo.name;
   const linkName=(document.getElementById('lnName').value||'').trim()
     || (draftFrom.name&&draftTo.name?draftFrom.name+'-'+draftTo.name:'unnamed');
+  const prev=editingLinkId?TravelLinks.load().find(x=>x.id===editingLinkId):null;
   const saved=TravelLinks.upsert({
     id: editingLinkId||TravelLinks.newId(),
     name: linkName,
     kind: document.getElementById('lnKind').value||'custom',
     bidirectional: document.getElementById('lnBi').checked,
+    source: (prev&&prev.source)||'manual',
     from: draftFrom,
     to: draftTo,
     updated: Date.now()
@@ -1530,35 +1540,60 @@ document.getElementById('lnSave').onclick=()=>{
   document.getElementById('readout').textContent='Saved travel link "'+saved.name+'"'
     +(saved.bidirectional?' (two-way)':' (one-way)');
 };
+function currentLinkFiles(){
+  const files=[];
+  if(filename && filename!=='blank.SEC') files.push(filename);
+  if(mapCtx&&mapCtx.file) files.push(mapCtx.file);
+  if(typeof refFilename!=='undefined' && refFilename) files.push(refFilename);
+  return files;
+}
 function refreshLinkList(){
   const box=document.getElementById('linklist');
   box.innerHTML='';
+  const showAll=!!(document.getElementById('lnShowAll')&&document.getElementById('lnShowAll').checked);
+  const files=currentLinkFiles();
   const all=TravelLinks.load();
-  const relevant=all.filter(L=>{
-    if(mapCtx&&mapCtx.file){
-      if(L.from&&L.from.filename===mapCtx.file) return true;
-      if(L.to&&L.to.filename===mapCtx.file) return true;
-    }
-    if(filename && filename!=='blank.SEC'){
-      if(L.from&&L.from.filename===filename) return true;
-      if(L.to&&L.to.filename===filename) return true;
-    }
-    return true; // show all; small list for now
-  });
-  // Prefer links touching current file, then rest
+  let relevant;
+  if(showAll || !files.length){
+    relevant=all.slice();
+  } else {
+    relevant=TravelLinks.linksTouchingFiles(files);
+  }
   relevant.sort((a,b)=>{
-    const touch=L=> (L.from&&(L.from.filename===filename||(mapCtx&&L.from.filename===mapCtx.file)))
-      || (L.to&&(L.to.filename===filename||(mapCtx&&L.to.filename===mapCtx.file)));
-    return (touch(b)?1:0)-(touch(a)?1:0);
+    const touch=L=>{
+      const keys=files.map(TravelLinks.filenameKey);
+      const a=TravelLinks.filenameKey(L.from&&L.from.filename);
+      const c=TravelLinks.filenameKey(L.to&&L.to.filename);
+      return keys.includes(a)||keys.includes(c);
+    };
+    const ta=touch(a)?1:0, tb=touch(b)?1:0;
+    if(tb!==ta) return tb-ta;
+    return String(a.name||'').localeCompare(String(b.name||''));
   });
+  const countEl=document.getElementById('lnListCount');
+  if(countEl){
+    countEl.textContent=showAll
+      ? (relevant.length+' total')
+      : (relevant.length+' on this SEC'+(files.length?(' / '+all.length+' total'):''));
+  }
+  const stairA=files[0]?('stair_match.html?a='+encodeURIComponent(files[0])):'stair_match.html';
+  const stairEl=document.getElementById('lnStairMatch');
+  if(stairEl){
+    if(files[0]&&files[1]&&TravelLinks.filenameKey(files[0])!==TravelLinks.filenameKey(files[1])){
+      stairEl.href=stairA+'&b='+encodeURIComponent(files[1]);
+    } else stairEl.href=stairA;
+  }
   if(!relevant.length){
-    box.innerHTML='<div class="hint">No custom travel links yet.</div>';
+    box.innerHTML=showAll
+      ? '<div class="hint">No travel links saved yet. Use this form or the stair matcher.</div>'
+      : '<div class="hint">No links touch the working'+(refFilename?' / reference':'')+' SEC. Enable "Show all links" or open the stair matcher.</div>';
     return;
   }
   relevant.forEach(L=>{
     const card=document.createElement('div'); card.className='linkcard';
     const dir=L.bidirectional?'\u2194':'\u2192';
-    card.innerHTML='<div class="nm">'+L.name+' <span class="hint">('+L.kind+(L.bidirectional?', 2-way':', 1-way')+')</span></div>'
+    const src=TravelLinks.sourceLabel(L.source);
+    card.innerHTML='<div class="nm">'+L.name+' <span class="hint">('+L.kind+(L.bidirectional?', 2-way':', 1-way')+', '+src+')</span></div>'
       +'<div class="meta">'+TravelLinks.describeEnd(L.from)+' '+dir+' '+TravelLinks.describeEnd(L.to)+'</div>';
     const acts=document.createElement('div'); acts.className='acts';
     const ed=document.createElement('button'); ed.textContent='Edit';
@@ -1578,6 +1613,7 @@ function refreshLinkList(){
     box.appendChild(card);
   });
 }
+document.getElementById('lnShowAll').onchange=()=>refreshLinkList();
 
 (async function bootRefDock(){
   await collectSecNames();
@@ -1593,7 +1629,9 @@ function setFilename(fn, label){
 function applyBuffer(buf, fn){
   const copy=copySecBuf(buf);
   if(!copy){ alert('Expected '+SIZE+' bytes (33x33x6), got '+(buf&&buf.length)+'. Not a valid .SEC.'); return false; }
-  data=copy; secLoaded=true; setFilename(fn); resetHistory(); draw(); updateCtxBar(); return true;
+  data=copy; secLoaded=true; setFilename(fn); resetHistory(); draw(); updateCtxBar();
+  if(rightTab==='links') refreshLinkList();
+  return true;
 }
 function loadCenterPreview(fn){
   if(!fn){ centerPreview=null; return; }
