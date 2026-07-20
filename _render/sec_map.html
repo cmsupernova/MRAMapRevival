@@ -146,6 +146,8 @@
 <script src="unified_map.js"></script>
 <script src="custom_secs.js"></script>
 <script src="travel_links.js"></script>
+<script src="teleportal_registry.js"></script>
+<script src="teleportal_labels.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
 const U = window.UNIFIED_MAP || {grid:{w:56,h:56},placements:[],guides:{},guide_labels:{},review:{},levels:[0],floor_labels:{'0':'Floor 0'},surface_level:0,_meta:{stats:{}}};
@@ -168,6 +170,7 @@ let overrides = {}; // same key shape; null means cleared
 let INTERIORS = [];
 let PORTALS = [];
 let TRAVEL_LINKS = [];
+let TELEPORTAL_LABELS = {};
 let IGNORED = {};
 let acceptedStacks = {}; // cluster id -> true
 
@@ -236,9 +239,12 @@ function loadLocal(){
     INTERIORS = Array.isArray(o.interiors)?o.interiors:[];
     PORTALS = Array.isArray(o.portals)?o.portals:[];
     TRAVEL_LINKS = Array.isArray(o.travelLinks)?o.travelLinks:(window.TravelLinks?TravelLinks.load():[]);
+    TELEPORTAL_LABELS = window.TeleportalLabels
+      ? TeleportalLabels.importAny({teleportalLabels:o.teleportalLabels||{}}, TeleportalLabels.load())
+      : (o.teleportalLabels&&typeof o.teleportalLabels==='object'?o.teleportalLabels:{});
     IGNORED = (o.ignored&&typeof o.ignored==='object')?o.ignored:{};
     acceptedStacks = (o.acceptedStacks&&typeof o.acceptedStacks==='object')?o.acceptedStacks:{};
-  }catch(e){ overrides={}; INTERIORS=[]; PORTALS=[]; TRAVEL_LINKS=[]; IGNORED={}; acceptedStacks={}; }
+  }catch(e){ overrides={}; INTERIORS=[]; PORTALS=[]; TRAVEL_LINKS=[]; TELEPORTAL_LABELS={}; IGNORED={}; acceptedStacks={}; }
 }
 function saveLocal(){
   let travelLinks = TRAVEL_LINKS;
@@ -253,6 +259,7 @@ function saveLocal(){
   TRAVEL_LINKS = travelLinks;
   localStorage.setItem(LS_KEY, JSON.stringify({
     overrides, interiors:INTERIORS, portals:PORTALS, travelLinks,
+    teleportalLabels:TELEPORTAL_LABELS,
     ignored:IGNORED, acceptedStacks
   }));
 }
@@ -1085,10 +1092,11 @@ document.getElementById('export').onclick=()=>{
       '1':'Floor +1 · layer c'
     },
     placements, portals:PORTALS, travelLinks:(window.TravelLinks?TravelLinks.load():TRAVEL_LINKS),
+    teleportalLabels:TELEPORTAL_LABELS,
     ignored:Object.keys(IGNORED), interiors:INTERIORS,
     acceptedStacks:Object.keys(acceptedStacks),
     overrides:overrides,
-    _note:'Unified map export. Engine supports exactly 3 floors (-1/0/+1 = layers a/b/c). travelLinks are custom falls/stairs/warps.'
+    _note:'Unified map export. Engine supports exactly 3 floors (-1/0/+1 = layers a/b/c). travelLinks are custom falls/stairs/warps. teleportalLabels name blue object-0x01 cells.'
       +(off?(' WARNING: '+off+' legacy placement(s) remain on floors outside -1/0/+1.'):'')
   };
   const blob=new Blob([JSON.stringify(out,null,1)],{type:'application/json'});
@@ -1117,12 +1125,20 @@ document.getElementById('importfile').addEventListener('change',e=>{
       }).filter(Boolean);
       if(window.TravelLinks) TravelLinks.save(TRAVEL_LINKS);
     }
+    if(window.TeleportalLabels){
+      TELEPORTAL_LABELS=TeleportalLabels.importAny(o,TELEPORTAL_LABELS);
+      TeleportalLabels.save(TELEPORTAL_LABELS);
+    } else if(o.teleportalLabels&&typeof o.teleportalLabels==='object'){
+      TELEPORTAL_LABELS=Object.assign({},TELEPORTAL_LABELS,o.teleportalLabels);
+    }
     if(Array.isArray(o.ignored)){ IGNORED={}; o.ignored.forEach(k=>IGNORED[k]=true); }
     else if(o.ignored&&typeof o.ignored==='object') IGNORED=o.ignored;
     if(Array.isArray(o.interiors)) INTERIORS=o.interiors;
     if(Array.isArray(o.acceptedStacks)){ acceptedStacks={}; o.acceptedStacks.forEach(id=>acceptedStacks[id]=true); }
     saveLocal(); rebuildFloors(); refreshCells(); scheduleReview(); markUsed();
-    alert('Imported unified map overrides.');
+    const labelOnly=!o.overrides&&!Array.isArray(o.placements)
+      && (!!o.labels||!!o.teleportals||!!o.teleportalLabels);
+    alert(labelOnly?'Imported blue teleportal labels.':'Imported unified map overrides and metadata.');
   }catch(err){ alert('Bad JSON: '+err); } };
   rd.readAsText(f);
 });

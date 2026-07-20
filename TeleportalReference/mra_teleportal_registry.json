@@ -1,0 +1,117 @@
+{
+  "_provenance": "[DESIGN / seeded 2026-07-16] Teleportal name -> tile binding registry per MD/TELEPORTAL.md §4.2 (the JSON-equivalent of the LOST per-sector .MSG '#'-square-functions). Seeded ONLY with verified/recorded bindings; every unknown field is JSON null = OPEN, which consumers MUST treat as 'unknown -> refuse honestly', never a default. Jump DESTINATIONS lived in the unrecovered content layer (SEC object byte-5 == 0x00 on every surviving teleportal cell; the authored .MSG/.CRT companions are LOST) and remain null for all entries. All teleportals keys are validated against reference/dumps/teleporter_names.json valid_names (353 VERIFIED-OBSERVED live-server names).",
+  "authority": "binary > ITEMS.TXT > creator manuals > wiki (CLAUDE.md §0)",
+  "_schema": {
+    "sector_base": "str|null  SEC base name (key into world_map.json sectors); null = OPEN",
+    "x": "int|null  intra-sector col 0..31 (col 0 = WEST); null = OPEN",
+    "y": "int|null  intra-sector row 0..31 (row 0 = NORTH); null = OPEN",
+    "world": "{x,y,layer}|null  the same tile in mra_stub.py WorldMap world coords (convenience; derived mechanically from sector_base+x+y via world_map.json, ready for player.x/player.y/player.layer assignment)",
+    "color": "'blue'|'green'|'red'|null",
+    "subtype": "int|null  SEC object byte-1 in {1,2,3,4} (1=Teleportal 2=Room 3=Instant 4=Invisible, GT §13b)",
+    "level_req": "int|null  gameplay:travel level gate; null = none documented",
+    "dest": "{sector_base,x,y,layer}|null  JUMP target; null = OPEN/LOST (.CRT/.MSG content layer)",
+    "_evidence": "str  human-facing provenance for the row; engine ignores underscore-prefixed keys"
+  },
+  "teleportals": {
+    "HAV_CHURCH": {
+      "sector_base": "EWGB162193b",
+      "x": 8,
+      "y": 25,
+      "world": {
+        "x": 456,
+        "y": 379,
+        "layer": "b"
+      },
+      "color": "blue",
+      "subtype": 1,
+      "level_req": null,
+      "dest": null,
+      "_evidence": "[DERIVED binding / VERIFIED tile] RE-PINNED 2026-07-19 for the NEW FINAL world map (world_map.json 310-sector layout + updated MAPS). Owner walk-recorded MEMORIZE on the Haven church teleportal at world(456,379,b). SAME physical cell as before -- sector EWGB162193b intra (col=8,row=25), byte-VERIFIED via the stub WorldMap: MAPS/EWGB162193b.SEC offset 4998 = 10 01 00 00 00 00 (b1=0x01 TELEPORTAL, b5=0x00); only the ABSOLUTE world coord moved because the new map places EWGB162193b at block 14,11 (was 3,5). Pre-new-map coord was world(104,187,b). Name HAV_CHURCH VERIFIED-OBSERVED (all 3 live dumps); name<->tile DERIVED (owner report + byte). This is the recall_destination, so RECALL lands here."
+    },
+    "HAV_INN": {
+      "sector_base": "EWGB194225b",
+      "x": 3,
+      "y": 6,
+      "world": {
+        "x": 451,
+        "y": 392,
+        "layer": "b"
+      },
+      "color": "blue",
+      "subtype": 1,
+      "level_req": null,
+      "dest": null,
+      "_evidence": "[DERIVED binding / VERIFIED tile] RE-PINNED 2026-07-19 on the NEW final world map. Owner walk-recorded MEMORIZE on the Haven inn teleportal at world(451,392,b). SAME physical cell as the old-map pin -- sector EWGB194225b intra (col=3,row=6), byte-VERIFIED via the stub WorldMap: raw rec 17 01 e0 00 00 00 (b1=0x01 TELEPORTAL, b5=0x00), identical bytes to the old map; only the ABSOLUTE world coord moved (sector repositioned to block 14,12; was world(99,200,b) on the 117-sector map). The pre-re-record diagnostic guess of world(451,392,b) matched exactly -- confirming EWGB194225b's sector+intra was stable across the map change (unlike KOFOR/HAV_COM's DQEV194225b, which was removed). Name HAV_INN VERIFIED-OBSERVED; name<->tile DERIVED (owner report + byte)."
+    },
+    "KOFOR": {
+      "sector_base": "kokas1",
+      "x": 21,
+      "y": 13,
+      "world": {
+        "x": 437,
+        "y": 399,
+        "layer": "b"
+      },
+      "color": "blue",
+      "subtype": 1,
+      "level_req": null,
+      "dest": null,
+      "_evidence": "[DERIVED binding / VERIFIED tile] RE-PINNED 2026-07-19 on the NEW final world map. Owner walk-recorded MEMORIZE on the KOFOR teleportal at world(437,399,b). Byte-VERIFIED via the stub WorldMap: sector 'kokas1' (MAPS/kokas1.SEC) intra (col=21,row=13), raw rec 1b 01 84 00 00 00 (b1=0x01 TELEPORTAL, b5=0x00). NOTE: the KOFOR content was RELOCATED, not removed -- the old 'KOKAS + KOFOR' sector DQEV194225b was reorganized/renamed to 'kokas1' in the new map (correcting the earlier 'DQEV194225b removed -> KOFOR fully lost' note). Old-map pin was world(84,206,b). Name KOFOR VERIFIED-OBSERVED (sole KOFOR* roster name); name<->tile DERIVED (owner report + byte). The sibling HAV_COM (also in the old KOKAS+KOFOR sector) is likely in/near kokas1 too but stays STALE until walk-recorded -- do NOT guess it."
+    },
+    "HAV_COM": {
+      "sector_base": "kokas1",
+      "x": 31,
+      "y": 10,
+      "world": {
+        "x": 447,
+        "y": 396,
+        "layer": "b"
+      },
+      "color": "blue",
+      "subtype": 1,
+      "level_req": null,
+      "dest": null,
+      "_evidence": "[DERIVED binding / VERIFIED tile] RE-PINNED 2026-07-19 on the NEW final world map. Owner walk-recorded MEMORIZE on the HAV_COM teleportal at world(447,396,b). Byte-VERIFIED via the stub WorldMap: sector 'kokas1' (MAPS/kokas1.SEC) intra (col=31,row=10), raw rec 14 01 84 00 00 00 (b1=0x01 TELEPORTAL, b5=0x00). Confirms HAV_COM sits in the SAME sector as KOFOR (kokas1, the reorganized old 'KOKAS + KOFOR' / DQEV194225b) -- the geographic expectation held, but was still walk-recorded rather than guessed. Old-map pin was world(94,203,b). Name HAV_COM VERIFIED-OBSERVED (all 3 live dumps); name<->tile DERIVED (owner report + byte)."
+    },
+    "HAV_BANK": {
+      "sector_base": "haven1_spawn",
+      "x": 5,
+      "y": 22,
+      "world": null,
+      "color": "blue",
+      "subtype": 1,
+      "level_req": null,
+      "dest": null,
+      "_grade": "DERIVED",
+      "_evidence": "[DERIVED binding / VERIFIED tile] Labeled 2026-07-20 with the SEC teleportal labeler. Tile byte-VERIFIED: sector haven1_spawn intra (col=5,row=22), object subtype 1 (Teleportal (blue/public)). Name is VERIFIED-OBSERVED (reference/dumps/teleporter_names.json); name<->tile binding is DERIVED (human map/geography judgement, NOT a live walk-record). dest LOST (.MSG content layer). Re-confirm by live MEMORIZE when possible."
+    },
+    "VERBONIC": {
+      "sector_base": "verbonic3",
+      "x": 7,
+      "y": 18,
+      "world": { "x": 391, "y": 436, "layer": "b" },
+      "color": "blue",
+      "subtype": 1,
+      "level_req": null,
+      "dest": null,
+      "_evidence": "[DERIVED binding / VERIFIED tile] Live-recorded 2026-07-19 on the NEW final world map: owner MEMORIZE'd on the VERBONIC (town) teleportal at world(391,436,b). Byte-VERIFIED via the stub WorldMap: sector 'verbonic3' (MAPS/verbonic3.SEC) intra (col=7,row=18), raw rec 18 01 42 04 00 00 (b1=0x01 TELEPORTAL, b5=0x00). Name VERBONIC VERIFIED-OBSERVED (in the live TP dumps, reference/dumps/teleporter_names.json); the sector filename 'verbonic3' corroborates. NOTE: Verbonic also has VER_ARENA/VER_PUB/VER_TOPC/VER_TOPF teleportals in the roster (distinct cells, NOT pinned -- walk-record each). name<->tile DERIVED (owner report + byte)."
+    },
+    "REM_1": {
+      "sector_base": "rem1",
+      "x": 20,
+      "y": 15,
+      "world": { "x": 308, "y": 433, "layer": "b" },
+      "color": "blue",
+      "subtype": 1,
+      "level_req": 10,
+      "dest": null,
+      "_evidence": "[DERIVED binding / VERIFIED tile] Live-recorded 2026-07-19 on the NEW final world map: owner MEMORIZE'd on the REM_1 teleportal at world(308,433,b). Byte-VERIFIED via the stub WorldMap: sector 'rem1' (MAPS/rem1.SEC) intra (col=20,row=15), raw rec 17 01 01 00 00 00 (b1=0x01 TELEPORTAL, b5=0x00). Name REM_1 VERIFIED-OBSERVED (in the live TP dumps, reference/dumps/teleporter_names.json); the sector filename 'rem1' corroborates. REM = 'Ruins of East Minton' [RECOVERED verbatim, wiki misc:glossary]; REM_2/REM_3 are sibling teleportals (roster, distinct cells, NOT pinned). level_req 10 per gameplay:travel ('REM_1 TP 10', MD/TELEPORTAL.md §8 / critter-aux-datamine), DOMAIN/DOC. name<->tile DERIVED (owner report + byte)."
+    }
+  },
+  "recall_destination": "HAV_CHURCH",
+  "_recall": "[DOMAIN/DOC destination + RE-AUTHORED landing cell] RECALL (C2S 0x5a, argument-less, dead-only self-rescue; costs a further 1% Exp+TRP) revives the player at 'the church in Haven' minus all non-personalized gear (ognall/MANUAL.TXT:2170-2185; ognall/HELP.TXT:994-1005; wiki gameplay:commands). Pointing it at the HAV_CHURCH tile above is the reconstruction decision (RE-AUTHORED): the docs name the church, not a cell, and landing ON the church teleportal is the closest sourced anchor. Opcode note: 0x5a is VERIFIED on the 12.5h CMDList @0x0043f480; the RECALL keyword is present in the 15.3 sweep @~0x44a320 but its 15.3 header byte is unread (OPEN-to-confirm, MD/TELEPORTAL.md §6).",
+  "_map_change_2026_07_19": "The NEW FINAL world_map.json (310 sectors, coord space up to y~993) + updated MAPS replaced the earlier 117-sector community layout. ALL absolute world coords changed: e.g. HAV_CHURCH moved world(104,187,b) -> world(456,379,b) (same sector EWGB162193b, same intra col=8/row=25; the sector was just repositioned to block 14,11). Per owner 'wire only HAV_CHURCH for now', only HAV_CHURCH was re-pinned; HAV_INN/KOFOR/HAV_COM were NULLED to STALE (see their _evidence) and must be re-recorded on the live client. NOTE: this registry's HAV_CHURCH coord is only valid against the new world_map.json (uncommitted WIP at time of writing) -- commit the new map alongside.",
+  "_haven_sector_scan_OLD_MAP": "STALE (pre-new-map, coords no longer valid; kept for reference). Both OLD Haven ground sectors raw-scanned 2026-07-16 for b1==1: EWGB162193b had 6 cells incl. intra (8,25)=old-world(104,187)=HAV_CHURCH; EWGB194225b had 6 cells incl. intra (3,6)=old-world(99,200)=HAV_INN. All byte-5==0x00. To pin the remaining unnamed cells now: walk the live client onto each tile on the NEW map and record its new world coord. CAUTION (learned 2026-07-19): HAV_* names are NOT all inside the Haven sectors (HAV_COM was in KOKAS+KOFOR); teleportal names do not track sector location — never bind by geography/elimination, only by an owner walk-record.",
+  "_level_table_DOMAIN_DOC": "see MD/TELEPORTAL.md §8 — the gameplay:travel level gates; reference only, NOT a tile binding",
+  "_labeler_saved": "2026-07-20T08:58:21"
+}

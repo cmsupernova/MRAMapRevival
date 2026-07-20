@@ -26,6 +26,8 @@ Run:
   python build_world_map.py unified_map_export.json
       # DEFAULT: 1 editor cell = 1 game cell (your export layout is authority;
       # 2006 filename coords are ignored; mixed haven1/sal*/IOX* OK)
+  python build_world_map.py unified_map_export.json --install
+      # also installs world_map.json and both metadata sidecars into WINMRA
   python build_world_map.py export.json --classic-grid
       # old 2006 MP band + 2 editor cells per game cell
   python build_world_map.py --from-generated
@@ -38,10 +40,12 @@ Spawn: server set_initial prefers base name EWGB194225b.
 """
 import json
 import os
+import shutil
 import sys
 import urllib.request
 
 import build_world_coords as B
+import teleportal_registry as T
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 OUT = os.path.join(HERE, "world_map_built.json")
@@ -361,6 +365,16 @@ def load_travel_links(arg, from_generated=False):
     return []
 
 
+def load_source_raw(arg, from_generated=False):
+    """Load editor metadata that accompanies placements."""
+    path = UNIFIED if from_generated else arg
+    if path and os.path.isfile(path):
+        with open(path, "r", encoding="utf-8") as fh:
+            raw = json.load(fh)
+        return raw if isinstance(raw, dict) else {}
+    return {}
+
+
 def load_placements(arg, from_generated=False, classic_grid=False):
     if from_generated and os.path.isfile(UNIFIED):
         raw = json.load(open(UNIFIED, encoding="utf-8"))
@@ -422,6 +436,7 @@ def main():
     from_generated = "--from-generated" in sys.argv
     classic_grid = "--classic-grid" in sys.argv
     allow_expand = "--allow-expand" in sys.argv or not classic_grid
+    install = "--install" in sys.argv
     if classic_grid:
         WORLD_SCALE = 2
         print("mode: classic-grid (WORLD_SCALE=2, 2006 MP band)")
@@ -649,9 +664,36 @@ def main():
     }
     core.pop("holes", None)
 
-    travel_links = load_travel_links(arg, from_generated=from_generated)
+    source_raw = load_source_raw(arg, from_generated=from_generated)
+    travel_links = _travel_links_from_raw(source_raw)
     core["travelLinks"] = travel_links
     core["_meta"]["stats"]["travel_links"] = len(travel_links)
+
+    registry_out = os.path.join(HERE, "mra_teleportal_registry.json")
+    reference_registry = os.path.join(
+        HERE, "TeleportalReference", "mra_teleportal_registry.json"
+    )
+    seed_paths = []
+    if os.path.isfile(registry_out):
+        seed_paths.append(registry_out)
+    seed_paths.append(reference_registry)
+    sec_roots = [
+        os.path.join(HERE, "WINMRA", "MAPS"),
+        os.path.join(HERE, "_render", "secs"),
+        B.MAPSALL_DIR,
+        B.MAPS_DIR,
+    ]
+    teleportal_registry = T.build_registry(
+        core, source_raw, seed_paths, sec_roots
+    )
+    tp_build = teleportal_registry.get("_build") or {}
+    core["_meta"]["teleportal_registry"] = "mra_teleportal_registry.json"
+    core["_meta"]["stats"]["blue_teleportals"] = int(
+        tp_build.get("placed_blue_cells", 0)
+    )
+    core["_meta"]["stats"]["teleportal_labels"] = len(
+        teleportal_registry.get("teleportals") or {}
+    )
 
     with open(OUT, "w", encoding="utf-8") as fh:
         json.dump(core, fh, indent=1)
@@ -660,6 +702,21 @@ def main():
     travel_out = os.path.join(HERE, "travel_links.json")
     with open(travel_out, "w", encoding="utf-8") as fh:
         json.dump({"travelLinks": travel_links}, fh, indent=2)
+    with open(registry_out, "w", encoding="utf-8") as fh:
+        json.dump(teleportal_registry, fh, indent=2)
+    T.write_registry_js(
+        os.path.join(HERE, "_render", "teleportal_registry.js"),
+        teleportal_registry,
+    )
+
+    if install:
+        winmra = os.path.join(HERE, "WINMRA")
+        os.makedirs(winmra, exist_ok=True)
+        shutil.copy2(OUT, os.path.join(winmra, "world_map.json"))
+        shutil.copy2(travel_out, os.path.join(winmra, "travel_links.json"))
+        shutil.copy2(
+            registry_out, os.path.join(winmra, "mra_teleportal_registry.json")
+        )
 
     print(f"\nWrote {os.path.basename(OUT)}")
     print(f"  sectors total:        {len(sectors)}")
@@ -674,6 +731,13 @@ def main():
     print(f"  crushed same-MP:      {crushed}")
     print(f"  no free layer slot:   {layer_full}")
     print(f"  travel links:         {len(travel_links)}")
+    print(f"  blue teleportals:     {tp_build.get('placed_blue_cells', 0)}")
+    print(f"  teleportal rows:      {len(teleportal_registry.get('teleportals') or {})}")
+    print(f"  teleportal labels:    {tp_build.get('grades', {})}")
+    if tp_build.get("missing_sec_files"):
+        print(f"  missing portal SECs:  {len(tp_build['missing_sec_files'])}")
+    if install:
+        print("  installed:            WINMRA/world_map.json + metadata sidecars")
     if "EWGB194225b" in sectors:
         h = sectors["EWGB194225b"]
         print(f"  spawn EWGB194225b:    MP({h['mp_x']},{h['mp_y']}) file={h['filename']} "
