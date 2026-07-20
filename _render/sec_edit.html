@@ -518,6 +518,7 @@ function draw(){
     ctx.fillRect(ox+PLAY*scale, oy+PLAY*scale-tick, tick, tick*2);
   }
   drawSelectionOverlay(ox, oy);
+  drawTpFocusOverlay(ox, oy);
 }
 
 function normRect(a,b){
@@ -549,6 +550,28 @@ function drawSelectionOverlay(ox,oy){
   ctx.setLineDash([4,3]);
   ctx.strokeRect(x+0.5,y+0.5,w-1,h-1);
   ctx.setLineDash([]);
+}
+function drawTpFocusOverlay(ox,oy){
+  if(!tpFocusCell) return;
+  const x=ox+tpFocusCell.c*scale, y=oy+tpFocusCell.r*scale;
+  const pad=Math.max(2,Math.round(scale*0.14));
+  ctx.fillStyle='rgba(255,220,40,.35)';
+  ctx.fillRect(x,y,scale,scale);
+  ctx.strokeStyle='#ffe02e';
+  ctx.lineWidth=Math.max(3,Math.round(scale*0.18));
+  ctx.setLineDash([]);
+  ctx.strokeRect(x-pad,y-pad,scale+pad*2,scale+pad*2);
+  if(tpFocusCell.name){
+    const text=tpFocusCell.name;
+    ctx.font='bold '+Math.max(11,Math.round(scale*0.72))+'px sans-serif';
+    const tw=ctx.measureText(text).width;
+    const tx=Math.max(2,Math.min(cv.width-tw-10,x+(scale-tw)/2));
+    const ty=Math.max(16,y-pad-5);
+    ctx.fillStyle='rgba(0,0,0,.88)';
+    ctx.fillRect(tx-4,ty-13,tw+8,17);
+    ctx.fillStyle='#ffe02e';
+    ctx.fillText(text,tx,ty);
+  }
 }
 
 // ---- tools: paint / fill / eyedropper / select / stamp -------------------
@@ -1484,6 +1507,7 @@ document.getElementById('refsearch').addEventListener('input',e=>renderRefBrowse
 
 // ---- blue teleportal labels ----------------------------------------------
 let TP_LABELS=window.TeleportalLabels?TeleportalLabels.load():{};
+let tpFocusCell=null;
 
 function currentTpBase(){
   return window.TeleportalLabels?TeleportalLabels.base(filename):String(filename||'').replace(/\.SEC$/i,'');
@@ -1519,7 +1543,8 @@ function saveTpName(base,r,c,name){
   TeleportalLabels.save(TP_LABELS);
   refreshTpList();
 }
-function focusTpCell(r,c){
+function focusTpCell(r,c,name){
+  tpFocusCell={r,c,name:String(name||'').trim().toUpperCase()};
   selection={r0:r,c0:c,r1:r,c1:c};
   canvasFocus='main';
   draw();
@@ -1548,7 +1573,7 @@ function refreshTpList(){
     input.value=found&&found.value.name||'';
     input.placeholder='Teleportal name';
     const go=document.createElement('button'); go.textContent='Go';
-    go.onclick=()=>focusTpCell(p.r,p.c);
+    go.onclick=()=>focusTpCell(p.r,p.c,input.value);
     const save=document.createElement('button'); save.textContent='Save';
     save.onclick=()=>saveTpName(base,p.r,p.c,input.value);
     const clear=document.createElement('button'); clear.textContent='Clear';
@@ -1556,6 +1581,8 @@ function refreshTpList(){
     input.addEventListener('keydown',e=>{
       if(e.key==='Enter'){ e.preventDefault(); saveTpName(base,p.r,p.c,input.value); }
     });
+    input.addEventListener('focus',()=>focusTpCell(p.r,p.c,input.value));
+    input.addEventListener('input',()=>focusTpCell(p.r,p.c,input.value));
     row.appendChild(input); row.appendChild(go); row.appendChild(save); row.appendChild(clear);
     card.appendChild(meta); card.appendChild(row); box.appendChild(card);
   });
@@ -1744,7 +1771,7 @@ function setFilename(fn, label){
 function applyBuffer(buf, fn){
   const copy=copySecBuf(buf);
   if(!copy){ alert('Expected '+SIZE+' bytes (33x33x6), got '+(buf&&buf.length)+'. Not a valid .SEC.'); return false; }
-  data=copy; secLoaded=true; setFilename(fn); resetHistory(); draw(); updateCtxBar();
+  data=copy; secLoaded=true; tpFocusCell=null; setFilename(fn); resetHistory(); draw(); updateCtxBar();
   if(rightTab==='links') refreshLinkList();
   if(rightTab==='teleportals') refreshTpList();
   return true;
