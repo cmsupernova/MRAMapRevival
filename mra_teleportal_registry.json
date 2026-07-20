@@ -1098,7 +1098,8 @@
       "subtype": 1,
       "level_req": null,
       "dest": null,
-      "_evidence": "[DERIVED binding / VERIFIED tile] RE-PINNED 2026-07-19 for the NEW FINAL world map (world_map.json 310-sector layout + updated MAPS). Owner walk-recorded MEMORIZE on the Haven church teleportal at world(456,379,b). SAME physical cell as before -- sector EWGB162193b intra (col=8,row=25), byte-VERIFIED via the stub WorldMap: MAPS/EWGB162193b.SEC offset 4998 = 10 01 00 00 00 00 (b1=0x01 TELEPORTAL, b5=0x00); only the ABSOLUTE world coord moved because the new map places EWGB162193b at block 14,11 (was 3,5). Pre-new-map coord was world(104,187,b). Name HAV_CHURCH VERIFIED-OBSERVED (all 3 live dumps); name<->tile DERIVED (owner report + byte). This is the recall_destination, so RECALL lands here."
+      "_evidence": "[DERIVED binding / VERIFIED tile] RE-PINNED 2026-07-19 for the NEW FINAL world map (world_map.json 310-sector layout + updated MAPS). Owner walk-recorded MEMORIZE on the Haven church teleportal at world(456,379,b). SAME physical cell as before -- sector EWGB162193b intra (col=8,row=25), byte-VERIFIED via the stub WorldMap: MAPS/EWGB162193b.SEC offset 4998 = 10 01 00 00 00 00 (b1=0x01 TELEPORTAL, b5=0x00); only the ABSOLUTE world coord moved because the new map places EWGB162193b at block 14,11 (was 3,5). Pre-new-map coord was world(104,187,b). Name HAV_CHURCH VERIFIED-OBSERVED (all 3 live dumps); name<->tile DERIVED (owner report + byte). This is the recall_destination, so RECALL lands here.",
+      "_grade": "DERIVED"
     },
     "BRE_7": {
       "_grade": "AUTO",
@@ -1577,7 +1578,8 @@
       "subtype": 1,
       "level_req": null,
       "dest": null,
-      "_evidence": "[DERIVED binding / VERIFIED tile] RE-PINNED 2026-07-19 on the NEW final world map. Owner walk-recorded MEMORIZE on the HAV_COM teleportal at world(447,396,b). Byte-VERIFIED via the stub WorldMap: sector 'kokas1' (MAPS/kokas1.SEC) intra (col=31,row=10), raw rec 14 01 84 00 00 00 (b1=0x01 TELEPORTAL, b5=0x00). Confirms HAV_COM sits in the SAME sector as KOFOR (kokas1, the reorganized old 'KOKAS + KOFOR' / DQEV194225b) -- the geographic expectation held, but was still walk-recorded rather than guessed. Old-map pin was world(94,203,b). Name HAV_COM VERIFIED-OBSERVED (all 3 live dumps); name<->tile DERIVED (owner report + byte)."
+      "_evidence": "[DERIVED binding / VERIFIED tile] RE-PINNED 2026-07-19 on the NEW final world map. Owner walk-recorded MEMORIZE on the HAV_COM teleportal at world(447,396,b). Byte-VERIFIED via the stub WorldMap: sector 'kokas1' (MAPS/kokas1.SEC) intra (col=31,row=10), raw rec 14 01 84 00 00 00 (b1=0x01 TELEPORTAL, b5=0x00). Confirms HAV_COM sits in the SAME sector as KOFOR (kokas1, the reorganized old 'KOKAS + KOFOR' / DQEV194225b) -- the geographic expectation held, but was still walk-recorded rather than guessed. Old-map pin was world(94,203,b). Name HAV_COM VERIFIED-OBSERVED (all 3 live dumps); name<->tile DERIVED (owner report + byte).",
+      "_grade": "DERIVED"
     },
     "KOFOR": {
       "sector_base": "kokas1",
@@ -1592,7 +1594,8 @@
       "subtype": 1,
       "level_req": null,
       "dest": null,
-      "_evidence": "[DERIVED binding / VERIFIED tile] RE-PINNED 2026-07-19 on the NEW final world map. Owner walk-recorded MEMORIZE on the KOFOR teleportal at world(437,399,b). Byte-VERIFIED via the stub WorldMap: sector 'kokas1' (MAPS/kokas1.SEC) intra (col=21,row=13), raw rec 1b 01 84 00 00 00 (b1=0x01 TELEPORTAL, b5=0x00). NOTE: the KOFOR content was RELOCATED, not removed -- the old 'KOKAS + KOFOR' sector DQEV194225b was reorganized/renamed to 'kokas1' in the new map (correcting the earlier 'DQEV194225b removed -> KOFOR fully lost' note). Old-map pin was world(84,206,b). Name KOFOR VERIFIED-OBSERVED (sole KOFOR* roster name); name<->tile DERIVED (owner report + byte). The sibling HAV_COM (also in the old KOKAS+KOFOR sector) is likely in/near kokas1 too but stays STALE until walk-recorded -- do NOT guess it."
+      "_evidence": "[DERIVED binding / VERIFIED tile] RE-PINNED 2026-07-19 on the NEW final world map. Owner walk-recorded MEMORIZE on the KOFOR teleportal at world(437,399,b). Byte-VERIFIED via the stub WorldMap: sector 'kokas1' (MAPS/kokas1.SEC) intra (col=21,row=13), raw rec 1b 01 84 00 00 00 (b1=0x01 TELEPORTAL, b5=0x00). NOTE: the KOFOR content was RELOCATED, not removed -- the old 'KOKAS + KOFOR' sector DQEV194225b was reorganized/renamed to 'kokas1' in the new map (correcting the earlier 'DQEV194225b removed -> KOFOR fully lost' note). Old-map pin was world(84,206,b). Name KOFOR VERIFIED-OBSERVED (sole KOFOR* roster name); name<->tile DERIVED (owner report + byte). The sibling HAV_COM (also in the old KOKAS+KOFOR sector) is likely in/near kokas1 too but stays STALE until walk-recorded -- do NOT guess it.",
+      "_grade": "DERIVED"
     },
     "KOK_1": {
       "_grade": "AUTO",
@@ -1655,7 +1658,8 @@
       "subtype": 1,
       "level_req": null,
       "dest": null,
-      "_evidence": "[DERIVED binding / VERIFIED tile] RE-PINNED 2026-07-19 on the NEW final world map. Owner walk-recorded MEMORIZE on the Haven inn teleportal at world(451,392,b). SAME physical cell as the old-map pin -- sector EWGB194225b intra (col=3,row=6), byte-VERIFIED via the stub WorldMap: raw rec 17 01 e0 00 00 00 (b1=0x01 TELEPORTAL, b5=0x00), identical bytes to the old map; only the ABSOLUTE world coord moved (sector repositioned to block 14,12; was world(99,200,b) on the 117-sector map). The pre-re-record diagnostic guess of world(451,392,b) matched exactly -- confirming EWGB194225b's sector+intra was stable across the map change (unlike KOFOR/HAV_COM's DQEV194225b, which was removed). Name HAV_INN VERIFIED-OBSERVED; name<->tile DERIVED (owner report + byte)."
+      "_evidence": "[DERIVED binding / VERIFIED tile] RE-PINNED 2026-07-19 on the NEW final world map. Owner walk-recorded MEMORIZE on the Haven inn teleportal at world(451,392,b). SAME physical cell as the old-map pin -- sector EWGB194225b intra (col=3,row=6), byte-VERIFIED via the stub WorldMap: raw rec 17 01 e0 00 00 00 (b1=0x01 TELEPORTAL, b5=0x00), identical bytes to the old map; only the ABSOLUTE world coord moved (sector repositioned to block 14,12; was world(99,200,b) on the 117-sector map). The pre-re-record diagnostic guess of world(451,392,b) matched exactly -- confirming EWGB194225b's sector+intra was stable across the map change (unlike KOFOR/HAV_COM's DQEV194225b, which was removed). Name HAV_INN VERIFIED-OBSERVED; name<->tile DERIVED (owner report + byte).",
+      "_grade": "DERIVED"
     },
     "EWG_6": {
       "_grade": "AUTO",
@@ -1974,7 +1978,8 @@
       "subtype": 1,
       "level_req": 10,
       "dest": null,
-      "_evidence": "[DERIVED binding / VERIFIED tile] Live-recorded 2026-07-19 on the NEW final world map: owner MEMORIZE'd on the REM_1 teleportal at world(308,433,b). Byte-VERIFIED via the stub WorldMap: sector 'rem1' (MAPS/rem1.SEC) intra (col=20,row=15), raw rec 17 01 01 00 00 00 (b1=0x01 TELEPORTAL, b5=0x00). Name REM_1 VERIFIED-OBSERVED (in the live TP dumps, reference/dumps/teleporter_names.json); the sector filename 'rem1' corroborates. REM = 'Ruins of East Minton' [RECOVERED verbatim, wiki misc:glossary]; REM_2/REM_3 are sibling teleportals (roster, distinct cells, NOT pinned). level_req 10 per gameplay:travel ('REM_1 TP 10', MD/TELEPORTAL.md \u00a78 / critter-aux-datamine), DOMAIN/DOC. name<->tile DERIVED (owner report + byte)."
+      "_evidence": "[DERIVED binding / VERIFIED tile] Live-recorded 2026-07-19 on the NEW final world map: owner MEMORIZE'd on the REM_1 teleportal at world(308,433,b). Byte-VERIFIED via the stub WorldMap: sector 'rem1' (MAPS/rem1.SEC) intra (col=20,row=15), raw rec 17 01 01 00 00 00 (b1=0x01 TELEPORTAL, b5=0x00). Name REM_1 VERIFIED-OBSERVED (in the live TP dumps, reference/dumps/teleporter_names.json); the sector filename 'rem1' corroborates. REM = 'Ruins of East Minton' [RECOVERED verbatim, wiki misc:glossary]; REM_2/REM_3 are sibling teleportals (roster, distinct cells, NOT pinned). level_req 10 per gameplay:travel ('REM_1 TP 10', MD/TELEPORTAL.md \u00a78 / critter-aux-datamine), DOMAIN/DOC. name<->tile DERIVED (owner report + byte).",
+      "_grade": "DERIVED"
     },
     "VER_1": {
       "_grade": "AUTO",
@@ -2085,7 +2090,8 @@
       "subtype": 1,
       "level_req": null,
       "dest": null,
-      "_evidence": "[DERIVED binding / VERIFIED tile] Live-recorded 2026-07-19 on the NEW final world map: owner MEMORIZE'd on the VERBONIC (town) teleportal at world(391,436,b). Byte-VERIFIED via the stub WorldMap: sector 'verbonic3' (MAPS/verbonic3.SEC) intra (col=7,row=18), raw rec 18 01 42 04 00 00 (b1=0x01 TELEPORTAL, b5=0x00). Name VERBONIC VERIFIED-OBSERVED (in the live TP dumps, reference/dumps/teleporter_names.json); the sector filename 'verbonic3' corroborates. NOTE: Verbonic also has VER_ARENA/VER_PUB/VER_TOPC/VER_TOPF teleportals in the roster (distinct cells, NOT pinned -- walk-record each). name<->tile DERIVED (owner report + byte)."
+      "_evidence": "[DERIVED binding / VERIFIED tile] Live-recorded 2026-07-19 on the NEW final world map: owner MEMORIZE'd on the VERBONIC (town) teleportal at world(391,436,b). Byte-VERIFIED via the stub WorldMap: sector 'verbonic3' (MAPS/verbonic3.SEC) intra (col=7,row=18), raw rec 18 01 42 04 00 00 (b1=0x01 TELEPORTAL, b5=0x00). Name VERBONIC VERIFIED-OBSERVED (in the live TP dumps, reference/dumps/teleporter_names.json); the sector filename 'verbonic3' corroborates. NOTE: Verbonic also has VER_ARENA/VER_PUB/VER_TOPC/VER_TOPF teleportals in the roster (distinct cells, NOT pinned -- walk-record each). name<->tile DERIVED (owner report + byte).",
+      "_grade": "DERIVED"
     },
     "DQE_4": {
       "_grade": "AUTO",
@@ -4847,7 +4853,7 @@
   "_build": {
     "placed_blue_cells": 301,
     "registry_rows": 302,
-    "labels_from_export": 0,
+    "labels_from_export": 302,
     "grades": {
       "AUTO": 295,
       "DERIVED": 6,
