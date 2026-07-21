@@ -199,7 +199,13 @@ def build_registry(world_map, raw_export, seed_paths, sec_roots):
             copy.deepcopy(candidate.get("teleportals") or {})
         )
         for key, value in candidate.items():
-            if key != "teleportals":
+            if key == "teleportals":
+                continue
+            if key == "_renames" and isinstance(value, dict):
+                merged = seed.setdefault("_renames", {})
+                for old_name, new_name in value.items():
+                    merged.setdefault(str(old_name).upper(), str(new_name).upper())
+            else:
                 seed[key] = copy.deepcopy(value)
 
     existing_by_cell = _registry_by_cell(seed)
@@ -229,6 +235,11 @@ def build_registry(world_map, raw_export, seed_paths, sec_roots):
         "base plus a stable numeric suffix, for example HAV_1. A prior generated "
         "registry or editor teleportalLabels keeps names stable across rebuilds."
     )
+    renames = {
+        str(old).upper(): str(new).upper()
+        for old, new in (seed.get("_renames") or {}).items()
+        if old and new
+    }
 
     used_names = {
         str(name).upper() for name in (seed.get("teleportals") or {}).keys()
@@ -247,6 +258,12 @@ def build_registry(world_map, raw_export, seed_paths, sec_roots):
         existing = existing_by_cell.get(key)
         if explicit:
             name = explicit["name"]
+            if existing and existing[0] != name:
+                old_name = existing[0]
+                for prior, target in list(renames.items()):
+                    if target == old_name:
+                        renames[prior] = name
+                renames[old_name] = name
             old_row = existing[1] if existing and existing[0] == name else {}
             row = copy.deepcopy(old_row)
             row["_grade"] = explicit.get("_grade") or "DERIVED"
@@ -336,10 +353,33 @@ def build_registry(world_map, raw_export, seed_paths, sec_roots):
         generated[upper] = saved
         counts["INACTIVE"] += 1
 
-    result["teleportals"] = generated
+    # Keep old names as runtime-only aliases so character saves that memorized
+    # an AUTO name before a relabel can still TP to it. Aliases are emitted
+    # before primaries so a reverse world->name index resolves to the new name.
+    aliases = {}
+    for old_name, new_name in sorted(renames.items()):
+        seen = {old_name}
+        while new_name in renames and new_name not in seen:
+            seen.add(new_name)
+            new_name = renames[new_name]
+        renames[old_name] = new_name
+        target = generated.get(new_name)
+        if not target or old_name in generated or old_name == new_name:
+            continue
+        alias = copy.deepcopy(target)
+        alias["_grade"] = "ALIAS"
+        alias["_alias_for"] = new_name
+        alias["_evidence"] = (
+            f"[MIGRATION] Legacy memorized name retained as an alias for {new_name}."
+        )
+        aliases[old_name] = alias
+        counts["ALIAS"] += 1
+
+    result["_renames"] = dict(sorted(renames.items()))
+    result["teleportals"] = {**aliases, **generated}
     result["_build"] = {
         "placed_blue_cells": len(cells),
-        "registry_rows": len(generated),
+        "registry_rows": len(result["teleportals"]),
         "labels_from_export": len(explicit_by_cell),
         "grades": dict(sorted(counts.items())),
         "missing_sec_files": sorted(set(missing), key=str.lower),
@@ -354,6 +394,8 @@ def editor_labels(registry):
     out = {}
     for name, row in (registry.get("teleportals") or {}).items():
         if not isinstance(row, dict):
+            continue
+        if row.get("_inactive") or row.get("_alias_for"):
             continue
         base, x, y = row.get("sector_base"), row.get("x"), row.get("y")
         if base is None or x is None or y is None:

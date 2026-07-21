@@ -56,6 +56,7 @@
     const rows=registry&&registry.teleportals;
     if(!rows||typeof rows!=='object') return out;
     Object.entries(rows).forEach(([name,row])=>{
+      if(!row||row._inactive||row._alias_for) return;
       const n=normalize(Object.assign({},row,{name}),null);
       if(n) out[n.key]=n.value;
     });

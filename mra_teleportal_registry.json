@@ -13,6 +13,397 @@
     "_grade": "'VERIFIED'|'DERIVED'|'AUTO'"
   },
   "teleportals": {
+    "DQE_2": {
+      "_grade": "ALIAS",
+      "_evidence": "[MIGRATION] Legacy memorized name retained as an alias for UNVIL_MA.",
+      "sector_base": "DQEV162193b",
+      "x": 31,
+      "y": 16,
+      "world": {
+        "x": 447,
+        "y": 370,
+        "layer": "b"
+      },
+      "color": "blue",
+      "subtype": 1,
+      "level_req": null,
+      "dest": null,
+      "_alias_for": "UNVIL_MA"
+    },
+    "DQE_3": {
+      "_grade": "ALIAS",
+      "_evidence": "[MIGRATION] Legacy memorized name retained as an alias for UNVIL_MB.",
+      "sector_base": "DQEV162193b",
+      "x": 0,
+      "y": 27,
+      "world": {
+        "x": 416,
+        "y": 381,
+        "layer": "b"
+      },
+      "color": "blue",
+      "subtype": 1,
+      "level_req": null,
+      "dest": null,
+      "_alias_for": "UNVIL_MB"
+    },
+    "EWG_1": {
+      "_grade": "ALIAS",
+      "_evidence": "[MIGRATION] Legacy memorized name retained as an alias for HAV_MAG.",
+      "sector_base": "EWGB162193b",
+      "x": 25,
+      "y": 7,
+      "world": {
+        "x": 473,
+        "y": 361,
+        "layer": "b"
+      },
+      "color": "blue",
+      "subtype": 1,
+      "level_req": null,
+      "dest": null,
+      "_alias_for": "HAV_MAG"
+    },
+    "EWG_10": {
+      "_grade": "ALIAS",
+      "_evidence": "[MIGRATION] Legacy memorized name retained as an alias for ASSN_TR.",
+      "sector_base": "EWGB194225b",
+      "x": 30,
+      "y": 21,
+      "world": {
+        "x": 478,
+        "y": 407,
+        "layer": "b"
+      },
+      "color": "blue",
+      "subtype": 1,
+      "level_req": null,
+      "dest": null,
+      "_alias_for": "ASSN_TR"
+    },
+    "EWG_11": {
+      "_grade": "ALIAS",
+      "_evidence": "[MIGRATION] Legacy memorized name retained as an alias for HAV_DOCK.",
+      "sector_base": "EWGB194225b",
+      "x": 4,
+      "y": 25,
+      "world": {
+        "x": 452,
+        "y": 411,
+        "layer": "b"
+      },
+      "color": "blue",
+      "subtype": 1,
+      "level_req": null,
+      "dest": null,
+      "_alias_for": "HAV_DOCK"
+    },
+    "EWG_2": {
+      "_grade": "ALIAS",
+      "_evidence": "[MIGRATION] Legacy memorized name retained as an alias for HAV_HOLY.",
+      "sector_base": "EWGB162193b",
+      "x": 15,
+      "y": 8,
+      "world": {
+        "x": 463,
+        "y": 362,
+        "layer": "b"
+      },
+      "color": "blue",
+      "subtype": 1,
+      "level_req": null,
+      "dest": null,
+      "_alias_for": "HAV_HOLY"
+    },
+    "EWG_3": {
+      "_grade": "ALIAS",
+      "_evidence": "[MIGRATION] Legacy memorized name retained as an alias for DRUID_TR.",
+      "sector_base": "EWGB162193b",
+      "x": 9,
+      "y": 15,
+      "world": {
+        "x": 457,
+        "y": 369,
+        "layer": "b"
+      },
+      "color": "blue",
+      "subtype": 1,
+      "level_req": null,
+      "dest": null,
+      "_alias_for": "DRUID_TR"
+    },
+    "EWG_4": {
+      "_grade": "ALIAS",
+      "_evidence": "[MIGRATION] Legacy memorized name retained as an alias for WITCH_TR.",
+      "sector_base": "EWGB162193b",
+      "x": 29,
+      "y": 19,
+      "world": {
+        "x": 477,
+        "y": 373,
+        "layer": "b"
+      },
+      "color": "blue",
+      "subtype": 1,
+      "level_req": null,
+      "dest": null,
+      "_alias_for": "WITCH_TR"
+    },
+    "EWG_5": {
+      "_grade": "ALIAS",
+      "_evidence": "[MIGRATION] Legacy memorized name retained as an alias for PRIEST_TR.",
+      "sector_base": "EWGB162193b",
+      "x": 6,
+      "y": 21,
+      "world": {
+        "x": 454,
+        "y": 375,
+        "layer": "b"
+      },
+      "color": "blue",
+      "subtype": 1,
+      "level_req": null,
+      "dest": null,
+      "_alias_for": "PRIEST_TR"
+    },
+    "EWG_6": {
+      "_grade": "ALIAS",
+      "_evidence": "[MIGRATION] Legacy memorized name retained as an alias for HAV_HALL.",
+      "sector_base": "EWGB194225b",
+      "x": 26,
+      "y": 8,
+      "world": {
+        "x": 474,
+        "y": 394,
+        "layer": "b"
+      },
+      "color": "blue",
+      "subtype": 1,
+      "level_req": null,
+      "dest": null,
+      "_alias_for": "HAV_HALL"
+    },
+    "EWG_7": {
+      "_grade": "ALIAS",
+      "_evidence": "[MIGRATION] Legacy memorized name retained as an alias for WIZARD_TR.",
+      "sector_base": "EWGB194225b",
+      "x": 22,
+      "y": 14,
+      "world": {
+        "x": 470,
+        "y": 400,
+        "layer": "b"
+      },
+      "color": "blue",
+      "subtype": 1,
+      "level_req": null,
+      "dest": null,
+      "_alias_for": "WIZARD_TR"
+    },
+    "EWG_8": {
+      "_grade": "ALIAS",
+      "_evidence": "[MIGRATION] Legacy memorized name retained as an alias for SORC_TR.",
+      "sector_base": "EWGB194225b",
+      "x": 31,
+      "y": 19,
+      "world": {
+        "x": 479,
+        "y": 405,
+        "layer": "b"
+      },
+      "color": "blue",
+      "subtype": 1,
+      "level_req": null,
+      "dest": null,
+      "_alias_for": "SORC_TR"
+    },
+    "EWG_9": {
+      "_grade": "ALIAS",
+      "_evidence": "[MIGRATION] Legacy memorized name retained as an alias for NINJA_TR.",
+      "sector_base": "EWGB194225b",
+      "x": 21,
+      "y": 21,
+      "world": {
+        "x": 469,
+        "y": 407,
+        "layer": "b"
+      },
+      "color": "blue",
+      "subtype": 1,
+      "level_req": null,
+      "dest": null,
+      "_alias_for": "NINJA_TR"
+    },
+    "GCH_1": {
+      "_grade": "ALIAS",
+      "_evidence": "[MIGRATION] Legacy memorized name retained as an alias for SANC_PUB.",
+      "sector_base": "GCHH162193b",
+      "x": 18,
+      "y": 9,
+      "world": {
+        "x": 498,
+        "y": 363,
+        "layer": "b"
+      },
+      "color": "blue",
+      "subtype": 1,
+      "level_req": null,
+      "dest": null,
+      "_alias_for": "SANC_PUB"
+    },
+    "GCH_10": {
+      "_grade": "ALIAS",
+      "_evidence": "[MIGRATION] Legacy memorized name retained as an alias for RANGER_TR.",
+      "sector_base": "GCHH194225b",
+      "x": 11,
+      "y": 23,
+      "world": {
+        "x": 491,
+        "y": 409,
+        "layer": "b"
+      },
+      "color": "blue",
+      "subtype": 1,
+      "level_req": null,
+      "dest": null,
+      "_alias_for": "RANGER_TR"
+    },
+    "GCH_11": {
+      "_grade": "ALIAS",
+      "_evidence": "[MIGRATION] Legacy memorized name retained as an alias for ENDUR_TR.",
+      "sector_base": "GCHH194225b",
+      "x": 8,
+      "y": 28,
+      "world": {
+        "x": 488,
+        "y": 414,
+        "layer": "b"
+      },
+      "color": "blue",
+      "subtype": 1,
+      "level_req": null,
+      "dest": null,
+      "_alias_for": "ENDUR_TR"
+    },
+    "GCH_3": {
+      "_grade": "ALIAS",
+      "_evidence": "[MIGRATION] Legacy memorized name retained as an alias for SANCTUARY.",
+      "sector_base": "GCHH162193b",
+      "x": 16,
+      "y": 21,
+      "world": {
+        "x": 496,
+        "y": 375,
+        "layer": "b"
+      },
+      "color": "blue",
+      "subtype": 1,
+      "level_req": null,
+      "dest": null,
+      "_alias_for": "SANCTUARY"
+    },
+    "GCH_4": {
+      "_grade": "ALIAS",
+      "_evidence": "[MIGRATION] Legacy memorized name retained as an alias for MONK_TR.",
+      "sector_base": "GCHH194225b",
+      "x": 3,
+      "y": 4,
+      "world": {
+        "x": 483,
+        "y": 390,
+        "layer": "b"
+      },
+      "color": "blue",
+      "subtype": 1,
+      "level_req": null,
+      "dest": null,
+      "_alias_for": "MONK_TR"
+    },
+    "GCH_5": {
+      "_grade": "ALIAS",
+      "_evidence": "[MIGRATION] Legacy memorized name retained as an alias for MERC_TR.",
+      "sector_base": "GCHH194225b",
+      "x": 7,
+      "y": 4,
+      "world": {
+        "x": 487,
+        "y": 390,
+        "layer": "b"
+      },
+      "color": "blue",
+      "subtype": 1,
+      "level_req": null,
+      "dest": null,
+      "_alias_for": "MERC_TR"
+    },
+    "GCH_6": {
+      "_grade": "ALIAS",
+      "_evidence": "[MIGRATION] Legacy memorized name retained as an alias for WARRIOR_TR.",
+      "sector_base": "GCHH194225b",
+      "x": 16,
+      "y": 4,
+      "world": {
+        "x": 496,
+        "y": 390,
+        "layer": "b"
+      },
+      "color": "blue",
+      "subtype": 1,
+      "level_req": null,
+      "dest": null,
+      "_alias_for": "WARRIOR_TR"
+    },
+    "GCH_7": {
+      "_grade": "ALIAS",
+      "_evidence": "[MIGRATION] Legacy memorized name retained as an alias for MYSTIC_TR.",
+      "sector_base": "GCHH194225b",
+      "x": 3,
+      "y": 20,
+      "world": {
+        "x": 483,
+        "y": 406,
+        "layer": "b"
+      },
+      "color": "blue",
+      "subtype": 1,
+      "level_req": null,
+      "dest": null,
+      "_alias_for": "MYSTIC_TR"
+    },
+    "GCH_8": {
+      "_grade": "ALIAS",
+      "_evidence": "[MIGRATION] Legacy memorized name retained as an alias for SAGE_TR.",
+      "sector_base": "GCHH194225b",
+      "x": 4,
+      "y": 20,
+      "world": {
+        "x": 484,
+        "y": 406,
+        "layer": "b"
+      },
+      "color": "blue",
+      "subtype": 1,
+      "level_req": null,
+      "dest": null,
+      "_alias_for": "SAGE_TR"
+    },
+    "GCH_9": {
+      "_grade": "ALIAS",
+      "_evidence": "[MIGRATION] Legacy memorized name retained as an alias for THIEF_TR.",
+      "sector_base": "GCHH194225b",
+      "x": 3,
+      "y": 21,
+      "world": {
+        "x": 483,
+        "y": 407,
+        "layer": "b"
+      },
+      "color": "blue",
+      "subtype": 1,
+      "level_req": null,
+      "dest": null,
+      "_alias_for": "THIEF_TR"
+    },
     "DTN_1": {
       "_grade": "AUTO",
       "_evidence": "[AUTO] Default editable name assigned from the SEC filename; tile byte verified as blue/public object 0x01.",
@@ -4884,9 +5275,10 @@
   "_auto_name_policy": "Unlabeled cells use the first three alphanumeric letters of the SEC base plus a stable numeric suffix, for example HAV_1. A prior generated registry or editor teleportalLabels keeps names stable across rebuilds.",
   "_build": {
     "placed_blue_cells": 303,
-    "registry_rows": 304,
+    "registry_rows": 327,
     "labels_from_export": 305,
     "grades": {
+      "ALIAS": 23,
       "AUTO": 271,
       "DERIVED": 32,
       "INACTIVE": 1
@@ -4894,5 +5286,30 @@
     "missing_sec_files": [],
     "invalid_sec_files": [],
     "name_conflicts": []
+  },
+  "_renames": {
+    "DQE_2": "UNVIL_MA",
+    "DQE_3": "UNVIL_MB",
+    "EWG_1": "HAV_MAG",
+    "EWG_10": "ASSN_TR",
+    "EWG_11": "HAV_DOCK",
+    "EWG_2": "HAV_HOLY",
+    "EWG_3": "DRUID_TR",
+    "EWG_4": "WITCH_TR",
+    "EWG_5": "PRIEST_TR",
+    "EWG_6": "HAV_HALL",
+    "EWG_7": "WIZARD_TR",
+    "EWG_8": "SORC_TR",
+    "EWG_9": "NINJA_TR",
+    "GCH_1": "SANC_PUB",
+    "GCH_10": "RANGER_TR",
+    "GCH_11": "ENDUR_TR",
+    "GCH_3": "SANCTUARY",
+    "GCH_4": "MONK_TR",
+    "GCH_5": "MERC_TR",
+    "GCH_6": "WARRIOR_TR",
+    "GCH_7": "MYSTIC_TR",
+    "GCH_8": "SAGE_TR",
+    "GCH_9": "THIEF_TR"
   }
 }

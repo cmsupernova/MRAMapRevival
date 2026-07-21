@@ -1533,6 +1533,16 @@ function tpLabelAt(base,r,c){
   const hit=Object.keys(TP_LABELS).find(k=>k.toLowerCase()===wanted);
   return hit?{key:hit,value:TP_LABELS[hit]}:null;
 }
+function tpLabelIsActive(label){
+  if(!label) return false;
+  const labelBase=String(label.sector_base||'').toLowerCase();
+  if(labelBase===currentTpBase().toLowerCase()) return true;
+  const rows=(window.TELEPORTAL_REGISTRY&&TELEPORTAL_REGISTRY.teleportals)||{};
+  return Object.values(rows).some(row=>row
+    && !row._inactive && !row._alias_for && row.world
+    && String(row.sector_base||'').toLowerCase()===labelBase
+    && +row.x===+label.x && +row.y===+label.y);
+}
 async function saveTpName(base,r,c,name){
   if(!window.TeleportalLabels) return;
   name=String(name||'').trim().toUpperCase();
@@ -1543,15 +1553,25 @@ async function saveTpName(base,r,c,name){
   const old=tpLabelAt(base,r,c);
   const duplicate=name&&Object.entries(TP_LABELS).find(([k,v])=>
     (!old||k!==old.key)&&String(v&&v.name||'').toUpperCase()===name);
-  if(duplicate){
+  let staleDuplicate=null;
+  if(duplicate&&tpLabelIsActive(duplicate[1])){
     alert('"'+name+'" is already assigned to '+duplicate[0]+'. Each teleportal name must be unique.');
     return;
+  }
+  if(duplicate){
+    staleDuplicate=duplicate[1];
+    delete TP_LABELS[duplicate[0]];
   }
   if(old&&old.key!==TeleportalLabels.key(base,c,r)) delete TP_LABELS[old.key];
   TP_LABELS=TeleportalLabels.set(TP_LABELS,base,c,r,name,'DERIVED');
   TeleportalLabels.save(TP_LABELS);
   refreshTpList();
   if(TeleportalLabels.Sync){
+    if(staleDuplicate){
+      await TeleportalLabels.Sync.remove(
+        staleDuplicate.sector_base,staleDuplicate.x,staleDuplicate.y
+      );
+    }
     if(name){
       const label=TP_LABELS[TeleportalLabels.key(base,c,r)];
       setTpSync('sync: uploading…',false);
