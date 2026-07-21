@@ -234,10 +234,18 @@ const OBJECTS=[
   [30,'Chair N'],[31,'Chair E'],[32,'Chair S'],[33,'Chair W'],[34,'Locker N'],[35,'Locker E'],[36,'Locker S'],[37,'Locker W'],
   [38,'Table w Book N'],[39,'Table w Book E'],[40,'Table w Book W'],[41,'Desk N'],[42,'Desk E'],[43,'Desk W'],
   [44,'Bed against West Wall'],[45,'Bed against East Wall'],[46,'Throne N'],[47,'Throne S'],
-  [48,'Path'],[56,'Path'],[57,'Path'],[58,'Path'],[59,'Flowers'],[60,'Bushes'],[61,'Small Tree'],
+  [48,'Path'],[49,'Path'],[50,'Path'],[51,'Path'],[52,'Path'],[53,'Path'],[54,'Path'],[55,'Path'],
+  [56,'Path'],[57,'Path'],[58,'Path'],[59,'Flowers'],[60,'Bushes'],[61,'Small Tree'],[62,'Moss'],
   [70,'Crate'],[71,'Crate'],[72,'Straw bed'],[73,'Straw bed'],[74,'Grafitte N Wall'],[75,'Grafitte E Wall'],
-  [76,'Grafitte W Wall'],[77,'Plaque'],[78,'Gravestone'],
+  [76,'Grafitte W Wall'],[77,'Plaque'],[78,'Gravestone'],[79,'Object'],
 ];
+// Keep every valid art-backed object selectable even when its original name is
+// unknown. This also prevents newly decoded object art from silently vanishing.
+const listedObjectIds=new Set(OBJECTS.map(x=>x[0]));
+Object.keys(window.TILESET_OBJ||{}).map(Number).sort((a,b)=>a-b).forEach(id=>{
+  if(!listedObjectIds.has(id)){ OBJECTS.push([id,'Object']); listedObjectIds.add(id); }
+});
+OBJECTS.sort((a,b)=>a[0]-b[0]);
 const WALLS=[[0,'CLEAR Walls'],[1,'Stone Wall'],[2,'Dark Wood Panel Wall'],[3,'Brick Wall'],[4,'Cave Wall'],
   [5,'Marble Wall'],[6,'Light Wood Panel Wall'],[7,'Blackened Wall'],[8,'Granite Wall'],[9,'Outdoor Cliffside'],
   [10,'Tunnel Wall'],[29,'Ruined Stone Wall'],[31,'Flower Bed Wall']];
