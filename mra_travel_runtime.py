@@ -13,6 +13,7 @@ import os
 import threading
 
 LAYER_FROM_LEVEL = {0: "b", -1: "a", 1: "c"}
+ILLUSION_WALL_DOOR_TYPE = 0x03
 
 
 def travel_debug():
@@ -235,10 +236,32 @@ def try_travel_link(world, player, stub_ns):
     return True
 
 
+def install_illusion_wall_hook(stub_ns):
+    """Render SEC door 0x03 as its parent wall while keeping it passable."""
+    original = stub_ns["_door_grid_value"]
+    read_bits = stub_ns["_read_wall_door_bits"]
+
+    def door_grid_value(world, world_x, world_y, layer, edge):
+        _, _, north_door, west_door = read_bits(world, world_x, world_y, layer)
+        authored_type = (
+            north_door if edge == "N"
+            else west_door if edge == "W"
+            else 0
+        )
+        if authored_type == ILLUSION_WALL_DOOR_TYPE:
+            # The SEC design type marks a passable edge. Sending no runtime
+            # door art leaves the parent wall visible as the hidden passage.
+            return 0
+        return original(world, world_x, world_y, layer, edge)
+
+    stub_ns["_door_grid_value"] = door_grid_value
+
+
 def install_hooks(stub_ns, world_map_path):
     """Wrap maybe_layer_transition and attach links after WorldMap construction."""
     orig_layer = stub_ns["maybe_layer_transition"]
     OrigWorldMap = stub_ns["WorldMap"]
+    install_illusion_wall_hook(stub_ns)
 
     class WorldMap(OrigWorldMap):
         def __init__(self, world_map_path, maps_dir):

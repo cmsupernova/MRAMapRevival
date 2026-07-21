@@ -249,7 +249,7 @@ OBJECTS.sort((a,b)=>a[0]-b[0]);
 const WALLS=[[0,'CLEAR Walls'],[1,'Stone Wall'],[2,'Dark Wood Panel Wall'],[3,'Brick Wall'],[4,'Cave Wall'],
   [5,'Marble Wall'],[6,'Light Wood Panel Wall'],[7,'Blackened Wall'],[8,'Granite Wall'],[9,'Outdoor Cliffside'],
   [10,'Tunnel Wall'],[29,'Ruined Stone Wall'],[31,'Flower Bed Wall']];
-const DOORS=[[0,'Clear'],[1,'Wooden Door'],[2,'Metal Door'],[3,'Illusionary Wall'],[4,'Blackened Metal Door'],[5,'Dark Wood Door']];
+const DOORS=[[0,'Clear'],[1,'Wooden Door'],[2,'Metal Door'],[3,'Illusionary Wall (hidden passage)'],[4,'Blackened Metal Door'],[5,'Dark Wood Door']];
 const DOOR_COLOR={1:[150,110,66],2:[150,150,160],3:[150,40,160],4:[40,40,46],5:[110,80,55]};
 
 // real game art decoded from SCBART.256 / PAL256 (extract_scbart.py)
@@ -285,12 +285,13 @@ function wallEdgeColor(wallT, doorT){
 /** Always draw a thick edge bar. Sparse wall sprites alone are easy to miss. */
 function paintWallEdge(g, x, y, s, wallT, doorT, edge){
   if(!(wallT||doorT)) return;
+  const hiddenPassage=doorT===3;
   const ws=wallT?WALLSPR[wallT+'|'+edge]:null;
-  const ds=doorT?DOORSPR[doorT+'|'+edge]:null;
+  const ds=doorT&&!hiddenPassage?DOORSPR[doorT+'|'+edge]:null;
   if(ready(ws)) g.drawImage(ws, x, y, s, s);
   if(ready(ds)) g.drawImage(ds, x, y, s, s);
   const t=Math.max(3, Math.round(s*0.22));
-  const k=wallEdgeColor(wallT, doorT);
+  const k=wallEdgeColor(wallT, hiddenPassage?0:doorT);
   g.fillStyle=`rgb(${k[0]},${k[1]},${k[2]})`;
   if(edge==='N') g.fillRect(x, y, s, t);
   else if(edge==='S') g.fillRect(x, y+s-t, s, t);
@@ -1281,13 +1282,14 @@ function buildPalette(){
   palDesc.textContent = mode==='terrain'?'byte 0 - paint floor / ground (eyedropper picks this)'
     : mode==='object'?'byte 1 - decorations & portals (eyedropper picks this)'
     : mode==='wall'?'Wall on the N/E/S/W edge of the cell you click. Yellow preview = paint edge. Right-click erases nearest edge.'
-    : 'Door on the chosen edge (right-click erases nearest edge)';
+    : 'Door on the chosen edge. Pick the wall style first. Illusionary Wall keeps that wall visible but makes the edge passable. Right-click erases the nearest edge.';
   list.forEach(([val,label,col])=>{
     const pi=document.createElement('div'); pi.className='pi'; if(val===sel[mode]) pi.classList.add('on');
     const sw=document.createElement('div'); sw.className='sw';
     const art = mode==='terrain'?(window.TILESET||{})[val]
             : mode==='object'?(window.TILESET_OBJ||{})[val]
             : mode==='wall'?(window.TILESET_WALL||{})[val+'|N']
+            : val===3?(window.TILESET_WALL||{})[(sel.wall||1)+'|N']
             : (window.TILESET_DOOR||{})[val+'|N'];
     if(art){ sw.style.backgroundImage=`url(${art})`; sw.style.backgroundSize='cover';
       sw.style.imageRendering='pixelated'; sw.style.background='#000 url('+art+') center/cover'; }
