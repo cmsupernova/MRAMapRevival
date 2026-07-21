@@ -226,6 +226,16 @@ const TERRAIN=[
   [132,'Grass PvP',null],[133,'Wood PvP',null],[134,'Dirt PvP',null],[135,'Wood Party Brawl',null],
   [136,'Pub Flor Party Brawl',null],[137,'Light Wood Party Brawl',null],[138,'Reserved',null],[139,'Reserved',null],[140,'Reserved',null],
 ];
+// Keep every art-backed terrain selectable even when its original SCB label is
+// unknown. Known reverse-engineered names above remain authoritative.
+const listedTerrainIds=new Set(TERRAIN.map(x=>x[0]));
+Object.keys(window.TILESET||{}).map(Number).sort((a,b)=>a-b).forEach(id=>{
+  if(!listedTerrainIds.has(id)){
+    TERRAIN.push([id,'Unidentified terrain',null]);
+    listedTerrainIds.add(id);
+  }
+});
+TERRAIN.sort((a,b)=>a[0]-b[0]);
 const OBJECTS=[
   [0,'CLEAR Objects'],[1,'Teleportal'],[2,'Room Teleportal'],[3,'Instant Teleportal'],[4,'Invisible Teleportal'],
   [5,'Special Function'],[6,'Marsh Fog'],[7,'Hole'],[8,'Rune Square'],[9,'LimVis'],
