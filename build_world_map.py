@@ -324,17 +324,17 @@ def fetch_supabase_teleportal_labels():
 
 
 def merge_teleportal_label_sources(source_raw):
-    """Export labels win over shared cloud labels when both set a cell."""
+    """Merge export labels with shared cloud labels as the latest authority."""
     merged = {}
-    cloud = fetch_supabase_teleportal_labels()
-    if cloud:
-        merged.update(cloud)
-        print(f"loaded {len(cloud)} teleportal labels from Supabase")
     if isinstance(source_raw, dict):
         export = T.labels_from_raw(source_raw)
         if export:
             merged.update(export)
             print(f"loaded {len(export)} teleportal labels from export")
+    cloud = fetch_supabase_teleportal_labels()
+    if cloud:
+        merged.update(cloud)
+        print(f"loaded {len(cloud)} teleportal labels from Supabase (authoritative)")
     return {"teleportalLabels": merged}
 
 

@@ -1101,6 +1101,22 @@
       "_evidence": "[DERIVED binding / VERIFIED tile] RE-PINNED 2026-07-19 for the NEW FINAL world map (world_map.json 310-sector layout + updated MAPS). Owner walk-recorded MEMORIZE on the Haven church teleportal at world(456,379,b). SAME physical cell as before -- sector EWGB162193b intra (col=8,row=25), byte-VERIFIED via the stub WorldMap: MAPS/EWGB162193b.SEC offset 4998 = 10 01 00 00 00 00 (b1=0x01 TELEPORTAL, b5=0x00); only the ABSOLUTE world coord moved because the new map places EWGB162193b at block 14,11 (was 3,5). Pre-new-map coord was world(104,187,b). Name HAV_CHURCH VERIFIED-OBSERVED (all 3 live dumps); name<->tile DERIVED (owner report + byte). This is the recall_destination, so RECALL lands here.",
       "_grade": "DERIVED"
     },
+    "HEALER_TR": {
+      "_grade": "DERIVED",
+      "_evidence": "[DERIVED] Named in the SEC/world-map editor; tile byte verified as object 0x01 during this build.",
+      "sector_base": "EWGB162193b",
+      "x": 29,
+      "y": 25,
+      "world": {
+        "x": 477,
+        "y": 379,
+        "layer": "b"
+      },
+      "color": "blue",
+      "subtype": 1,
+      "level_req": null,
+      "dest": null
+    },
     "BRE_7": {
       "_grade": "AUTO",
       "_evidence": "[AUTO] Default editable name assigned from the SEC filename; tile byte verified as blue/public object 0x01.",
@@ -1117,9 +1133,9 @@
       "level_req": null,
       "dest": null
     },
-    "GCH_1": {
-      "_grade": "AUTO",
-      "_evidence": "[AUTO] Default editable name assigned from the SEC filename; tile byte verified as blue/public object 0x01.",
+    "SANC_PUB": {
+      "_grade": "DERIVED",
+      "_evidence": "[DERIVED] Named in the SEC/world-map editor; tile byte verified as object 0x01 during this build.",
       "sector_base": "GCHH162193b",
       "x": 18,
       "y": 9,
@@ -1149,9 +1165,9 @@
       "level_req": null,
       "dest": null
     },
-    "GCH_3": {
-      "_grade": "AUTO",
-      "_evidence": "[AUTO] Default editable name assigned from the SEC filename; tile byte verified as blue/public object 0x01.",
+    "SANCTUARY": {
+      "_grade": "DERIVED",
+      "_evidence": "[DERIVED] Named in the SEC/world-map editor; tile byte verified as object 0x01 during this build.",
       "sector_base": "GCHH162193b",
       "x": 16,
       "y": 21,
@@ -1829,6 +1845,22 @@
       "y": 20,
       "world": {
         "x": 484,
+        "y": 406,
+        "layer": "b"
+      },
+      "color": "blue",
+      "subtype": 1,
+      "level_req": null,
+      "dest": null
+    },
+    "KNIGHT_TR": {
+      "_grade": "DERIVED",
+      "_evidence": "[DERIVED] Named in the SEC/world-map editor; tile byte verified as object 0x01 during this build.",
+      "sector_base": "GCHH194225b",
+      "x": 16,
+      "y": 20,
+      "world": {
+        "x": 496,
         "y": 406,
         "layer": "b"
       },
@@ -4851,12 +4883,12 @@
   "_labeler_saved": "2026-07-20T08:58:21",
   "_auto_name_policy": "Unlabeled cells use the first three alphanumeric letters of the SEC base plus a stable numeric suffix, for example HAV_1. A prior generated registry or editor teleportalLabels keeps names stable across rebuilds.",
   "_build": {
-    "placed_blue_cells": 301,
-    "registry_rows": 302,
+    "placed_blue_cells": 303,
+    "registry_rows": 304,
     "labels_from_export": 305,
     "grades": {
-      "AUTO": 273,
-      "DERIVED": 28,
+      "AUTO": 271,
+      "DERIVED": 32,
       "INACTIVE": 1
     },
     "missing_sec_files": [],

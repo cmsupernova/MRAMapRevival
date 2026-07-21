@@ -264,6 +264,33 @@ function saveLocal(){
   }));
 }
 loadLocal();
+let TP_CLOUD_CONNECT=null;
+function connectTeleportalCloud(){
+  if(!(window.TeleportalLabels&&TeleportalLabels.Sync)){
+    return Promise.resolve({ok:false});
+  }
+  if(TeleportalLabels.Sync.ready){
+    return Promise.resolve({ok:true,labels:TeleportalLabels.load()});
+  }
+  if(!TP_CLOUD_CONNECT){
+    TP_CLOUD_CONNECT=TeleportalLabels.Sync.connect().finally(()=>{
+      if(!TeleportalLabels.Sync.ready) TP_CLOUD_CONNECT=null;
+    });
+  }
+  return TP_CLOUD_CONNECT;
+}
+if(window.TeleportalLabels&&TeleportalLabels.Sync){
+  TeleportalLabels.Sync.onChange(labels=>{
+    TELEPORTAL_LABELS=labels||TeleportalLabels.load();
+    saveLocal();
+  });
+  connectTeleportalCloud().then(res=>{
+    if(res&&res.ok){
+      TELEPORTAL_LABELS=res.labels||TeleportalLabels.load();
+      saveLocal();
+    }
+  });
+}
 FLOOR = clampFloor(FLOOR);
 
 (function migrateOverflowFloors(){
@@ -1051,7 +1078,12 @@ document.getElementById('tlmodal').onclick=e=>{ if(e.target.id==='tlmodal') clos
 });
 
 // ---- export / import ----
-document.getElementById('export').onclick=()=>{
+document.getElementById('export').onclick=async()=>{
+  const cloud=await connectTeleportalCloud();
+  if(cloud&&cloud.ok){
+    TELEPORTAL_LABELS=cloud.labels||TeleportalLabels.load();
+    saveLocal();
+  }
   const placements=[];
   const seen=new Set();
   function pushPlacement(c,r,lv,p){
