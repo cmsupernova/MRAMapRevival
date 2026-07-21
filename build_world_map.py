@@ -281,6 +281,63 @@ def fetch_supabase():
         return json.load(r)
 
 
+def fetch_supabase_teleportal_labels():
+    """Pull shared Blue TP labels stored as placements cell=tp:base:x:y."""
+    url = f"{SUPABASE_URL}/rest/v1/placements?select=*&cell=like.tp:*"
+    req = urllib.request.Request(url, headers={
+        "apikey": SUPABASE_KEY,
+        "Authorization": f"Bearer {SUPABASE_KEY}",
+        "Accept": "application/json",
+    })
+    try:
+        with urllib.request.urlopen(req, timeout=15) as r:
+            rows = json.load(r)
+    except Exception as e:
+        print(f"Supabase teleportal fetch failed ({e})")
+        return {}
+    out = {}
+    for row in rows or []:
+        cell = str(row.get("cell") or "")
+        if not cell.startswith("tp:"):
+            continue
+        parts = cell[3:].rsplit(":", 2)
+        if len(parts) != 3:
+            continue
+        base, xs, ys = parts
+        name = str(row.get("filename") or "").strip().upper()
+        if not base or not name or name == CLEARED:
+            continue
+        try:
+            x, y = int(xs), int(ys)
+        except ValueError:
+            continue
+        key = f"{base}:{x}:{y}"
+        out[key] = {
+            "name": name,
+            "sector_base": base,
+            "x": x,
+            "y": y,
+            "subtype": 1,
+            "grade": row.get("place_name") or "DERIVED",
+        }
+    return out
+
+
+def merge_teleportal_label_sources(source_raw):
+    """Export labels win over shared cloud labels when both set a cell."""
+    merged = {}
+    cloud = fetch_supabase_teleportal_labels()
+    if cloud:
+        merged.update(cloud)
+        print(f"loaded {len(cloud)} teleportal labels from Supabase")
+    if isinstance(source_raw, dict):
+        export = T.labels_from_raw(source_raw)
+        if export:
+            merged.update(export)
+            print(f"loaded {len(export)} teleportal labels from export")
+    return {"teleportalLabels": merged}
+
+
 def normalize_rows(raw, classic_grid=False):
     if isinstance(raw, dict):
         if "placements" in raw:
@@ -709,7 +766,7 @@ def main():
         B.MAPS_DIR,
     ]
     teleportal_registry = T.build_registry(
-        core, source_raw, seed_paths, sec_roots
+        core, merge_teleportal_label_sources(source_raw), seed_paths, sec_roots
     )
     tp_build = teleportal_registry.get("_build") or {}
     core["_meta"]["teleportal_registry"] = "mra_teleportal_registry.json"

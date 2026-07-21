@@ -1173,6 +1173,18 @@ const DB = {
       }).subscribe();
       this.ready=true; this.st('shared: '+this.name+' ('+(data?data.length:0)+' overrides)');
       refreshCells();
+      if(window.TeleportalLabels&&TeleportalLabels.Sync){
+        TeleportalLabels.Sync.onChange((labels)=>{
+          TELEPORTAL_LABELS=labels||{};
+          saveLocal();
+        });
+        const tp=await TeleportalLabels.Sync.connect();
+        if(tp&&tp.ok){
+          TELEPORTAL_LABELS=tp.labels||TeleportalLabels.load();
+          saveLocal();
+          this.st('shared: '+this.name+' ('+(data?data.length:0)+' map, '+tp.count+' TP)');
+        }
+      }
     }catch(e){ this.ready=false; this.st('connect failed'); console.error(e); }
   },
   applyRemote(row){

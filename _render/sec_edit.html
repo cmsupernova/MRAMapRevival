@@ -146,10 +146,12 @@
         <div class="linklist" id="linklist"></div>
       </div>
       <div id="tppanel" style="display:none">
-        <div class="small">Blue/public teleportals are object 0x01. Names are map metadata and are exported separately from the SEC bytes and custom travel links.</div>
+        <div class="small">Blue/public teleportals are object 0x01. Saving a name syncs to Supabase so collaborators see it without exporting.</div>
         <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin:8px 0">
           <button type="button" id="tpAuto">Name unlabeled</button>
+          <button type="button" id="tpPushAll" title="Push every local Blue TP label to Supabase">Push all to cloud</button>
           <span class="hint" id="tpCount"></span>
+          <span class="hint" id="tpSync">sync: …</span>
         </div>
         <div id="tpList"></div>
       </div>
@@ -186,6 +188,7 @@
 <script src="teleportal_registry.js"></script>
 <script src="teleportal_labels.js"></script>
 <script src="unified_map.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
 const GRID=33, PLAY=32, CELL=6, SIZE=GRID*GRID*CELL;       // 6534 bytes
 const MARGIN=6;                                              // ~20% of 32 for neighbor edges
@@ -1509,6 +1512,12 @@ document.getElementById('refsearch').addEventListener('input',e=>renderRefBrowse
 // ---- blue teleportal labels ----------------------------------------------
 let TP_LABELS=window.TeleportalLabels?TeleportalLabels.load():{};
 
+function setTpSync(text,ok){
+  const el=document.getElementById('tpSync');
+  if(!el) return;
+  el.textContent=text;
+  el.style.color=ok?'#67d67d':'#9aa0ad';
+}
 function currentTpBase(){
   return window.TeleportalLabels?TeleportalLabels.base(filename):String(filename||'').replace(/\.SEC$/i,'');
 }
@@ -1524,7 +1533,7 @@ function tpLabelAt(base,r,c){
   const hit=Object.keys(TP_LABELS).find(k=>k.toLowerCase()===wanted);
   return hit?{key:hit,value:TP_LABELS[hit]}:null;
 }
-function saveTpName(base,r,c,name){
+async function saveTpName(base,r,c,name){
   if(!window.TeleportalLabels) return;
   name=String(name||'').trim().toUpperCase();
   if(name&&!/^[A-Z0-9_+/-]+$/.test(name)){
@@ -1542,6 +1551,18 @@ function saveTpName(base,r,c,name){
   TP_LABELS=TeleportalLabels.set(TP_LABELS,base,c,r,name,'DERIVED');
   TeleportalLabels.save(TP_LABELS);
   refreshTpList();
+  if(TeleportalLabels.Sync){
+    if(name){
+      const label=TP_LABELS[TeleportalLabels.key(base,c,r)];
+      setTpSync('sync: uploading…',false);
+      const ok=await TeleportalLabels.Sync.upsert(label);
+      setTpSync(ok?'sync: shared':'sync: upload failed',ok);
+    } else {
+      setTpSync('sync: clearing…',false);
+      const ok=await TeleportalLabels.Sync.remove(base,c,r);
+      setTpSync(ok?'sync: shared':'sync: clear failed',ok);
+    }
+  }
 }
 function focusTpCell(r,c,name){
   tpFocusCell={r,c,name:String(name||'').trim().toUpperCase()};
@@ -1587,20 +1608,53 @@ function refreshTpList(){
     card.appendChild(meta); card.appendChild(row); box.appendChild(card);
   });
 }
-document.getElementById('tpAuto').onclick=()=>{
+document.getElementById('tpAuto').onclick=async ()=>{
   if(!window.TeleportalLabels) return;
   const base=currentTpBase();
   let changed=0;
+  const created=[];
   blueTpCells().forEach(p=>{
     if(tpLabelAt(base,p.r,p.c)) return;
     const name=TeleportalLabels.autoName(TP_LABELS,base);
     TP_LABELS=TeleportalLabels.set(TP_LABELS,base,p.c,p.r,name,'AUTO');
+    created.push(TP_LABELS[TeleportalLabels.key(base,p.c,p.r)]);
     changed++;
   });
   TeleportalLabels.save(TP_LABELS);
   refreshTpList();
+  if(TeleportalLabels.Sync&&TeleportalLabels.Sync.ready){
+    setTpSync('sync: uploading '+created.length+'…',false);
+    for(const label of created) await TeleportalLabels.Sync.upsert(label);
+    setTpSync('sync: shared',true);
+  }
   document.getElementById('readout').textContent='Named '+changed+' previously unlabeled blue teleportal(s).';
 };
+document.getElementById('tpPushAll').onclick=async ()=>{
+  if(!(TeleportalLabels&&TeleportalLabels.Sync)) return;
+  if(!TeleportalLabels.Sync.ready){
+    setTpSync('sync: connecting…',false);
+    const res=await TeleportalLabels.Sync.connect();
+    if(!res.ok){ setTpSync('sync: connect failed',false); return; }
+    TP_LABELS=res.labels||TeleportalLabels.load();
+  }
+  setTpSync('sync: pushing all…',false);
+  const res=await TeleportalLabels.Sync.pushAll(TP_LABELS);
+  setTpSync(res.ok?('sync: pushed '+res.count):'sync: push failed',!!res.ok);
+  refreshTpList();
+};
+if(window.TeleportalLabels&&TeleportalLabels.Sync){
+  TeleportalLabels.Sync.onChange((labels)=>{
+    TP_LABELS=labels||TeleportalLabels.load();
+    if(rightTab==='teleportals') refreshTpList();
+  });
+  TeleportalLabels.Sync.connect().then(res=>{
+    if(res&&res.ok){
+      TP_LABELS=res.labels||TeleportalLabels.load();
+      setTpSync('sync: shared ('+res.count+' cloud)',true);
+      if(rightTab==='teleportals') refreshTpList();
+    } else setTpSync('sync: local only',false);
+  });
+}
 
 // ---- travel / teleport link manager --------------------------------------
 let linkPick=null; // 'from' | 'to-work' | 'to-ref' | null
