@@ -973,9 +973,9 @@
       "level_req": null,
       "dest": null
     },
-    "DQE_2": {
-      "_grade": "AUTO",
-      "_evidence": "[AUTO] Default editable name assigned from the SEC filename; tile byte verified as blue/public object 0x01.",
+    "UNVIL_MA": {
+      "_grade": "DERIVED",
+      "_evidence": "[DERIVED] Named in the SEC/world-map editor; tile byte verified as object 0x01 during this build.",
       "sector_base": "DQEV162193b",
       "x": 31,
       "y": 16,
@@ -989,9 +989,9 @@
       "level_req": null,
       "dest": null
     },
-    "DQE_3": {
-      "_grade": "AUTO",
-      "_evidence": "[AUTO] Default editable name assigned from the SEC filename; tile byte verified as blue/public object 0x01.",
+    "UNVIL_MB": {
+      "_grade": "DERIVED",
+      "_evidence": "[DERIVED] Named in the SEC/world-map editor; tile byte verified as object 0x01 during this build.",
       "sector_base": "DQEV162193b",
       "x": 0,
       "y": 27,
@@ -1005,9 +1005,9 @@
       "level_req": null,
       "dest": null
     },
-    "EWG_1": {
-      "_grade": "AUTO",
-      "_evidence": "[AUTO] Default editable name assigned from the SEC filename; tile byte verified as blue/public object 0x01.",
+    "HAV_MAG": {
+      "_grade": "DERIVED",
+      "_evidence": "[DERIVED] Named in the SEC/world-map editor; tile byte verified as object 0x01 during this build.",
       "sector_base": "EWGB162193b",
       "x": 25,
       "y": 7,
@@ -1021,9 +1021,9 @@
       "level_req": null,
       "dest": null
     },
-    "EWG_2": {
-      "_grade": "AUTO",
-      "_evidence": "[AUTO] Default editable name assigned from the SEC filename; tile byte verified as blue/public object 0x01.",
+    "HAV_HOLY": {
+      "_grade": "DERIVED",
+      "_evidence": "[DERIVED] Named in the SEC/world-map editor; tile byte verified as object 0x01 during this build.",
       "sector_base": "EWGB162193b",
       "x": 15,
       "y": 8,
@@ -1037,9 +1037,9 @@
       "level_req": null,
       "dest": null
     },
-    "EWG_3": {
-      "_grade": "AUTO",
-      "_evidence": "[AUTO] Default editable name assigned from the SEC filename; tile byte verified as blue/public object 0x01.",
+    "DRUID_TR": {
+      "_grade": "DERIVED",
+      "_evidence": "[DERIVED] Named in the SEC/world-map editor; tile byte verified as object 0x01 during this build.",
       "sector_base": "EWGB162193b",
       "x": 9,
       "y": 15,
@@ -1053,9 +1053,9 @@
       "level_req": null,
       "dest": null
     },
-    "EWG_4": {
-      "_grade": "AUTO",
-      "_evidence": "[AUTO] Default editable name assigned from the SEC filename; tile byte verified as blue/public object 0x01.",
+    "WITCH_TR": {
+      "_grade": "DERIVED",
+      "_evidence": "[DERIVED] Named in the SEC/world-map editor; tile byte verified as object 0x01 during this build.",
       "sector_base": "EWGB162193b",
       "x": 29,
       "y": 19,
@@ -1069,9 +1069,9 @@
       "level_req": null,
       "dest": null
     },
-    "EWG_5": {
-      "_grade": "AUTO",
-      "_evidence": "[AUTO] Default editable name assigned from the SEC filename; tile byte verified as blue/public object 0x01.",
+    "PRIEST_TR": {
+      "_grade": "DERIVED",
+      "_evidence": "[DERIVED] Named in the SEC/world-map editor; tile byte verified as object 0x01 during this build.",
       "sector_base": "EWGB162193b",
       "x": 6,
       "y": 21,
@@ -1485,22 +1485,6 @@
       "level_req": null,
       "dest": null
     },
-    "OMR_4": {
-      "_grade": "AUTO",
-      "_evidence": "[AUTO] Default editable name assigned from the SEC filename; tile byte verified as blue/public object 0x01.",
-      "sector_base": "omr1",
-      "x": 19,
-      "y": 31,
-      "world": {
-        "x": 275,
-        "y": 417,
-        "layer": "b"
-      },
-      "color": "blue",
-      "subtype": 1,
-      "level_req": null,
-      "dest": null
-    },
     "REM_3": {
       "_grade": "AUTO",
       "_evidence": "[AUTO] Default editable name assigned from the SEC filename; tile byte verified as blue/public object 0x01.",
@@ -1661,9 +1645,9 @@
       "_evidence": "[DERIVED binding / VERIFIED tile] RE-PINNED 2026-07-19 on the NEW final world map. Owner walk-recorded MEMORIZE on the Haven inn teleportal at world(451,392,b). SAME physical cell as the old-map pin -- sector EWGB194225b intra (col=3,row=6), byte-VERIFIED via the stub WorldMap: raw rec 17 01 e0 00 00 00 (b1=0x01 TELEPORTAL, b5=0x00), identical bytes to the old map; only the ABSOLUTE world coord moved (sector repositioned to block 14,12; was world(99,200,b) on the 117-sector map). The pre-re-record diagnostic guess of world(451,392,b) matched exactly -- confirming EWGB194225b's sector+intra was stable across the map change (unlike KOFOR/HAV_COM's DQEV194225b, which was removed). Name HAV_INN VERIFIED-OBSERVED; name<->tile DERIVED (owner report + byte).",
       "_grade": "DERIVED"
     },
-    "EWG_6": {
-      "_grade": "AUTO",
-      "_evidence": "[AUTO] Default editable name assigned from the SEC filename; tile byte verified as blue/public object 0x01.",
+    "HAV_HALL": {
+      "_grade": "DERIVED",
+      "_evidence": "[DERIVED] Named in the SEC/world-map editor; tile byte verified as object 0x01 during this build.",
       "sector_base": "EWGB194225b",
       "x": 26,
       "y": 8,
@@ -1677,9 +1661,25 @@
       "level_req": null,
       "dest": null
     },
-    "EWG_7": {
-      "_grade": "AUTO",
-      "_evidence": "[AUTO] Default editable name assigned from the SEC filename; tile byte verified as blue/public object 0x01.",
+    "HAV_PUB": {
+      "_grade": "DERIVED",
+      "_evidence": "[DERIVED] Named in the SEC/world-map editor; tile byte verified as object 0x01 during this build.",
+      "sector_base": "EWGB194225b",
+      "x": 18,
+      "y": 9,
+      "world": {
+        "x": 466,
+        "y": 395,
+        "layer": "b"
+      },
+      "color": "blue",
+      "subtype": 1,
+      "level_req": null,
+      "dest": null
+    },
+    "WIZARD_TR": {
+      "_grade": "DERIVED",
+      "_evidence": "[DERIVED] Named in the SEC/world-map editor; tile byte verified as object 0x01 during this build.",
       "sector_base": "EWGB194225b",
       "x": 22,
       "y": 14,
@@ -1693,9 +1693,9 @@
       "level_req": null,
       "dest": null
     },
-    "EWG_8": {
-      "_grade": "AUTO",
-      "_evidence": "[AUTO] Default editable name assigned from the SEC filename; tile byte verified as blue/public object 0x01.",
+    "SORC_TR": {
+      "_grade": "DERIVED",
+      "_evidence": "[DERIVED] Named in the SEC/world-map editor; tile byte verified as object 0x01 during this build.",
       "sector_base": "EWGB194225b",
       "x": 31,
       "y": 19,
@@ -1709,9 +1709,9 @@
       "level_req": null,
       "dest": null
     },
-    "EWG_9": {
-      "_grade": "AUTO",
-      "_evidence": "[AUTO] Default editable name assigned from the SEC filename; tile byte verified as blue/public object 0x01.",
+    "NINJA_TR": {
+      "_grade": "DERIVED",
+      "_evidence": "[DERIVED] Named in the SEC/world-map editor; tile byte verified as object 0x01 during this build.",
       "sector_base": "EWGB194225b",
       "x": 21,
       "y": 21,
@@ -1725,9 +1725,9 @@
       "level_req": null,
       "dest": null
     },
-    "EWG_10": {
-      "_grade": "AUTO",
-      "_evidence": "[AUTO] Default editable name assigned from the SEC filename; tile byte verified as blue/public object 0x01.",
+    "ASSN_TR": {
+      "_grade": "DERIVED",
+      "_evidence": "[DERIVED] Named in the SEC/world-map editor; tile byte verified as object 0x01 during this build.",
       "sector_base": "EWGB194225b",
       "x": 30,
       "y": 21,
@@ -1741,9 +1741,9 @@
       "level_req": null,
       "dest": null
     },
-    "EWG_11": {
-      "_grade": "AUTO",
-      "_evidence": "[AUTO] Default editable name assigned from the SEC filename; tile byte verified as blue/public object 0x01.",
+    "HAV_DOCK": {
+      "_grade": "DERIVED",
+      "_evidence": "[DERIVED] Named in the SEC/world-map editor; tile byte verified as object 0x01 during this build.",
       "sector_base": "EWGB194225b",
       "x": 4,
       "y": 25,
@@ -1757,9 +1757,9 @@
       "level_req": null,
       "dest": null
     },
-    "GCH_4": {
-      "_grade": "AUTO",
-      "_evidence": "[AUTO] Default editable name assigned from the SEC filename; tile byte verified as blue/public object 0x01.",
+    "MONK_TR": {
+      "_grade": "DERIVED",
+      "_evidence": "[DERIVED] Named in the SEC/world-map editor; tile byte verified as object 0x01 during this build.",
       "sector_base": "GCHH194225b",
       "x": 3,
       "y": 4,
@@ -1773,9 +1773,9 @@
       "level_req": null,
       "dest": null
     },
-    "GCH_5": {
-      "_grade": "AUTO",
-      "_evidence": "[AUTO] Default editable name assigned from the SEC filename; tile byte verified as blue/public object 0x01.",
+    "MERC_TR": {
+      "_grade": "DERIVED",
+      "_evidence": "[DERIVED] Named in the SEC/world-map editor; tile byte verified as object 0x01 during this build.",
       "sector_base": "GCHH194225b",
       "x": 7,
       "y": 4,
@@ -1789,9 +1789,9 @@
       "level_req": null,
       "dest": null
     },
-    "GCH_6": {
-      "_grade": "AUTO",
-      "_evidence": "[AUTO] Default editable name assigned from the SEC filename; tile byte verified as blue/public object 0x01.",
+    "WARRIOR_TR": {
+      "_grade": "DERIVED",
+      "_evidence": "[DERIVED] Named in the SEC/world-map editor; tile byte verified as object 0x01 during this build.",
       "sector_base": "GCHH194225b",
       "x": 16,
       "y": 4,
@@ -1805,9 +1805,9 @@
       "level_req": null,
       "dest": null
     },
-    "GCH_7": {
-      "_grade": "AUTO",
-      "_evidence": "[AUTO] Default editable name assigned from the SEC filename; tile byte verified as blue/public object 0x01.",
+    "MYSTIC_TR": {
+      "_grade": "DERIVED",
+      "_evidence": "[DERIVED] Named in the SEC/world-map editor; tile byte verified as object 0x01 during this build.",
       "sector_base": "GCHH194225b",
       "x": 3,
       "y": 20,
@@ -1821,9 +1821,9 @@
       "level_req": null,
       "dest": null
     },
-    "GCH_8": {
-      "_grade": "AUTO",
-      "_evidence": "[AUTO] Default editable name assigned from the SEC filename; tile byte verified as blue/public object 0x01.",
+    "SAGE_TR": {
+      "_grade": "DERIVED",
+      "_evidence": "[DERIVED] Named in the SEC/world-map editor; tile byte verified as object 0x01 during this build.",
       "sector_base": "GCHH194225b",
       "x": 4,
       "y": 20,
@@ -1837,9 +1837,9 @@
       "level_req": null,
       "dest": null
     },
-    "GCH_9": {
-      "_grade": "AUTO",
-      "_evidence": "[AUTO] Default editable name assigned from the SEC filename; tile byte verified as blue/public object 0x01.",
+    "THIEF_TR": {
+      "_grade": "DERIVED",
+      "_evidence": "[DERIVED] Named in the SEC/world-map editor; tile byte verified as object 0x01 during this build.",
       "sector_base": "GCHH194225b",
       "x": 3,
       "y": 21,
@@ -1853,9 +1853,9 @@
       "level_req": null,
       "dest": null
     },
-    "GCH_10": {
-      "_grade": "AUTO",
-      "_evidence": "[AUTO] Default editable name assigned from the SEC filename; tile byte verified as blue/public object 0x01.",
+    "RANGER_TR": {
+      "_grade": "DERIVED",
+      "_evidence": "[DERIVED] Named in the SEC/world-map editor; tile byte verified as object 0x01 during this build.",
       "sector_base": "GCHH194225b",
       "x": 11,
       "y": 23,
@@ -1869,9 +1869,9 @@
       "level_req": null,
       "dest": null
     },
-    "GCH_11": {
-      "_grade": "AUTO",
-      "_evidence": "[AUTO] Default editable name assigned from the SEC filename; tile byte verified as blue/public object 0x01.",
+    "ENDUR_TR": {
+      "_grade": "DERIVED",
+      "_evidence": "[DERIVED] Named in the SEC/world-map editor; tile byte verified as object 0x01 during this build.",
       "sector_base": "GCHH194225b",
       "x": 8,
       "y": 28,
@@ -4853,10 +4853,10 @@
   "_build": {
     "placed_blue_cells": 301,
     "registry_rows": 302,
-    "labels_from_export": 302,
+    "labels_from_export": 305,
     "grades": {
-      "AUTO": 295,
-      "DERIVED": 6,
+      "AUTO": 273,
+      "DERIVED": 28,
       "INACTIVE": 1
     },
     "missing_sec_files": [],

@@ -313,11 +313,22 @@ def build_registry(world_map, raw_export, seed_paths, sec_roots):
         generated[name] = row
         counts[row.get("_grade") or "DERIVED"] += 1
 
-    # Preserve named pins whose sector/cell is not in this assembled world, but
-    # clear stale absolute coordinates so the server cannot jump to an old map.
+    active_cell_keys = {
+        _cell_key(cell["sector_base"], cell["x"], cell["y"]) for cell in cells
+    }
+    # Preserve intentional named pins whose cell is outside this assembled
+    # world. Do not retain replaced names for an active cell or disposable AUTO
+    # defaults, since those become misleading aliases after an editor rename.
     for name, row in (seed.get("teleportals") or {}).items():
         upper = str(name).upper()
         if upper in generated or not isinstance(row, dict):
+            continue
+        base, x, y = row.get("sector_base"), row.get("x"), row.get("y")
+        try:
+            old_cell_key = _cell_key(base, x, y)
+        except (TypeError, ValueError):
+            old_cell_key = None
+        if old_cell_key in active_cell_keys or row.get("_grade") == "AUTO":
             continue
         saved = copy.deepcopy(row)
         saved["world"] = None
