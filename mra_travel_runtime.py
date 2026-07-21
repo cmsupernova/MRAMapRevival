@@ -14,6 +14,7 @@ import threading
 
 LAYER_FROM_LEVEL = {0: "b", -1: "a", 1: "c"}
 ILLUSION_WALL_DOOR_TYPE = 0x03
+ILLUSION_WALL_RUNTIME_TYPE = 0x04
 
 
 def travel_debug():
@@ -249,9 +250,9 @@ def install_illusion_wall_hook(stub_ns):
             else 0
         )
         if authored_type == ILLUSION_WALL_DOOR_TYPE:
-            # The SEC design type marks a passable edge. Sending no runtime
-            # door art leaves the parent wall visible as the hidden passage.
-            return 0
+            # Runtime types 1..3 select WOODD/IROND/BLACKD art. Type 4 stays
+            # non-zero for client passability without selecting those atlases.
+            return ILLUSION_WALL_RUNTIME_TYPE
         return original(world, world_x, world_y, layer, edge)
 
     stub_ns["_door_grid_value"] = door_grid_value
